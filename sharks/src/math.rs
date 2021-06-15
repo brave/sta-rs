@@ -49,17 +49,47 @@ pub fn random_polynomial<R: rand::Rng>(s: GF256, k: u8, rng: &mut R) -> Vec<GF25
 // Each item of the iterator is a tuple `(x, [f_1(x), f_2(x)..])` where eaxh `f_i` is the result for the ith polynomial.
 // Each polynomial corresponds to one byte chunk of the original secret.
 // The iterator will start at `x = 1` and end at `x = 255`.
-pub fn get_evaluator(polys: Vec<Vec<GF256>>) -> impl Iterator<Item = Share> {
-    (1..=u8::max_value()).map(GF256).map(move |x| Share {
-        x: x.clone(),
-        y: polys
-            .iter()
-            .map(|p| {
-                p.iter()
-                    .fold(GF256(0), |acc, c| acc * x.clone() + c.clone())
-            })
-            .collect(),
-    })
+pub fn get_evaluator(polys: Vec<Vec<GF256>>) -> Evaluator {
+    Evaluator { polys, x: 0 }
+}
+
+#[derive(Debug)]
+pub struct Evaluator {
+    polys: Vec<Vec<GF256>>,
+    x: u8,
+}
+
+impl Evaluator {
+    fn evaluate(&self, x: u8) -> Share {
+        let x = GF256(x);
+        Share {
+            x: x.clone(),
+            y: self
+                .polys
+                .iter()
+                .map(|p| {
+                    p.iter()
+                        .fold(GF256(0), |acc, c| acc * x.clone() + c.clone())
+                })
+                .collect(),
+        }
+    }
+
+    pub fn gen<R: rand::Rng>(&self, rng: &mut R) -> Share {
+        let between = Uniform::new_inclusive(1, 255);
+        self.evaluate(between.sample(rng))
+    }
+}
+
+// Implement `Iterator` for `Evaluator`.
+// The `Iterator` trait only requires a method to be defined for the `next` element.
+impl Iterator for Evaluator {
+    type Item = Share;
+
+    fn next(&mut self) -> Option<Share> {
+        self.x = self.x.checked_add(1)?;
+        Some(self.evaluate(self.x))
+    }
 }
 
 #[cfg(test)]

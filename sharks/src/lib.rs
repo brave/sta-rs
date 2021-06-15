@@ -46,6 +46,7 @@ use alloc::vec::Vec;
 use hashbrown::HashSet;
 
 use field::GF256;
+pub use math::Evaluator;
 pub use share::Share;
 
 /// Tuple struct which implements methods to generate shares and recover secrets over a 256 bits Galois Field.
@@ -91,7 +92,8 @@ impl Sharks {
         &self,
         secret: &[u8],
         rng: &mut R,
-    ) -> impl Iterator<Item = Share> {
+        //) -> impl Iterator<Item = Share> {
+    ) -> Evaluator {
         let mut polys = Vec::with_capacity(secret.len());
 
         for chunk in secret {
@@ -113,7 +115,7 @@ impl Sharks {
     /// // Get 3 shares
     /// let shares: Vec<Share> = dealer.take(3).collect();
     #[cfg(feature = "std")]
-    pub fn dealer(&self, secret: &[u8]) -> impl Iterator<Item = Share> {
+    pub fn dealer(&self, secret: &[u8]) -> Evaluator {
         let mut rng = rand::thread_rng();
         self.dealer_rng(secret, &mut rng)
     }
@@ -155,8 +157,9 @@ impl Sharks {
             if Some(share.y.len()) != share_length {
                 return Err("All shares must have the same length");
             } else {
-                keys.insert(share.x.0);
-                values.push(share.clone());
+                if keys.insert(share.x.0) {
+                    values.push(share.clone());
+                }
             }
         }
 
@@ -212,6 +215,20 @@ mod tests {
     fn test_integration_works() {
         let sharks = Sharks(255);
         let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).take(255).collect();
+        let secret = sharks.recover(&shares).unwrap();
+        assert_eq!(secret, vec![1, 2, 3, 4]);
+    }
+
+    use core::iter;
+    #[test]
+    fn test_integration_works_random() {
+        let sharks = Sharks(40);
+        let mut rng = rand::thread_rng();
+        let evaluator = sharks.dealer(&[1, 2, 3, 4]);
+        let mut shares: Vec<Share> = iter::repeat_with(|| evaluator.gen(&mut rng))
+            .take(55)
+            .collect();
+        //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).take(255).collect();
         let secret = sharks.recover(&shares).unwrap();
         assert_eq!(secret, vec![1, 2, 3, 4]);
     }

@@ -32,7 +32,7 @@ use zeroize::Zeroize;
 /// let shares_bytes: Vec<Vec<u8>> = ask_shares();
 /// let shares: Vec<Share> = shares_bytes.iter().map(|s| Share::try_from(s.as_slice()).unwrap()).collect();
 /// let secret = sharks.recover(&shares).unwrap();
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary, Debug))]
 #[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 #[cfg_attr(feature = "zeroize_memory", zeroize(drop))]
