@@ -132,37 +132,32 @@ where
     T::IntoIter: Iterator<Item = &'a Share>,
 {
     let mut shares = shares.into_iter().peekable();
-    match shares.peek() {
-        Some(s_1) => {
-            let s = s_1.clone();
-            let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
-            let K = Sharks::from(s.A).recover(&shares)?;
+    let s = shares.peek().ok_or("no shares passed")?.clone();
+    let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
+    let K = Sharks::from(s.A).recover(&shares)?;
 
-            let mut key = Strobe::new(b"adss encrypt", SecParam::B256);
-            key.key(&K, false);
+    let mut key = Strobe::new(b"adss encrypt", SecParam::B256);
+    key.key(&K, false);
 
-            // M is the message
-            let mut M: Vec<u8> = vec![0; s.C.len()];
-            M.copy_from_slice(&s.C);
-            key.recv_enc(&mut M, false);
+    // M is the message
+    let mut M: Vec<u8> = vec![0; s.C.len()];
+    M.copy_from_slice(&s.C);
+    key.recv_enc(&mut M, false);
 
-            // R are the "random coins"
-            let mut R: Vec<u8> = vec![0; s.D.len()];
-            R.copy_from_slice(&s.D);
-            key.recv_enc(&mut R, false);
+    // R are the "random coins"
+    let mut R: Vec<u8> = vec![0; s.D.len()];
+    R.copy_from_slice(&s.D);
+    key.recv_enc(&mut R, false);
 
-            let c = Commune {
-                A: s.A,
-                M,
-                R,
-                T: None,
-            };
+    let c = Commune {
+        A: s.A,
+        M,
+        R,
+        T: None,
+    };
 
-            c.verify(&mut s.J.clone())?;
-            Ok(c)
-        }
-        None => Err("very broken".into()),
-    }
+    c.verify(&mut s.J.clone())?;
+    Ok(c)
 }
 
 #[cfg(test)]
