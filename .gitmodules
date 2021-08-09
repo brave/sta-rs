@@ -1,0 +1,6 @@
+[submodule "secret-sharing"]
+	path = secret-sharing
+	url = git@github.com:brave-experiments/kass-rs.git
+[submodule "ppoprf"]
+	path = ppoprf
+	url = git@github.com:alxdavids/ppoprf.git
