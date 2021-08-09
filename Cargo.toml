@@ -7,3 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ppoprf = { path = "./ppoprf" }
+adss-rs = { path = "./secret-sharing/adss-rs" }
+
+rand = { version = "0.7", default-features = false }
+ring = "0.16.20"
+zipf = "6.1.0"
