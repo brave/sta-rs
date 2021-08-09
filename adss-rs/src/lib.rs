@@ -1,6 +1,7 @@
 use rand;
 use sharks::Sharks;
 use std::error::Error;
+use std::fmt;
 use strobe_rs::{SecParam, Strobe};
 
 mod rng;
@@ -8,7 +9,7 @@ use crate::rng::StrobeRng;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccessStructure {
-    threshold: u8,
+    threshold: usize,
 }
 
 /// An `AccessStructure` defines how a message is to be split among multiple parties
@@ -17,8 +18,8 @@ pub struct AccessStructure {
 /// are needed to reconstruct the original `Commune`
 impl AccessStructure {
     /// Convert this `AccessStructure` to a byte array.
-    pub fn to_bytes(&self) -> [u8; 1] {
-        [self.threshold]
+    pub fn to_bytes(&self) -> [u8; 8] {
+        self.threshold.to_le_bytes()
     }
 }
 
@@ -61,14 +62,25 @@ pub struct Share {
     J: [u8; 64],
     T: (),
 }
+impl fmt::Debug for Share {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Share")
+         .field("S", &self.S)
+         .finish()
+    }
+}
 
 #[allow(non_snake_case)]
 impl Commune {
+    pub fn new(threshold: usize, message: Vec<u8>, randomness: Vec<u8>, transcript: Option<Strobe>) -> Self {
+        Commune{ A: AccessStructure{ threshold }, M: message, R: randomness, T: transcript }
+    }
+
     pub fn share(self) -> Share {
         // H4κ = (A, M, R, T)
         let mut transcript = self
             .T
-            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B256));
+            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
         transcript.ad(&self.A.to_bytes(), false);
         transcript.ad(&self.M, false);
         transcript.key(&self.R, false);
@@ -78,13 +90,13 @@ impl Commune {
         transcript.send_mac(&mut J, false);
 
         // K is the derived key used to encrypt the message and our "random coins"
-        let mut K = [0u8; 32];
+        let mut K = [0u8; 16];
         transcript.prf(&mut K, false);
 
         // L is the randomness to be fed to secret sharing polynomial generation
         let mut L: StrobeRng = transcript.into();
 
-        let mut key = Strobe::new(b"adss encrypt", SecParam::B256);
+        let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
         key.key(&K, false);
 
         // C is the encrypted message
@@ -98,7 +110,9 @@ impl Commune {
         key.send_enc(&mut D, false);
 
         // Generate a random share
-        let polys = Sharks::from(self.A.clone()).dealer_rng(&K, &mut L);
+        let mut K_vec: Vec<u8> = K.to_vec();
+        K_vec.extend(vec![0u8; 16]);
+        let polys = Sharks::from(self.A.clone()).dealer_rng(&K_vec, &mut L);
         let S = polys.gen(&mut rand::thread_rng());
         Share {
             A: self.A,
@@ -110,11 +124,15 @@ impl Commune {
         }
     }
 
+    pub fn get_message(&self) -> Vec<u8> {
+        self.M.clone()
+    }
+
     fn verify(&self, J: &mut [u8]) -> Result<(), Box<dyn Error>> {
         let mut transcript = self
             .clone()
             .T
-            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B256));
+            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
         transcript.ad(&self.A.to_bytes(), false);
         transcript.ad(&self.M, false);
         transcript.key(&self.R, false);
@@ -134,9 +152,10 @@ where
     let mut shares = shares.into_iter().peekable();
     let s = shares.peek().ok_or("no shares passed")?.clone();
     let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
-    let K = Sharks::from(s.A).recover(&shares)?;
+    let key = Sharks::from(s.A).recover(&shares)?;
+    let K = key[..16].to_vec();
 
-    let mut key = Strobe::new(b"adss encrypt", SecParam::B256);
+    let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
     key.key(&K, false);
 
     // M is the message
