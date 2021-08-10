@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
+use std::str;
 
 extern crate ring;
 use ring::aead;
@@ -17,7 +18,9 @@ use zipf::ZipfDistribution;
 
 pub const ZIPF_NUM_SITES: usize = 1000;
 pub const ZIPF_EXPONENT: f64 = 1.03;
-pub const MEASUREMENT_MAX_LEN: usize = 8;
+
+pub const AES_BLOCK_LEN: usize = 24;
+pub const MEASUREMENT_MAX_LEN: usize = 32;
 
 pub struct Measurement(Vec<u8>);
 impl Measurement {
@@ -55,10 +58,15 @@ impl Measurement {
     }
 }
 
+#[derive(Debug)]
 pub struct AssociatedData(Vec<u8>);
 impl AssociatedData {
-    pub fn new(s: &str) -> Self {
-        Self(s.as_bytes().to_vec())
+    pub fn new(buf: &[u8]) -> Self {
+        Self(buf.to_vec())
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        AssociatedData::new(s.as_bytes())
     }
 
     pub fn as_vec(&self) -> Vec<u8> {
@@ -84,9 +92,7 @@ impl Ciphertext {
         
         let unbound = aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap();
         let ls_key = aead::LessSafeKey::new(unbound);
-        println!("encrypt: nonce: {:?}, in_out.len: {:?}", nonce_buf, in_out.len());
         ls_key.seal_in_place_append_tag(nonce, aead::Aad::empty(), &mut in_out).unwrap();
-        println!("encrypt: in_out: {:?}", in_out);
         
         Self { bytes: in_out, nonce: nonce_buf, aad: None }
     }
@@ -95,9 +101,9 @@ impl Ciphertext {
         let ls_key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap());
         let mut in_out = self.bytes.clone();
         let nonce = aead::Nonce::assume_unique_for_key(self.nonce);
-        println!("decrypt: nonce: {:?}, in_out: {:?}", self.nonce, in_out);
         ls_key.open_in_place(nonce, aead::Aad::empty(), &mut in_out).unwrap();
-        in_out[..in_out.len()-aead::AES_128_GCM.tag_len()].to_vec()
+        let plaintext = in_out[..in_out.len()-aead::AES_128_GCM.tag_len()].to_vec();
+        plaintext
     }
 }
 
@@ -116,7 +122,7 @@ impl Triple {
 // AggregationServer output from the protocol
 pub struct Output {
     x: Measurement,
-    aux: Vec<Vec<u8>>,
+    aux: Vec<Option<AssociatedData>>,
 }
 impl fmt::Debug for Output {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -135,18 +141,18 @@ pub struct Client {
     aux: Option<AssociatedData>,
 }
 impl Client {
-    pub fn new(x: &[u8], threshold: u8, epoch: &str, aux: Option<&str>) -> Self {
+    pub fn new(x: &[u8], threshold: u8, epoch: &str, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::new(x);
-        if let Some(s) = aux {
-            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(s)) };
+        if let Some(v) = aux {
+            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(&v)) };
         }
         Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: None }
     }
 
-    pub fn random(threshold: u8, epoch: &str, aux: Option<&str>) -> Self {
+    pub fn random(threshold: u8, epoch: &str, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::zipf();
-        if let Some(s) = aux {
-            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(s)) };
+        if let Some(v) = aux {
+            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(&v)) };
         }
         Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: None }
     }
@@ -219,11 +225,12 @@ impl AggregationServer {
         let ciphertexts: Vec<Ciphertext> = triples.into_iter().map(|t| t.ciphertext.clone()).collect();
         let plaintexts: Vec<Vec<u8>> = ciphertexts.into_iter().map(|c| c.decrypt(&enc_key_buf)).collect();
         
-        let splits: Vec<(Vec<u8>, Vec<u8>)> = plaintexts.into_iter().map(|p| {
-            if p.len() > MEASUREMENT_MAX_LEN {
-                return (p[..MEASUREMENT_MAX_LEN].to_vec(), p[MEASUREMENT_MAX_LEN..].to_vec());
+        let splits: Vec<(Vec<u8>, Option<AssociatedData>)> = plaintexts.into_iter().map(|p| {
+            let max_aes_length = MEASUREMENT_MAX_LEN + AES_BLOCK_LEN - (MEASUREMENT_MAX_LEN % AES_BLOCK_LEN);
+            if p.len() > max_aes_length {
+                return (p[..MEASUREMENT_MAX_LEN].to_vec(), Some(AssociatedData(p[MEASUREMENT_MAX_LEN..].to_vec())));
             }
-            (p, Vec::new())
+            (p, None)
         }).collect();
         let tag = &splits[0].0;
         for i in 1..splits.len() {
@@ -232,7 +239,7 @@ impl AggregationServer {
                 panic!("tag mismatch ({:?} != {:?})", tag, new_tag);
             }
         }
-        Output { x: Measurement(tag.clone()), aux: splits.into_iter().map(|val| val.1).filter(|v| v.len() > 0).collect() }
+        Output { x: Measurement(tag.clone()), aux: splits.into_iter().map(|val| val.1).collect() }
     }
 
     fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) {
@@ -282,23 +289,128 @@ mod tests {
     use super::*;
 
     #[test]
-    fn end_to_end() {
+    fn star1_no_aux_multiple_block() {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
+        let str1 = "hello world";
+        let str2 = "goodbye sweet prince";
         for i in 0..10 {
             if i % 3 == 0 {
-                clients.push(Client::new(b"three", threshold, epoch, None));
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
             } else if i % 4 == 0 {
-                clients.push(Client::new(b"four", threshold, epoch, None));
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
             } else {
-                clients.push(Client::random(threshold, epoch, None));
+                clients.push(Client::new(&[i as u8], threshold, epoch, None));
             }
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
         let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
-        outputs.iter().for_each(|o| println!("{:?}", o));
+        for o in outputs {
+            let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
+            if tag_str == str1 {
+                assert_eq!(o.aux.len(), 4);
+            } else if tag_str == str2 {
+                assert_eq!(o.aux.len(), 2);
+            } else {
+                panic!("Unexpected tag: {}", tag_str);
+            }
+
+            for a in o.aux {
+                if let Some(b) = a {
+                    panic!("Unexpected auxiliary data: {:?}", b);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn star1_no_aux_single_block() {
+        let mut clients = Vec::new();
+        let threshold = 2;
+        let epoch = "t";
+        let str1 = "three";
+        let str2 = "four";
+        for i in 0..10 {
+            if i % 3 == 0 {
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
+            } else if i % 4 == 0 {
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
+            } else {
+                clients.push(Client::new(&[i as u8], threshold, epoch, None));
+            }
+        }
+        let agg_server = AggregationServer::new(threshold, epoch);
+
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let outputs = agg_server.retrieve_outputs(&triples);
+        for o in outputs {
+            let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
+            if tag_str == str1 {
+                assert_eq!(o.aux.len(), 4);
+            } else if tag_str == str2 {
+                assert_eq!(o.aux.len(), 2);
+            } else {
+                panic!("Unexpected tag: {}", tag_str);
+            }
+
+            for a in o.aux {
+                if let Some(b) = a {
+                    panic!("Unexpected auxiliary data: {:?}", b);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn star1_with_aux_multiple_block() {
+        let mut clients = Vec::new();
+        let threshold = 2;
+        let epoch = "t";
+        let str1 = "hello world";
+        let str2 = "goodbye sweet prince";
+        for i in 0..10 {
+            if i % 3 == 0 {
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, Some(vec![i+1 as u8; 1])));
+            } else if i % 4 == 0 {
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, Some(vec![i+1 as u8; 1])));
+            } else {
+                clients.push(Client::new(&[i as u8], threshold, epoch, Some(vec![i+1 as u8; 1])));
+            }
+        }
+        let agg_server = AggregationServer::new(threshold, epoch);
+
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let outputs = agg_server.retrieve_outputs(&triples);
+        for o in outputs {
+            let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
+            if tag_str == str1 {
+                assert_eq!(o.aux.len(), 4);
+            } else if tag_str == str2 {
+                assert_eq!(o.aux.len(), 2);
+            } else {
+                panic!("Unexpected tag: {}", tag_str);
+            }
+
+            for a in o.aux {
+                match a {
+                    None => panic!("Expected auxiliary data!"),
+                    Some(b) => {
+                        let v = b.as_vec();
+                        for i in 0..10 {
+                            let aux_str = str::from_utf8(&v).unwrap().trim_end_matches(char::from(0));
+                            if aux_str.len() > 1 {
+                                panic!("Auxiliary data has wrong length: {}", v.len());
+                            } else if v[0] == i as u8 {
+                                return;
+                            }
+                        }
+                        panic!("Auxiliary data has unexpected value: {}", v[0]);
+                    }
+                }
+            }
+        }
     }
 }
