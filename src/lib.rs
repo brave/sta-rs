@@ -21,16 +21,17 @@ pub const MEASUREMENT_MAX_LEN: usize = 8;
 
 pub struct Measurement(Vec<u8>);
 impl Measurement {
-    fn new(x: Vec<u8>) -> Self {
-        if x.len() > MEASUREMENT_MAX_LEN {
+    fn new(x: &[u8]) -> Self {
+        let mut m = x.to_vec();
+        if m.len() > MEASUREMENT_MAX_LEN {
             panic!("Length of string ({:?}) is too long");
         }
-        x.extend(vec![0u8; MEASUREMENT_MAX_LEN-x.len()]);
-        Self(x)
+        m.extend(vec![0u8; MEASUREMENT_MAX_LEN-x.len()]);
+        Self(m)
     }
 
     fn from_str(s: &str) -> Self {
-        let s_bytes = s.as_bytes().to_vec();
+        let s_bytes = s.as_bytes();
         Measurement::new(s_bytes)
     }
 
@@ -89,7 +90,7 @@ impl Ciphertext {
 
     fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
         let ls_key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap());
-        let mut in_out = Vec::from(self.bytes);
+        let mut in_out = self.bytes.clone();
         in_out.extend(vec![0u8; aead::AES_128_GCM.tag_len()]);
         let nonce = aead::Nonce::assume_unique_for_key(self.nonce);
         ls_key.open_in_place(nonce, aead::Aad::empty(), &mut in_out);
@@ -132,7 +133,7 @@ pub struct Client {
 }
 impl Client {
     pub fn new(x: &[u8], threshold: u8, epoch: &str, aux: Option<&str>) -> Self {
-        let x = Measurement::new(x.to_vec());
+        let x = Measurement::new(x);
         if let Some(s) = aux {
             return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(s)) };
         }
@@ -155,14 +156,14 @@ impl Client {
 
         let ciphertext = self.derive_ciphertext(&r[0]);
         let share = self.share(&r[0], &r[1]);
-        let tag = r[2];
-        Triple::new(ciphertext, share, &tag)
+        let tag = &r[2];
+        Triple::new(ciphertext, share, tag)
     }
 
     fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
-        let output = Vec::new();
+        let mut output = Vec::new();
         for i in 0..3 {
-            let hash = Context::new(&SHA256);
+            let mut hash = Context::new(&SHA256);
             hash.update(randomness);
             hash.update(&[i as u8]);
             output.push(hash.finish().as_ref().to_vec());
@@ -173,9 +174,9 @@ impl Client {
     fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
         let mut enc_key = vec![0u8; 32];
         derive_enc_key(r1, self.epoch.as_bytes(), &mut enc_key);
-        let data = Vec::from(self.x.as_vec());
-        if let Some(aux) = self.aux {
-            data.extend(aux.as_vec());
+        let mut data = Vec::from(self.x.as_vec());
+        if let Some(aux) = &self.aux {
+            data.extend(aux.0.clone());
         }
         Ciphertext::new(&enc_key, &data)
     }
@@ -212,7 +213,7 @@ impl AggregationServer {
         let mut enc_key_buf = vec![0u8, 32];
         self.key_recover(triples, &mut enc_key_buf);
         
-        let ciphertexts: Vec<Ciphertext> = triples.into_iter().map(|t| t.ciphertext).collect();
+        let ciphertexts: Vec<Ciphertext> = triples.into_iter().map(|t| t.ciphertext.clone()).collect();
         let plaintexts: Vec<Vec<u8>> = ciphertexts.into_iter().map(|c| c.decrypt(&enc_key_buf)).collect();
         
         let splits: Vec<(Vec<u8>, Vec<u8>)> = plaintexts.into_iter().map(|p| {
@@ -221,21 +222,21 @@ impl AggregationServer {
             }
             (p, Vec::new())
         }).collect();
-        let mut tag = splits[0].0;
+        let tag = &splits[0].0;
         for i in 1..splits.len() {
-            let new_tag = splits[i].0;
+            let new_tag = &splits[i].0;
             if new_tag != tag {
                 panic!("tag mismatch ({:?} != {:?})", tag, new_tag);
             }
         }
-        Output { x: Measurement(tag), aux: splits.into_iter().map(|val| val.1).filter(|v| v.len() > 0).collect() }
+        Output { x: Measurement(tag.clone()), aux: splits.into_iter().map(|val| val.1).filter(|v| v.len() > 0).collect() }
     }
 
     fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) {
-        let shares: Vec<Share> = triples.into_iter().map(|triple| triple.share).collect();
+        let shares: Vec<Share> = triples.into_iter().map(|triple| triple.share.clone()).collect();
         let commune = self.share_recover(&shares);
         let message = commune.get_message();
-        derive_enc_key(&message, self.epoch.as_bytes(), &mut enc_key);
+        derive_enc_key(&message, self.epoch.as_bytes(), enc_key);
     }
 
     fn share_recover(&self, shares: &[Share]) -> Commune {
@@ -248,12 +249,12 @@ impl AggregationServer {
     }
     
     fn collect_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
-        let collected_triples: HashMap<String, Vec<Triple>> = HashMap::new();
+        let mut collected_triples: HashMap<String, Vec<Triple>> = HashMap::new();
         for triple in triples {
             let s = format!("{:x?}", triple.tag);
             match collected_triples.entry(s) {
-                Entry::Vacant(e) => { e.insert(vec![*triple]); },
-                Entry::Occupied(mut e) => { e.get_mut().push(*triple); }
+                Entry::Vacant(e) => { e.insert(vec![triple.clone()]); },
+                Entry::Occupied(mut e) => { e.get_mut().push(triple.clone()); }
             }
         }
         collected_triples.values().cloned().collect()
@@ -266,9 +267,10 @@ fn derive_enc_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) -> Vec<u8> {
     }
     let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, epoch);
     let prk = salt.extract(r1);
-    let okm = prk.expand(&[vec!["star_threshold_agg"; 1]], hkdf::HKDF_SHA256);
+    let expand_info = &["star_threshold_agg".as_bytes()];
+    let okm = prk.expand(expand_info, hkdf::HKDF_SHA256);
     if let Ok(derived) = okm {
-        derived.fill(&mut key_out);
+        derived.fill(key_out).unwrap();
     }
     panic!("Failed to derive key");
 }
@@ -279,7 +281,7 @@ mod tests {
 
     #[test]
     fn end_to_end() {
-        let clients = Vec::new();
+        let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
         for i in 0..10 {
