@@ -42,7 +42,9 @@ impl Measurement {
         let mut rng = rand::thread_rng();
         let zipf = ZipfDistribution::new(ZIPF_NUM_SITES, ZIPF_EXPONENT).unwrap();
         let sample = zipf.sample(&mut rng).to_le_bytes();
-        Self(sample.to_vec())
+        let mut extended = sample.to_vec();
+        extended.extend(vec![0u8; MEASUREMENT_MAX_LEN-sample.len()]);
+        Self(extended.to_vec())
     }
 
     fn as_slice(&self) -> &[u8] {
@@ -410,6 +412,26 @@ mod tests {
                         panic!("Auxiliary data has unexpected value: {}", v[0]);
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn star1_rand_with_aux_multiple_block() {
+        let mut clients = Vec::new();
+        let threshold = 5;
+        let epoch = "t";
+        for i in 0..254 {
+            clients.push(Client::random(threshold, epoch, Some(vec![i+1 as u8; 4])));
+        }
+        let agg_server = AggregationServer::new(threshold, epoch);
+
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let outputs = agg_server.retrieve_outputs(&triples);
+        for o in outputs {
+            let aux = o.aux[0].as_ref();
+            if let None = aux {
+                panic!("Expected auxiliary data");
             }
         }
     }
