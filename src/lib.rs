@@ -421,7 +421,7 @@ mod tests {
         let mut clients = Vec::new();
         let threshold = 5;
         let epoch = "t";
-        for i in 0..254 {
+        for i in 0..128 {
             clients.push(Client::random(threshold, epoch, Some(vec![i+1 as u8; 4])));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
@@ -429,9 +429,16 @@ mod tests {
         let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
-            let aux = o.aux[0].as_ref();
-            if let None = aux {
-                panic!("Expected auxiliary data");
+            for aux in o.aux {
+                if let None = aux {
+                    panic!("Expected auxiliary data");
+                } else if let Some(a) = aux {
+                    let val = a.0[0];
+                    assert!(val < 129);
+                    for i in 1..3 {
+                        assert_eq!(a.0[i], val);
+                    }
+                }
             }
         }
     }
