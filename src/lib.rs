@@ -13,6 +13,7 @@ use ring::rand::{SecureRandom, SystemRandom};
 use rand::distributions::Distribution;
 
 use adss_rs::{Commune, Share, recover};
+use ppoprf::ppoprf::{Server as OPRFServer, end_to_end_evaluation};
 
 use zipf::ZipfDistribution;
 
@@ -140,29 +141,37 @@ pub struct Client {
     x: Measurement,
     threshold: u8,
     epoch: String,
+    use_local_rand: bool,
     aux: Option<AssociatedData>,
 }
 impl Client {
-    pub fn new(x: &[u8], threshold: u8, epoch: &str, aux: Option<Vec<u8>>) -> Self {
+    pub fn new(x: &[u8], threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::new(x);
         if let Some(v) = aux {
-            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(&v)) };
+            return Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
         }
-        Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: None }
+        Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: None }
     }
 
-    pub fn random(threshold: u8, epoch: &str, aux: Option<Vec<u8>>) -> Self {
+    pub fn random(threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::zipf();
         if let Some(v) = aux {
-            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: Some(AssociatedData::new(&v)) };
+            return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
         }
-        Self{ x: x, threshold: threshold, epoch: epoch.to_string(), aux: None }
+        Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: None }
     }
 
     // Generates a triple that is used in the aggregation phase
-    pub fn generate_triple(&self) -> Triple {
+    pub fn generate_triple(&self, oprf_server: Option<&OPRFServer>) -> Triple {
         let mut rnd = vec![0u8; 32];
-        self.sample_core_randomness(&mut rnd);
+        if self.use_local_rand {
+            self.sample_local_randomness(&mut rnd);
+        } else {
+            if let None = oprf_server {
+                panic!("No OPRF server specified");
+            }
+            self.sample_oprf_randomness(&oprf_server.unwrap(), &mut rnd);
+        }
         let r = self.derive_random_values(&rnd);
 
         let ciphertext = self.derive_ciphertext(&r[0]);
@@ -197,12 +206,19 @@ impl Client {
         c.share()
     }
 
-    fn sample_core_randomness(&self, out: &mut [u8]) {
+    fn sample_local_randomness(&self, out: &mut [u8]) {
         if out.len() != digest::SHA256_OUTPUT_LEN {
             panic!("Output buffer length ({}) does not match randomness length ({})", out.len(), digest::SHA256_OUTPUT_LEN);
         }
-        let digest = digest::digest(&digest::SHA256, &self.x.as_slice());
+        let mut hash = Context::new(&digest::SHA256);
+        hash.update(&self.x.as_slice());
+        hash.update(self.epoch.as_bytes());
+        let digest = hash.finish();
         out.copy_from_slice(digest.as_ref());
+    }
+
+    fn sample_oprf_randomness(&self, oprf_server: &OPRFServer, out: &mut [u8]) {
+        end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }
 }
 
@@ -289,9 +305,48 @@ fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    
     #[test]
     fn star1_no_aux_multiple_block() {
+        star_no_aux_multiple_block(true, None);
+    }
+    
+    #[test]
+    fn star1_no_aux_single_block() {
+        star_no_aux_single_block(true, None);
+    }
+    
+    #[test]
+    fn star1_with_aux_multiple_block() {
+        star_with_aux_multiple_block(true, None);
+    }
+    
+    #[test]
+    fn star1_rand_with_aux_multiple_block() {
+        star_rand_with_aux_multiple_block(true, None);
+    }
+
+    #[test]
+    fn star2_no_aux_multiple_block() {
+        star_no_aux_multiple_block(false, Some(OPRFServer::new()));
+    }
+    
+    #[test]
+    fn star2_no_aux_single_block() {
+        star_no_aux_single_block(false, Some(OPRFServer::new()));
+    }
+    
+    #[test]
+    fn star2_with_aux_multiple_block() {
+        star_with_aux_multiple_block(false, Some(OPRFServer::new()));
+    }
+    
+    #[test]
+    fn star2_rand_with_aux_multiple_block() {
+        star_rand_with_aux_multiple_block(false, Some(OPRFServer::new()));
+    }
+
+    fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -299,16 +354,16 @@ mod tests {
         let str2 = "goodbye sweet prince";
         for i in 0..10 {
             if i % 3 == 0 {
-                clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, use_local_rand, None));
             } else if i % 4 == 0 {
-                clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, use_local_rand, None));
             } else {
-                clients.push(Client::new(&[i as u8], threshold, epoch, None));
+                clients.push(Client::new(&[i as u8], threshold, epoch, use_local_rand, None));
             }
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
-        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple(oprf_server.as_ref())).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
             let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
@@ -328,8 +383,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn star1_no_aux_single_block() {
+    fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -337,16 +391,16 @@ mod tests {
         let str2 = "four";
         for i in 0..10 {
             if i % 3 == 0 {
-                clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, use_local_rand, None));
             } else if i % 4 == 0 {
-                clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, use_local_rand, None));
             } else {
-                clients.push(Client::new(&[i as u8], threshold, epoch, None));
+                clients.push(Client::new(&[i as u8], threshold, epoch, use_local_rand, None));
             }
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
-        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple(oprf_server.as_ref())).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
             let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
@@ -366,8 +420,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn star1_with_aux_multiple_block() {
+    fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -375,16 +428,16 @@ mod tests {
         let str2 = "goodbye sweet prince";
         for i in 0..10 {
             if i % 3 == 0 {
-                clients.push(Client::new(str1.as_bytes(), threshold, epoch, Some(vec![i+1 as u8; 1])));
+                clients.push(Client::new(str1.as_bytes(), threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 1])));
             } else if i % 4 == 0 {
-                clients.push(Client::new(str2.as_bytes(), threshold, epoch, Some(vec![i+1 as u8; 1])));
+                clients.push(Client::new(str2.as_bytes(), threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 1])));
             } else {
-                clients.push(Client::new(&[i as u8], threshold, epoch, Some(vec![i+1 as u8; 1])));
+                clients.push(Client::new(&[i as u8], threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 1])));
             }
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
-        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple(oprf_server.as_ref())).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
             let tag_str = str::from_utf8(&o.x.0).unwrap().trim_end_matches(char::from(0));
@@ -416,17 +469,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn star1_rand_with_aux_multiple_block() {
+    fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 5;
         let epoch = "t";
         for i in 0..128 {
-            clients.push(Client::random(threshold, epoch, Some(vec![i+1 as u8; 4])));
+            clients.push(Client::random(threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
-        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple()).collect();
+        let triples: Vec<Triple> = clients.into_iter().map(|c| c.generate_triple(oprf_server.as_ref())).collect();
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
             for aux in o.aux {
