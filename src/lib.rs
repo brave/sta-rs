@@ -21,21 +21,21 @@ pub const MEASUREMENT_MAX_LEN: usize = 8;
 
 pub struct Measurement(Vec<u8>);
 impl Measurement {
-    fn new(x: &[u8]) -> Self {
+    pub fn new(x: &[u8]) -> Self {
         let mut m = x.to_vec();
         if m.len() > MEASUREMENT_MAX_LEN {
-            panic!("Length of string ({:?}) is too long");
+            panic!("Length of string ({:?}) is too long", m.len());
         }
         m.extend(vec![0u8; MEASUREMENT_MAX_LEN-x.len()]);
         Self(m)
     }
 
-    fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Self {
         let s_bytes = s.as_bytes();
         Measurement::new(s_bytes)
     }
 
-    fn zipf() -> Self {
+    pub fn zipf() -> Self {
         let mut rng = rand::thread_rng();
         let zipf = ZipfDistribution::new(ZIPF_NUM_SITES, ZIPF_EXPONENT).unwrap();
         let sample = zipf.sample(&mut rng).to_le_bytes();
@@ -50,18 +50,18 @@ impl Measurement {
         self.0.clone()
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 }
 
 pub struct AssociatedData(Vec<u8>);
 impl AssociatedData {
-    fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         Self(s.as_bytes().to_vec())
     }
 
-    fn as_vec(&self) -> Vec<u8> {
+    pub fn as_vec(&self) -> Vec<u8> {
         self.0.clone()
     }
 }
@@ -82,8 +82,11 @@ impl Ciphertext {
         let mut in_out = data.to_vec();
         in_out.extend(vec![0u8; aead::AES_128_GCM.tag_len()]);
         
-        let ls_key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap());
-        ls_key.seal_in_place_append_tag(nonce, aead::Aad::empty(), &mut in_out);
+        let unbound = aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap();
+        let ls_key = aead::LessSafeKey::new(unbound);
+        println!("encrypt: nonce: {:?}, in_out.len: {:?}", nonce_buf, in_out.len());
+        ls_key.seal_in_place_append_tag(nonce, aead::Aad::empty(), &mut in_out).unwrap();
+        println!("encrypt: in_out: {:?}", in_out);
         
         Self { bytes: in_out, nonce: nonce_buf, aad: None }
     }
@@ -91,9 +94,9 @@ impl Ciphertext {
     fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
         let ls_key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap());
         let mut in_out = self.bytes.clone();
-        in_out.extend(vec![0u8; aead::AES_128_GCM.tag_len()]);
         let nonce = aead::Nonce::assume_unique_for_key(self.nonce);
-        ls_key.open_in_place(nonce, aead::Aad::empty(), &mut in_out);
+        println!("decrypt: nonce: {:?}, in_out: {:?}", self.nonce, in_out);
+        ls_key.open_in_place(nonce, aead::Aad::empty(), &mut in_out).unwrap();
         in_out[..in_out.len()-aead::AES_128_GCM.tag_len()].to_vec()
     }
 }
@@ -172,8 +175,8 @@ impl Client {
     }
 
     fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
-        let mut enc_key = vec![0u8; 32];
-        derive_enc_key(r1, self.epoch.as_bytes(), &mut enc_key);
+        let mut enc_key = vec![0u8; 16];
+        derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
         let mut data = Vec::from(self.x.as_vec());
         if let Some(aux) = &self.aux {
             data.extend(aux.0.clone());
@@ -210,7 +213,7 @@ impl AggregationServer {
     }
 
     fn recover_measurements(&self, triples: &[Triple]) -> Output {
-        let mut enc_key_buf = vec![0u8, 32];
+        let mut enc_key_buf = vec![0u8; 16];
         self.key_recover(triples, &mut enc_key_buf);
         
         let ciphertexts: Vec<Ciphertext> = triples.into_iter().map(|t| t.ciphertext.clone()).collect();
@@ -236,7 +239,7 @@ impl AggregationServer {
         let shares: Vec<Share> = triples.into_iter().map(|triple| triple.share.clone()).collect();
         let commune = self.share_recover(&shares);
         let message = commune.get_message();
-        derive_enc_key(&message, self.epoch.as_bytes(), enc_key);
+        derive_ske_key(&message, self.epoch.as_bytes(), enc_key);
     }
 
     fn share_recover(&self, shares: &[Share]) -> Commune {
@@ -245,7 +248,7 @@ impl AggregationServer {
 
     fn filter_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
         let collected = self.collect_triples(triples);
-        collected.into_iter().filter(|bucket| bucket.len() > (self.threshold as usize)).collect()
+        collected.into_iter().filter(|bucket| bucket.len() >= (self.threshold as usize)).collect()
     }
     
     fn collect_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
@@ -261,18 +264,17 @@ impl AggregationServer {
     }
 }
 
-fn derive_enc_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) -> Vec<u8> {
-    if key_out.len() != digest::SHA256_OUTPUT_LEN {
-        panic!("Output buffer length ({}) does not match randomness length ({})", key_out.len(), digest::SHA256_OUTPUT_LEN);
+fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
+    if key_out.len() != digest::SHA256_OUTPUT_LEN/2 {
+        panic!("Output buffer length ({}) does not match randomness length ({})", key_out.len(), digest::SHA256_OUTPUT_LEN/2);
     }
     let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, epoch);
     let prk = salt.extract(r1);
     let expand_info = &["star_threshold_agg".as_bytes()];
-    let okm = prk.expand(expand_info, hkdf::HKDF_SHA256);
-    if let Ok(derived) = okm {
-        derived.fill(key_out).unwrap();
-    }
-    panic!("Failed to derive key");
+    let okm = prk.expand(expand_info, hkdf::HKDF_SHA256).unwrap();
+    let mut to_fill = vec![0u8; 32];
+    okm.fill(&mut to_fill).unwrap();
+    key_out.copy_from_slice(&to_fill[..16]);
 }
 
 #[cfg(test)]
