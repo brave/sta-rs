@@ -23,6 +23,14 @@ pub const ZIPF_EXPONENT: f64 = 1.03;
 pub const AES_BLOCK_LEN: usize = 24;
 pub const MEASUREMENT_MAX_LEN: usize = 32;
 
+// A `Measurement` provides the wrapper for a client-generated value in
+// the STAR protocol that is later aggregated and processed at the
+// server-side. Measurements are only revealed on the server-side if the
+// `threshold` is met, in terms of clients that send the same
+// `Measurement` value.
+// 
+// Such data is essentially arbitrary subject to the maximum length
+// requirement specified by `MEASUREMENT_MAX_LEN`
 pub struct Measurement(Vec<u8>);
 impl Measurement {
     pub fn new(x: &[u8]) -> Self {
@@ -32,11 +40,6 @@ impl Measurement {
         }
         m.extend(vec![0u8; MEASUREMENT_MAX_LEN-x.len()]);
         Self(m)
-    }
-
-    pub fn from_str(s: &str) -> Self {
-        let s_bytes = s.as_bytes();
-        Measurement::new(s_bytes)
     }
 
     pub fn zipf() -> Self {
@@ -60,7 +63,15 @@ impl Measurement {
         self.0.len()
     }
 }
+impl From<&str> for Measurement {
+    fn from(s: &str) -> Self {
+        Measurement::new(s.as_bytes())
+    }
+}
 
+// The `AssociatedData` struct wraps the arbitrary data that a client
+// can encode in its message to the `Server`. Such data is also only
+// revealed in the case that the `threshold` is met.
 #[derive(Debug)]
 pub struct AssociatedData(Vec<u8>);
 impl AssociatedData {
@@ -68,15 +79,24 @@ impl AssociatedData {
         Self(buf.to_vec())
     }
 
-    pub fn from_str(s: &str) -> Self {
-        AssociatedData::new(s.as_bytes())
-    }
-
     pub fn as_vec(&self) -> Vec<u8> {
         self.0.clone()
     }
 }
+impl From<&str> for AssociatedData {
+    fn from(s: &str) -> Self {
+        AssociatedData::from(s.as_bytes())
+    }
+}
+impl From<&[u8]> for AssociatedData {
+    fn from(buf: &[u8]) -> Self {
+        AssociatedData::new(buf)
+    }
+}
 
+// The `Ciphertext` struct holds the symmetrically encrypted data that
+// corresponds to the concatenation of `Measurement` and any optional
+// `ÀssociatedData`.
 #[derive(Debug, Clone)]
 struct Ciphertext {
     bytes: Vec<u8>,
@@ -110,6 +130,10 @@ impl Ciphertext {
     }
 }
 
+// A `Triple` is the message that a client sends to the server during
+// the STAR protocol. Consisting of a `Ciphertext`, a `Share`, and a
+// `tag`. The `Ciphertext`can only be decrypted if a `threshold` number
+// of clients possess the same measurement.
 #[derive(Clone)]
 pub struct Triple {
     ciphertext: Ciphertext,
@@ -122,7 +146,10 @@ impl Triple {
     }
 }
 
-// AggregationServer output from the protocol
+// An `Òutput` corresponds to a single client `Measurement` sent to the
+// `AggregationServer` that satisfied the `threshold` check. Such
+// structs contain the `Measurement` value itself, along with a vector
+// of all the optional `ÀssociatedData` values sent by clients.
 pub struct Output {
     x: Measurement,
     aux: Vec<Option<AssociatedData>>,
@@ -136,7 +163,19 @@ impl fmt::Debug for Output {
     }
 }
 
-
+// In the STAR protocol, the `Client`is the entity which samples and
+// sends `Measurement` to the `ÀggregationServer`. The measurements will
+// only be revealed if a `threshold` number of clients send the same
+// encoded `Measurement` value.
+// 
+// Note that the `Client` struct holds all of the public protocol
+// parameters, the secret `Measurement` and `ÀssociatedData` objects,
+// and where randomness should be sampled from.
+// 
+// In the STAR1 protocol, the `Client` samples randomness locally: derived
+// straight from the `Measurement` itself. In the STAR2 protocol, the
+// `Client` derives its randomness from an exchange with a
+// specifically-defined server that runs a POPRF.
 pub struct Client {
     x: Measurement,
     threshold: u8,
@@ -222,6 +261,9 @@ impl Client {
     }
 }
 
+// The `AggregationServer` is the entity that processes `Client`
+// messages and learns `Measurement` values and `ÀssociatedData` if the
+// `threshold` is met. These servers possess no secret data.
 pub struct AggregationServer {
     threshold: u8,
     epoch: String,
@@ -289,6 +331,9 @@ impl AggregationServer {
     }
 }
 
+// The `derive_ske_key` helper function derives symmetric encryption
+// keys that are used for encrypting/decrypting `Ciphertext` objects
+// during the STAR protocol.
 fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
     if key_out.len() != digest::SHA256_OUTPUT_LEN/2 {
         panic!("Output buffer length ({}) does not match randomness length ({})", key_out.len(), digest::SHA256_OUTPUT_LEN/2);
