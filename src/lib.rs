@@ -1,3 +1,30 @@
+//! This module provides the implementation of the STAR (distributed
+//! Secret-sharing for Threshold AggRegation of data) protocol. The
+//! STAR protocol provides the ability for clients to report secret
+//! measurements to servers, whilst maintaining k-anonymity-like
+//! guarantees. 
+//! 
+//! In essence, such measurements are only revealed if a `threshold`
+//! number of clients all send the same message. Clients are permitted
+//! to also send relevant, arbitrary associated data that can also be
+//! revealed.
+//! 
+//! The STAR protocol is made up of two variants, STAR1 and STAR2. In
+//! STAR1, clients derive randomness used for hiding their measurements
+//! locally from the measurement itself. In STAR2, clients derive
+//! randomness from a separate server that implements a puncturable
+//! partially oblivious pseudorandom function (PPOPRF) protocol. The
+//! PPOPRF protocol takes in the client measurement, a server secret
+//! key, and the current epoch metadata tag as input, and outputs a
+//! random (deterministic) value.
+//! 
+//! In the case of STAR1, the design is simpler than in STAR2, but
+//! security is only maintained in the case where client measurements
+//! are sampled from a high-entropy domain. In the case of STAR2, client
+//! security guarantees hold even for low-entropy inputs, as long as the
+//! randomness is only revealed after the epoch metadata tag has been
+//! punctured from the randomness server's secret key.
+
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
@@ -192,7 +219,7 @@ impl Client {
         Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: None }
     }
 
-    pub fn random(threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
+    pub fn zipf(threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::zipf();
         if let Some(v) = aux {
             return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
@@ -519,7 +546,7 @@ mod tests {
         let threshold = 5;
         let epoch = "t";
         for i in 0..128 {
-            clients.push(Client::random(threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
+            clients.push(Client::zipf(threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 
