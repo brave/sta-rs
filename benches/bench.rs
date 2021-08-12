@@ -6,9 +6,9 @@ use sta_rs::*;
 use ppoprf::ppoprf::Server as PPOPRFServer;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    // benchmark_client_randomness_sampling(c);
-    // benchmark_client_triple_generation(c);
-    // benchmark_server_retrieval(c);
+    benchmark_client_randomness_sampling(c);
+    benchmark_client_triple_generation(c);
+    benchmark_server_retrieval(c);
     benchmark_end_to_end(c);
 }
 
