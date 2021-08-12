@@ -47,6 +47,7 @@ use zipf::ZipfDistribution;
 
 pub const AES_BLOCK_LEN: usize = 24;
 pub const MEASUREMENT_MAX_LEN: usize = 32;
+pub const DEBUG: bool = false;
 
 // A `Measurement` provides the wrapper for a client-generated value in
 // the STAR protocol that is later aggregated and processed at the
@@ -309,8 +310,16 @@ impl AggregationServer {
     pub fn retrieve_outputs(&self, all_triples: &[Triple]) -> Vec<Output> {
         let filtered = self.filter_triples(all_triples);
         filtered.into_iter().map(|triples| self.recover_measurements(&triples)).filter(|o| {
+            // XXXXX: Due to the underlying Sharks library not sampling
+            // shares from a wide-enough range, we experience a non-negl
+            // amount of collisions.
+            // 
+            // Therefore, we need to filter out those recovery attempts
+            // that result in errors
             if let Err(e) = o {
-                println!("{:?}", e);
+                if DEBUG {
+                    println!("{:?}", e);
+                }
                 return false;
             }
             return true;
@@ -347,7 +356,7 @@ impl AggregationServer {
     fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) -> Result<(), AggServerError> {
         let shares: Vec<Share> = triples.into_iter().map(|triple| triple.share.clone()).collect();
         let res = self.share_recover(&shares);
-        if let Err(e) = res {
+        if let Err(_) = res {
             return Err(AggServerError::PossibleShareCollision);
         }
         let message = res.unwrap().get_message();

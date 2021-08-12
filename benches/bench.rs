@@ -6,9 +6,9 @@ use sta_rs::*;
 use ppoprf::ppoprf::Server as PPOPRFServer;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    benchmark_client_randomness_sampling(c);
-    benchmark_client_triple_generation(c);
-    benchmark_server_retrieval(c);
+    // benchmark_client_randomness_sampling(c);
+    // benchmark_client_triple_generation(c);
+    // benchmark_server_retrieval(c);
     benchmark_end_to_end(c);
 }
 
@@ -71,7 +71,6 @@ fn benchmark_server_retrieval(c: &mut Criterion) {
         let agg_server = AggregationServer::new(50, "t");
         b.iter(|| { 
             let _o = agg_server.retrieve_outputs(&triples);
-            println!("{:?}", _o);
         });
     });
 }
@@ -87,6 +86,10 @@ struct Params {
 
 fn benchmark_end_to_end(c: &mut Criterion) {
     [
+        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: true, aux_data: true },
+        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: false, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: false, aux_data: true },
         Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: true, aux_data: true },
         Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: false, aux_data: false },
