@@ -44,9 +44,6 @@ use ppoprf::ppoprf::{Server as OPRFServer, end_to_end_evaluation};
 
 use zipf::ZipfDistribution;
 
-pub const ZIPF_NUM_SITES: usize = 1000;
-pub const ZIPF_EXPONENT: f64 = 1.03;
-
 pub const AES_BLOCK_LEN: usize = 24;
 pub const MEASUREMENT_MAX_LEN: usize = 32;
 
@@ -69,9 +66,12 @@ impl Measurement {
         Self(m)
     }
 
-    pub fn zipf() -> Self {
+    // The `zipf` function returns a client `Measurement` sampled from
+    // Zipf power-law distribution with `n` corresponding to the number
+    // of potential elements, and `s` the exponent.
+    pub fn zipf(n: usize, s: f64) -> Self {
         let mut rng = rand::thread_rng();
-        let zipf = ZipfDistribution::new(ZIPF_NUM_SITES, ZIPF_EXPONENT).unwrap();
+        let zipf = ZipfDistribution::new(n, s).unwrap();
         let sample = zipf.sample(&mut rng).to_le_bytes();
         let mut extended = sample.to_vec();
         extended.extend(vec![0u8; MEASUREMENT_MAX_LEN-sample.len()]);
@@ -219,8 +219,8 @@ impl Client {
         Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: None }
     }
 
-    pub fn zipf(threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
-        let x = Measurement::zipf();
+    pub fn zipf(n: usize, s: f64, threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
+        let x = Measurement::zipf(n, s);
         if let Some(v) = aux {
             return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
         }
@@ -546,7 +546,7 @@ mod tests {
         let threshold = 5;
         let epoch = "t";
         for i in 0..128 {
-            clients.push(Client::zipf(threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
+            clients.push(Client::zipf(1000, 1.03, threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
 

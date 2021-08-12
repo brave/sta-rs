@@ -13,3 +13,9 @@ adss-rs = { path = "./secret-sharing/adss-rs" }
 rand = { version = "0.7", default-features = false }
 ring = "0.16.20"
 zipf = "6.1.0"
+
+criterion = "0.3.1"
+
+[[bench]]
+name = "bench"
+harness = false
