@@ -27,6 +27,7 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::error::Error;
 use std::fmt;
 use std::str;
 
@@ -40,7 +41,7 @@ use ring::rand::{SecureRandom, SystemRandom};
 use rand::distributions::Distribution;
 
 use adss_rs::{Commune, Share, recover};
-use ppoprf::ppoprf::{Server as OPRFServer, end_to_end_evaluation};
+use ppoprf::ppoprf::{Server as PPOPRFServer, end_to_end_evaluation};
 
 use zipf::ZipfDistribution;
 
@@ -228,7 +229,7 @@ impl Client {
     }
 
     // Generates a triple that is used in the aggregation phase
-    pub fn generate_triple(&self, oprf_server: Option<&OPRFServer>) -> Triple {
+    pub fn generate_triple(&self, oprf_server: Option<&PPOPRFServer>) -> Triple {
         let mut rnd = vec![0u8; 32];
         if self.use_local_rand {
             self.sample_local_randomness(&mut rnd);
@@ -272,7 +273,7 @@ impl Client {
         c.share()
     }
 
-    fn sample_local_randomness(&self, out: &mut [u8]) {
+    pub fn sample_local_randomness(&self, out: &mut [u8]) {
         if out.len() != digest::SHA256_OUTPUT_LEN {
             panic!("Output buffer length ({}) does not match randomness length ({})", out.len(), digest::SHA256_OUTPUT_LEN);
         }
@@ -283,9 +284,14 @@ impl Client {
         out.copy_from_slice(digest.as_ref());
     }
 
-    fn sample_oprf_randomness(&self, oprf_server: &OPRFServer, out: &mut [u8]) {
+    pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
         end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }
+}
+
+#[derive(Debug)]
+enum AggServerError {
+    PossibleShareCollision,
 }
 
 // The `AggregationServer` is the entity that processes `Client`
@@ -302,12 +308,21 @@ impl AggregationServer {
 
     pub fn retrieve_outputs(&self, all_triples: &[Triple]) -> Vec<Output> {
         let filtered = self.filter_triples(all_triples);
-        filtered.into_iter().map(|triples| self.recover_measurements(&triples)).collect()
+        filtered.into_iter().map(|triples| self.recover_measurements(&triples)).filter(|o| {
+            if let Err(e) = o {
+                println!("{:?}", e);
+                return false;
+            }
+            return true;
+        }).map(|output| output.unwrap()).collect()
     }
 
-    fn recover_measurements(&self, triples: &[Triple]) -> Output {
+    fn recover_measurements(&self, triples: &[Triple]) -> Result<Output, AggServerError> {
         let mut enc_key_buf = vec![0u8; 16];
-        self.key_recover(triples, &mut enc_key_buf);
+        let res = self.key_recover(triples, &mut enc_key_buf);
+        if let Err(e) = res {
+            return Err(e);
+        }
         
         let ciphertexts: Vec<Ciphertext> = triples.into_iter().map(|t| t.ciphertext.clone()).collect();
         let plaintexts: Vec<Vec<u8>> = ciphertexts.into_iter().map(|c| c.decrypt(&enc_key_buf)).collect();
@@ -326,18 +341,22 @@ impl AggregationServer {
                 panic!("tag mismatch ({:?} != {:?})", tag, new_tag);
             }
         }
-        Output { x: Measurement(tag.clone()), aux: splits.into_iter().map(|val| val.1).collect() }
+        Ok(Output { x: Measurement(tag.clone()), aux: splits.into_iter().map(|val| val.1).collect() })
     }
 
-    fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) {
+    fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) -> Result<(), AggServerError> {
         let shares: Vec<Share> = triples.into_iter().map(|triple| triple.share.clone()).collect();
-        let commune = self.share_recover(&shares);
-        let message = commune.get_message();
+        let res = self.share_recover(&shares);
+        if let Err(e) = res {
+            return Err(AggServerError::PossibleShareCollision);
+        }
+        let message = res.unwrap().get_message();
         derive_ske_key(&message, self.epoch.as_bytes(), enc_key);
+        Ok(())
     }
 
-    fn share_recover(&self, shares: &[Share]) -> Commune {
-        recover(shares).unwrap()
+    fn share_recover(&self, shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
+        recover(shares)
     }
 
     fn filter_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
@@ -400,25 +419,25 @@ mod tests {
 
     #[test]
     fn star2_no_aux_multiple_block() {
-        star_no_aux_multiple_block(false, Some(OPRFServer::new()));
+        star_no_aux_multiple_block(false, Some(PPOPRFServer::new()));
     }
     
     #[test]
     fn star2_no_aux_single_block() {
-        star_no_aux_single_block(false, Some(OPRFServer::new()));
+        star_no_aux_single_block(false, Some(PPOPRFServer::new()));
     }
     
     #[test]
     fn star2_with_aux_multiple_block() {
-        star_with_aux_multiple_block(false, Some(OPRFServer::new()));
+        star_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
     }
     
     #[test]
     fn star2_rand_with_aux_multiple_block() {
-        star_rand_with_aux_multiple_block(false, Some(OPRFServer::new()));
+        star_rand_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
     }
 
-    fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
+    fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -455,7 +474,7 @@ mod tests {
         }
     }
 
-    fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
+    fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -492,7 +511,7 @@ mod tests {
         }
     }
 
-    fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
+    fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 2;
         let epoch = "t";
@@ -541,7 +560,7 @@ mod tests {
         }
     }
 
-    fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<OPRFServer>) {
+    fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
         let mut clients = Vec::new();
         let threshold = 5;
         let epoch = "t";
