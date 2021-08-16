@@ -6,9 +6,9 @@ use sta_rs::*;
 use ppoprf::ppoprf::Server as PPOPRFServer;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    benchmark_client_randomness_sampling(c);
-    benchmark_client_triple_generation(c);
-    benchmark_server_retrieval(c);
+    // benchmark_client_randomness_sampling(c);
+    // benchmark_client_triple_generation(c);
+    // benchmark_server_retrieval(c);
     benchmark_end_to_end(c);
 }
 
@@ -87,13 +87,11 @@ struct Params {
 fn benchmark_end_to_end(c: &mut Criterion) {
     [
         Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: true, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: true, aux_data: true },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: false, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: false, aux_data: true },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: true, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: true, aux_data: true },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: false, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: false, aux_data: true },
+        // Params { n: 10000, s: 1.03, clients: 1000, threshold: 50, local: false, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 10000, threshold: 50, local: true, aux_data: false },
+        // Params { n: 10000, s: 1.03, clients: 10000, threshold: 50, local: false, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 100000, threshold: 50, local: true, aux_data: false },
+        // Params { n: 10000, s: 1.03, clients: 100000, threshold: 50, local: false, aux_data: false },
     ].iter().for_each(|params| {
         let epoch = "t";
         c.bench_function(&format!("E2E (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
