@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, PlotConfiguration};
 use core::iter;
 use rand::Rng;
 
@@ -85,11 +85,15 @@ struct Params {
 }
 
 fn benchmark_end_to_end(c: &mut Criterion) {
+    let plot_config = PlotConfiguration::default();
     let mut group = c.benchmark_group("end-to-end");
+    group.plot_config(plot_config);
     group.sample_size(10);
     [
-        Params { n: 10000, s: 1.03, clients: 1000, threshold: 10, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 10000, threshold: 10, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 25000, threshold: 10, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 100000, threshold: 10, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 250000, threshold: 10, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 25000, threshold: 25, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 100000, threshold: 100, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 250000, threshold: 250, local: true, aux_data: false },
@@ -102,14 +106,6 @@ fn benchmark_end_to_end(c: &mut Criterion) {
                 let _o = agg_server.retrieve_outputs(&triples);
             });
         });
-
-        // group.bench_function(&format!("E2E client (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
-        //     let agg_server = AggregationServer::new(params.threshold, epoch);
-        //     b.iter(|| {
-        //         let triples_bench = get_triples(&params, &epoch);
-        //         let _o = agg_server.retrieve_outputs(&triples_bench);
-        //     });
-        // });
     });
 }
 
