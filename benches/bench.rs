@@ -88,7 +88,7 @@ fn benchmark_end_to_end(c: &mut Criterion) {
     let plot_config = PlotConfiguration::default();
     let mut group = c.benchmark_group("end-to-end");
     group.plot_config(plot_config);
-    group.sample_size(10);
+    group.sample_size(1);
     [
         Params { n: 10000, s: 1.03, clients: 10000, threshold: 10, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 25000, threshold: 25, local: true, aux_data: false },
