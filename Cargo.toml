@@ -11,6 +11,7 @@ ppoprf = { path = "./ppoprf" }
 adss-rs = { path = "./secret-sharing/adss-rs" }
 
 rand = { version = "0.7", default-features = false }
+rayon = "1.5"
 ring = "0.16.20"
 zipf = "6.1.0"
 

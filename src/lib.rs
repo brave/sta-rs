@@ -31,6 +31,10 @@ use std::error::Error;
 use std::fmt;
 use std::str;
 
+use rand::distributions::Distribution;
+
+use rayon::prelude::*;
+
 extern crate ring;
 use ring::aead;
 use ring::digest;
@@ -38,12 +42,10 @@ use ring::digest::{Context, SHA256};
 use ring::hkdf;
 use ring::rand::{SecureRandom, SystemRandom};
 
-use rand::distributions::Distribution;
+use zipf::ZipfDistribution;
 
 use adss_rs::{Commune, Share, recover};
 use ppoprf::ppoprf::{Server as PPOPRFServer, end_to_end_evaluation};
-
-use zipf::ZipfDistribution;
 
 pub const AES_BLOCK_LEN: usize = 24;
 pub const MEASUREMENT_MAX_LEN: usize = 32;
@@ -175,7 +177,7 @@ impl Triple {
     }
 }
 
-// An `Òutput` corresponds to a single client `Measurement` sent to the
+// An `Output` corresponds to a single client `Measurement` sent to the
 // `AggregationServer` that satisfied the `threshold` check. Such
 // structs contain the `Measurement` value itself, along with a vector
 // of all the optional `ÀssociatedData` values sent by clients.
@@ -192,8 +194,8 @@ impl fmt::Debug for Output {
     }
 }
 
-// In the STAR protocol, the `Client`is the entity which samples and
-// sends `Measurement` to the `ÀggregationServer`. The measurements will
+// In the STAR protocol, the `Client` is the entity which samples and
+// sends `Measurement` to the `AggregationServer`. The measurements will
 // only be revealed if a `threshold` number of clients send the same
 // encoded `Measurement` value.
 // 
@@ -309,21 +311,7 @@ impl AggregationServer {
 
     pub fn retrieve_outputs(&self, all_triples: &[Triple]) -> Vec<Output> {
         let filtered = self.filter_triples(all_triples);
-        filtered.into_iter().map(|triples| self.recover_measurements(&triples)).filter(|o| {
-            // XXXXX: Due to the underlying Sharks library not sampling
-            // shares from a wide-enough range, we experience a non-negl
-            // amount of collisions.
-            // 
-            // Therefore, we need to filter out those recovery attempts
-            // that result in errors
-            if let Err(e) = o {
-                if DEBUG {
-                    println!("{:?}", e);
-                }
-                return false;
-            }
-            return true;
-        }).map(|output| output.unwrap()).collect()
+        filtered.par_iter().map(|triples| self.recover_measurements(&triples)).map(|output| output.unwrap()).collect()
     }
 
     fn recover_measurements(&self, triples: &[Triple]) -> Result<Output, AggServerError> {
