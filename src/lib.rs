@@ -311,7 +311,7 @@ impl AggregationServer {
 
     pub fn retrieve_outputs(&self, all_triples: &[Triple]) -> Vec<Output> {
         let filtered = self.filter_triples(all_triples);
-        filtered.par_iter().map(|triples| self.recover_measurements(&triples)).map(|output| output.unwrap()).collect()
+        filtered.into_par_iter().map(|triples| self.recover_measurements(&triples)).map(|output| output.unwrap()).collect()
     }
 
     fn recover_measurements(&self, triples: &[Triple]) -> Result<Output, AggServerError> {
