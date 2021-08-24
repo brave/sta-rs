@@ -561,7 +561,7 @@ mod tests {
         let mut clients = Vec::new();
         let threshold = 5;
         let epoch = "t";
-        for i in 0..128 {
+        for i in 0..254 {
             clients.push(Client::zipf(1000, 1.03, threshold, epoch, use_local_rand, Some(vec![i+1 as u8; 4])));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
@@ -574,7 +574,7 @@ mod tests {
                     panic!("Expected auxiliary data");
                 } else if let Some(a) = aux {
                     let val = a.0[0];
-                    assert!(val < 129);
+                    assert!(val < 255);
                     for i in 1..3 {
                         assert_eq!(a.0[i], val);
                     }
