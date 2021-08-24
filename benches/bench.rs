@@ -90,10 +90,11 @@ fn benchmark_end_to_end(c: &mut Criterion) {
     group.plot_config(plot_config);
     group.sample_size(10);
     [
-        // Params { n: 10000, s: 1.03, clients: 10000, threshold: 10, local: true, aux_data: false },
-        // Params { n: 10000, s: 1.03, clients: 25000, threshold: 25, local: true, aux_data: false },
-        // Params { n: 10000, s: 1.03, clients: 100000, threshold: 100, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 10000, threshold: 10, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 25000, threshold: 25, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 100000, threshold: 100, local: true, aux_data: false },
         Params { n: 10000, s: 1.03, clients: 250000, threshold: 250, local: true, aux_data: false },
+        Params { n: 10000, s: 1.03, clients: 500000, threshold: 250, local: true, aux_data: false },
     ].iter().for_each(|params| {
         let epoch = "t";
         let triples = get_triples(&params, &epoch);
