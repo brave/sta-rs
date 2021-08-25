@@ -212,13 +212,13 @@ impl fmt::Debug for Output {
 // specifically-defined server that runs a POPRF.
 pub struct Client {
     x: Measurement,
-    threshold: u8,
+    threshold: usize,
     epoch: String,
     use_local_rand: bool,
     aux: Option<AssociatedData>,
 }
 impl Client {
-    pub fn new(x: &[u8], threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
+    pub fn new(x: &[u8], threshold: usize, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::new(x);
         if let Some(v) = aux {
             return Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
@@ -226,7 +226,7 @@ impl Client {
         Self{ x, threshold, epoch: epoch.to_string(), use_local_rand, aux: None }
     }
 
-    pub fn zipf(n: usize, s: f64, threshold: u8, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
+    pub fn zipf(n: usize, s: f64, threshold: usize, epoch: &str, use_local_rand: bool, aux: Option<Vec<u8>>) -> Self {
         let x = Measurement::zipf(n, s);
         if let Some(v) = aux {
             return Self{ x: x, threshold: threshold, epoch: epoch.to_string(), use_local_rand, aux: Some(AssociatedData::new(&v)) };
@@ -304,11 +304,11 @@ enum AggServerError {
 // messages and learns `Measurement` values and `ÀssociatedData` if the
 // `threshold` is met. These servers possess no secret data.
 pub struct AggregationServer {
-    threshold: u8,
+    threshold: usize,
     epoch: String,
 }
 impl AggregationServer {
-    pub fn new(threshold: u8, epoch: &str) -> Self {
+    pub fn new(threshold: usize, epoch: &str) -> Self {
         AggregationServer { threshold, epoch: epoch.to_string() }
     }
 
