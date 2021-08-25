@@ -79,7 +79,7 @@ struct Params {
     n: usize,
     s: f64, 
     clients: usize,
-    threshold: u8,
+    threshold: usize,
     local: bool,
     aux_data: bool,
 }
