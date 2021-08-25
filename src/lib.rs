@@ -79,7 +79,10 @@ impl Measurement {
         let sample = zipf.sample(&mut rng).to_le_bytes();
         let mut extended = sample.to_vec();
         extended.extend(vec![0u8; MEASUREMENT_MAX_LEN-sample.len()]);
-        Self(extended.to_vec())
+        // essentially we compute a hash here so that we can simulate
+        // having a full 32 bytes of data
+        let val = digest::digest(&SHA256, &mut extended);
+        Self(val.as_ref().to_vec())
     }
 
     fn as_slice(&self) -> &[u8] {
