@@ -3,4 +3,4 @@
 	url = git@github.com:brave-experiments/kass-rs.git
 [submodule "ppoprf"]
 	path = ppoprf
-	url = git@github.com:alxdavids/ppoprf.git
+	url = git@github.com:brave-experiments/ppoprf.git
