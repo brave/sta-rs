@@ -81,7 +81,7 @@ impl Measurement {
         extended.extend(vec![0u8; MEASUREMENT_MAX_LEN - sample.len()]);
         // essentially we compute a hash here so that we can simulate
         // having a full 32 bytes of data
-        let val = digest::digest(&SHA256, &mut extended);
+        let val = digest::digest(&SHA256, &extended);
         Self(val.as_ref().to_vec())
     }
 
@@ -95,6 +95,10 @@ impl Measurement {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 impl From<&str> for Measurement {
@@ -147,7 +151,7 @@ impl Ciphertext {
         let mut in_out = data.to_vec();
         in_out.extend(vec![0u8; aead::AES_128_GCM.tag_len()]);
 
-        let unbound = aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap();
+        let unbound = aead::UnboundKey::new(&aead::AES_128_GCM, enc_key_buf).unwrap();
         let ls_key = aead::LessSafeKey::new(unbound);
         ls_key
             .seal_in_place_append_tag(nonce, aead::Aad::empty(), &mut in_out)
@@ -161,16 +165,14 @@ impl Ciphertext {
     }
 
     fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
-        let ls_key = aead::LessSafeKey::new(
-            aead::UnboundKey::new(&aead::AES_128_GCM, &enc_key_buf).unwrap(),
-        );
+        let ls_key =
+            aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, enc_key_buf).unwrap());
         let mut in_out = self.bytes.clone();
         let nonce = aead::Nonce::assume_unique_for_key(self.nonce);
         ls_key
             .open_in_place(nonce, aead::Aad::empty(), &mut in_out)
             .unwrap();
-        let plaintext = in_out[..in_out.len() - aead::AES_128_GCM.tag_len()].to_vec();
-        plaintext
+        in_out[..in_out.len() - aead::AES_128_GCM.tag_len()].to_vec() // plaintext
     }
 }
 
@@ -188,7 +190,7 @@ impl Triple {
     fn new(c: Ciphertext, share: Share, tag: &[u8]) -> Self {
         Self {
             ciphertext: c,
-            share: share,
+            share,
             tag: tag.to_vec(),
         }
     }
@@ -269,8 +271,8 @@ impl Client {
         let x = Measurement::zipf(n, s);
         if let Some(v) = aux {
             return Self {
-                x: x,
-                threshold: threshold,
+                x,
+                threshold,
                 epoch: epoch.to_string(),
                 use_local_rand,
                 aux: Some(AssociatedData::new(&v)),
@@ -291,10 +293,10 @@ impl Client {
         if self.use_local_rand {
             self.sample_local_randomness(&mut rnd);
         } else {
-            if let None = oprf_server {
+            if oprf_server.is_none() {
                 panic!("No OPRF server specified");
             }
-            self.sample_oprf_randomness(&oprf_server.unwrap(), &mut rnd);
+            self.sample_oprf_randomness(oprf_server.unwrap(), &mut rnd);
         }
         let r = self.derive_random_values(&rnd);
 
@@ -318,7 +320,7 @@ impl Client {
     fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
         let mut enc_key = vec![0u8; 16];
         derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
-        let mut data = Vec::from(self.x.as_vec());
+        let mut data = self.x.as_vec();
         if let Some(aux) = &self.aux {
             data.extend(aux.0.clone());
         }
@@ -339,7 +341,7 @@ impl Client {
             );
         }
         let mut hash = Context::new(&digest::SHA256);
-        hash.update(&self.x.as_slice());
+        hash.update(self.x.as_slice());
         hash.update(self.epoch.as_bytes());
         let digest = hash.finish();
         out.copy_from_slice(digest.as_ref());
@@ -386,15 +388,10 @@ impl AggregationServer {
             return Err(e);
         }
 
-        let ciphertexts: Vec<Ciphertext> =
-            triples.into_iter().map(|t| t.ciphertext.clone()).collect();
-        let plaintexts: Vec<Vec<u8>> = ciphertexts
-            .into_iter()
-            .map(|c| c.decrypt(&enc_key_buf))
-            .collect();
+        let ciphertexts = triples.iter().map(|t| t.ciphertext.clone());
+        let plaintexts = ciphertexts.map(|c| c.decrypt(&enc_key_buf));
 
         let splits: Vec<(Vec<u8>, Option<AssociatedData>)> = plaintexts
-            .into_iter()
             .map(|p| {
                 let max_aes_length =
                     MEASUREMENT_MAX_LEN + AES_BLOCK_LEN - (MEASUREMENT_MAX_LEN % AES_BLOCK_LEN);
@@ -408,10 +405,9 @@ impl AggregationServer {
             })
             .collect();
         let tag = &splits[0].0;
-        for i in 1..splits.len() {
-            let new_tag = &splits[i].0;
-            if new_tag != tag {
-                panic!("tag mismatch ({:?} != {:?})", tag, new_tag);
+        for new_tag in splits.iter().skip(1) {
+            if &new_tag.0 != tag {
+                panic!("tag mismatch ({:?} != {:?})", tag, new_tag.0);
             }
         }
         Ok(Output {
@@ -421,12 +417,9 @@ impl AggregationServer {
     }
 
     fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) -> Result<(), AggServerError> {
-        let shares: Vec<Share> = triples
-            .into_iter()
-            .map(|triple| triple.share.clone())
-            .collect();
+        let shares: Vec<Share> = triples.iter().map(|triple| triple.share.clone()).collect();
         let res = self.share_recover(&shares);
-        if let Err(_) = res {
+        if res.is_err() {
             return Err(AggServerError::PossibleShareCollision);
         }
         let message = res.unwrap().get_message();
@@ -579,10 +572,8 @@ mod tests {
                 panic!("Unexpected tag: {}", tag_str);
             }
 
-            for a in o.aux {
-                if let Some(b) = a {
-                    panic!("Unexpected auxiliary data: {:?}", b);
-                }
+            for b in o.aux.into_iter().flatten() {
+                panic!("Unexpected auxiliary data: {:?}", b);
             }
         }
     }
@@ -639,10 +630,8 @@ mod tests {
                 panic!("Unexpected tag: {}", tag_str);
             }
 
-            for a in o.aux {
-                if let Some(b) = a {
-                    panic!("Unexpected auxiliary data: {:?}", b);
-                }
+            for b in o.aux.into_iter().flatten() {
+                panic!("Unexpected auxiliary data: {:?}", b);
             }
         }
     }
@@ -660,7 +649,7 @@ mod tests {
                     threshold,
                     epoch,
                     use_local_rand,
-                    Some(vec![i + 1 as u8; 1]),
+                    Some(vec![i + 1; 1]),
                 ));
             } else if i % 4 == 0 {
                 clients.push(Client::new(
@@ -668,7 +657,7 @@ mod tests {
                     threshold,
                     epoch,
                     use_local_rand,
-                    Some(vec![i + 1 as u8; 1]),
+                    Some(vec![i + 1; 1]),
                 ));
             } else {
                 clients.push(Client::new(
@@ -676,7 +665,7 @@ mod tests {
                     threshold,
                     epoch,
                     use_local_rand,
-                    Some(vec![i + 1 as u8; 1]),
+                    Some(vec![i + 1; 1]),
                 ));
             }
         }
@@ -731,7 +720,7 @@ mod tests {
                 threshold,
                 epoch,
                 use_local_rand,
-                Some(vec![i + 1 as u8; 4]),
+                Some(vec![i + 1; 4]),
             ));
         }
         let agg_server = AggregationServer::new(threshold, epoch);
@@ -743,7 +732,7 @@ mod tests {
         let outputs = agg_server.retrieve_outputs(&triples);
         for o in outputs {
             for aux in o.aux {
-                if let None = aux {
+                if aux.is_none() {
                     panic!("Expected auxiliary data");
                 } else if let Some(a) = aux {
                     let val = a.0[0];
