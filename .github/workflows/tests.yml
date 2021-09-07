@@ -44,7 +44,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: -- --check ./{benches,src}/**/*.rs
+          args: -- --check ./src/lib.rs ./benches/bench.rs ./wasm/src/lib.rs
 
       - name: Clippy
         uses: actions-rs/clippy-check@v1
