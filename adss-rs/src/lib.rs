@@ -136,9 +136,10 @@ impl Commune {
         transcript.ad(&self.M, false);
         transcript.key(&self.R, false);
 
+
         transcript
             .recv_mac(J)
-            .or_else(|_| Err("Mac validation failed".into()))
+            .map_err(|_| "Mac validation failed".into())
     }
 }
 
