@@ -1,4 +1,3 @@
-use rand;
 use sharks::Sharks;
 use std::error::Error;
 use std::fmt;
