@@ -149,7 +149,7 @@ where
     T::IntoIter: Iterator<Item = &'a Share>,
 {
     let mut shares = shares.into_iter().peekable();
-    let s = shares.peek().ok_or("no shares passed")?.clone();
+    let s = &(*shares.peek().ok_or("no shares passed")?).clone();
     let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
     let key = Sharks::from(s.A).recover(&shares)?;
     let K = key[..16].to_vec();
