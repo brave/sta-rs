@@ -13,7 +13,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn benchmark_client_randomness_sampling(c: &mut Criterion) {
-    c.bench_function(&format!("Client local randomness"), |b| {
+    c.bench_function("Client local randomness", |b| {
         let client = Client::zipf(10000, 1.03, 2, "t", true, None);
         let mut out = vec![0u8; 32];
         b.iter(|| {
@@ -21,7 +21,7 @@ fn benchmark_client_randomness_sampling(c: &mut Criterion) {
         });
     });
 
-    c.bench_function(&format!("Client ppoprf randomness"), |b| {
+    c.bench_function("Client ppoprf randomness", |b| {
         let client = Client::zipf(10000, 1.03, 2, "t", false, None);
         let ppoprf_server = PPOPRFServer::new();
         let mut out = vec![0u8; 32];
@@ -32,14 +32,14 @@ fn benchmark_client_randomness_sampling(c: &mut Criterion) {
 }
 
 fn benchmark_client_triple_generation(c: &mut Criterion) {
-    c.bench_function(&format!("Client generate triple (local)"), |b| {
+    c.bench_function("Client generate triple (local)", |b| {
         let client = Client::zipf(10000, 1.03, 2, "t", true, None);
         b.iter(|| {
             client.generate_triple(None);
         });
     });
 
-    c.bench_function(&format!("Client generate triple (ppoprf)"), |b| {
+    c.bench_function("Client generate triple (ppoprf)", |b| {
         let client = Client::zipf(10000, 1.03, 2, "t", false, None);
         let ppoprf_server = PPOPRFServer::new();
         b.iter(|| {
@@ -47,7 +47,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
         });
     });
 
-    c.bench_function(&format!("Client generate triple (local, aux)"), |b| {
+    c.bench_function("Client generate triple (local, aux)", |b| {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
         let client = Client::zipf(10000, 1.03, 2, "t", true, Some(random_bytes.to_vec()));
         b.iter(|| {
@@ -55,7 +55,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
         });
     });
 
-    c.bench_function(&format!("Client generate triple (ppoprf, aux)"), |b| {
+    c.bench_function("Client generate triple (ppoprf, aux)", |b| {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
         let client = Client::zipf(10000, 1.03, 2, "t", false, Some(random_bytes.to_vec()));
         let ppoprf_server = PPOPRFServer::new();
@@ -70,7 +70,7 @@ fn benchmark_server_retrieval(c: &mut Criterion) {
         iter::repeat_with(|| Client::zipf(10000, 1.03, 50, "t", true, None).generate_triple(None))
             .take(1000)
             .collect();
-    c.bench_function(&format!("Server retrieve outputs"), |b| {
+    c.bench_function("Server retrieve outputs", |b| {
         let agg_server = AggregationServer::new(50, "t");
         b.iter(|| {
             let _o = agg_server.retrieve_outputs(&triples);
@@ -99,7 +99,7 @@ fn benchmark_end_to_end(c: &mut Criterion) {
         Params { n: 10000, s: 1.03, clients: 1000000, threshold: 1000, local: true, aux_data: false },
     ].iter().for_each(|params| {
         let epoch = "t";
-        let triples = get_triples(&params, &epoch);
+        let triples = get_triples(params, epoch);
         group.bench_function(&format!("E2E server (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
             let agg_server = AggregationServer::new(params.threshold, epoch);
             b.iter(|| {
@@ -142,7 +142,7 @@ fn get_triples(params: &Params, epoch: &str) -> Vec<Triple> {
         .take(params.clients)
         .collect();
     }
-    return triples;
+    triples
 }
 
 fn get_aux_data(do_it: bool) -> Option<Vec<u8>> {
