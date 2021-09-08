@@ -21,7 +21,7 @@ pub use share_ff::{get_evaluator, random_polynomial, interpolate};
 
 /// Tuple struct which implements methods to generate shares and recover secrets over a 256 bits Galois Field.
 /// Its only parameter is the minimum shares threshold.
-pub struct Sharks(pub usize);
+pub struct Sharks(pub u32);
 
 impl Sharks {
     /// This method is useful when `std` is not available. For typical usage

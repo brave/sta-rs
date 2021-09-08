@@ -54,7 +54,7 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
 // others randomly generated in the field.
 // Coefficient degrees go from higher to lower in the returned vector
 // order.
-pub fn random_polynomial<R: rand::Rng>(s: Fp, k: usize, rng: &mut R) -> Vec<Fp> {
+pub fn random_polynomial<R: rand::Rng>(s: Fp, k: u32, rng: &mut R) -> Vec<Fp> {
     let k = k as usize;
     let mut poly = Vec::with_capacity(k);
     for _ in 1..k {

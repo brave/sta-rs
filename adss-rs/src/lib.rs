@@ -9,7 +9,7 @@ use crate::rng::StrobeRng;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccessStructure {
-    threshold: usize,
+    threshold: u32,
 }
 
 /// An `AccessStructure` defines how a message is to be split among multiple parties
@@ -18,7 +18,7 @@ pub struct AccessStructure {
 /// are needed to reconstruct the original `Commune`
 impl AccessStructure {
     /// Convert this `AccessStructure` to a byte array.
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self) -> [u8; 4] {
         self.threshold.to_le_bytes()
     }
 }
@@ -72,7 +72,7 @@ impl fmt::Debug for Share {
 
 #[allow(non_snake_case)]
 impl Commune {
-    pub fn new(threshold: usize, message: Vec<u8>, randomness: Vec<u8>, transcript: Option<Strobe>) -> Self {
+    pub fn new(threshold: u32, message: Vec<u8>, randomness: Vec<u8>, transcript: Option<Strobe>) -> Self {
         Commune{ A: AccessStructure{ threshold }, M: message, R: randomness, T: transcript }
     }
 
