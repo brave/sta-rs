@@ -44,7 +44,7 @@ use ring::rand::{SecureRandom, SystemRandom};
 
 use zipf::ZipfDistribution;
 
-use adss_rs::{recover, Commune, Share};
+use adss_rs::{load_bytes, recover, store_bytes, Commune, Share};
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
 
 pub const AES_BLOCK_LEN: usize = 24;
@@ -101,6 +101,7 @@ impl Measurement {
         self.0.is_empty()
     }
 }
+
 impl From<&str> for Measurement {
     fn from(s: &str) -> Self {
         Measurement::new(s.as_bytes())
@@ -135,7 +136,7 @@ impl From<&[u8]> for AssociatedData {
 // The `Ciphertext` struct holds the symmetrically encrypted data that
 // corresponds to the concatenation of `Measurement` and any optional
 // `AssociatedData`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Ciphertext {
     bytes: Vec<u8>,
     nonce: [u8; 12],
@@ -174,18 +175,56 @@ impl Ciphertext {
             .unwrap();
         in_out[..in_out.len() - aead::AES_128_GCM.tag_len()].to_vec() // plaintext
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::new();
+
+        // bytes: Vec<u8>
+        store_bytes(&self.bytes, &mut out);
+
+        // aad: Option<Vec<u8>>
+        store_bytes(if let Some(aad) = &self.aad { aad } else { &[] }, &mut out);
+
+        // nonce: [u8; 12]
+        out.extend(&self.nonce);
+
+        out
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Ciphertext> {
+        let mut slice = bytes;
+
+        // bytes: Vec<u8>
+        let bytes = load_bytes(slice)?;
+        slice = &slice[4 + bytes.len() as usize..];
+
+        // aad: Option<Vec<u8>>
+        let aad = load_bytes(slice)?;
+        slice = &slice[4 + aad.len() as usize..];
+
+        // nonce: [u8; 12]
+        let mut nonce: [u8; 12] = [0u8; 12];
+        nonce.copy_from_slice(slice);
+
+        Some(Ciphertext {
+            bytes,
+            nonce,
+            aad: if aad.is_empty() { None } else { Some(aad) },
+        })
+    }
 }
 
 // A `Triple` is the message that a client sends to the server during
 // the STAR protocol. Consisting of a `Ciphertext`, a `Share`, and a
 // `tag`. The `Ciphertext`can only be decrypted if a `threshold` number
 // of clients possess the same measurement.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Triple {
     ciphertext: Ciphertext,
     share: Share,
     tag: Vec<u8>,
 }
+
 impl Triple {
     fn new(c: Ciphertext, share: Share, tag: &[u8]) -> Self {
         Self {
@@ -193,6 +232,44 @@ impl Triple {
             share,
             tag: tag.to_vec(),
         }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::new();
+
+        // ciphertext: Ciphertext
+        store_bytes(&self.ciphertext.to_bytes(), &mut out);
+
+        // share: Share
+        store_bytes(&self.share.to_bytes(), &mut out);
+
+        // tag: Vec<u8>
+        store_bytes(&self.tag, &mut out);
+
+        out
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Triple> {
+        let mut slice = bytes;
+
+        // ciphertext: Ciphertext
+        let cb = load_bytes(slice)?;
+        let ciphertext = Ciphertext::from_bytes(&cb)?;
+        slice = &slice[4 + cb.len() as usize..];
+
+        // share: Share
+        let sb = load_bytes(slice)?;
+        let share = Share::from_bytes(&sb)?;
+        slice = &slice[4 + sb.len() as usize..];
+
+        // tag: Vec<u8>
+        let tag = load_bytes(slice)?;
+
+        Some(Triple {
+            ciphertext,
+            share,
+            tag,
+        })
     }
 }
 
@@ -479,6 +556,22 @@ fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serialize_ciphertext() {
+        let client = Client::new(b"foobar", 0, "epoch", true, None);
+        let triple = client.generate_triple(None);
+        let bytes = triple.ciphertext.to_bytes();
+        assert_eq!(Ciphertext::from_bytes(&bytes), Some(triple.ciphertext));
+    }
+
+    #[test]
+    fn serialize_triple() {
+        let client = Client::new(b"foobar", 0, "epoch", true, None);
+        let triple = client.generate_triple(None);
+        let bytes = triple.to_bytes();
+        assert_eq!(Triple::from_bytes(&bytes), Some(triple));
+    }
 
     #[test]
     fn star1_no_aux_multiple_block() {
