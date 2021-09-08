@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use sharks::Sharks;
 use std::error::Error;
 use std::fmt;
@@ -6,9 +7,50 @@ use strobe_rs::{SecParam, Strobe};
 mod rng;
 use crate::rng::StrobeRng;
 
-#[derive(Debug, Clone, Copy)]
+// The length of a `AccessStructure`, in bytes.
+pub const ACCESS_STRUCTURE_LENGTH: usize = 4;
+
+// The length of a `Share::J`, in bytes.
+pub const MAC_LENGTH: usize = 64;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessStructure {
     threshold: u32,
+}
+
+pub fn store_u32(u: u32, out: &mut Vec<u8>) {
+    out.extend(u.to_le_bytes());
+}
+
+pub fn load_u32(bytes: &[u8]) -> Option<u32> {
+    if bytes.len() != 4 {
+        return None;
+    }
+
+    let mut bits: [u8; 4] = [0u8; 4];
+    bits.copy_from_slice(bytes);
+    Some(u32::from_le_bytes(bits))
+}
+
+pub fn store_bytes(s: &[u8], out: &mut Vec<u8>) {
+    store_u32(s.len() as u32, out);
+    out.extend(s);
+}
+
+// TODO - return Option<&[u8]> to avoid copy
+pub fn load_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
+    if bytes.len() < 4 {
+        println!("!<1> too small {}", bytes.len());
+        return None;
+    }
+
+    let len: u32 = load_u32(&bytes[..4])?;
+    if bytes.len() < (4 + len) as usize {
+        println!("!<2> too small {} expected at least {}", bytes.len(), 4 + len);
+        return None;
+    }
+
+    Some(Vec::from(&bytes[4..4 + len as usize]))
 }
 
 /// An `AccessStructure` defines how a message is to be split among multiple parties
@@ -17,8 +59,13 @@ pub struct AccessStructure {
 /// are needed to reconstruct the original `Commune`
 impl AccessStructure {
     /// Convert this `AccessStructure` to a byte array.
-    pub fn to_bytes(&self) -> [u8; 4] {
+    pub fn to_bytes(&self) -> [u8; ACCESS_STRUCTURE_LENGTH] {
         self.threshold.to_le_bytes()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<AccessStructure> {
+        let threshold = load_u32(bytes)?;
+        Some(AccessStructure { threshold })
     }
 }
 
@@ -49,7 +96,7 @@ pub struct Commune {
 }
 
 #[allow(non_snake_case)]
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Share {
     A: AccessStructure,
     S: sharks::Share,
@@ -58,14 +105,71 @@ pub struct Share {
     /// D is the encrypted randomness
     D: Vec<u8>,
     /// J is a MAC showing knowledge of A, M, R, and T
-    J: [u8; 64],
+    J: [u8; MAC_LENGTH],
     T: (),
 }
+
 impl fmt::Debug for Share {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Share")
          .field("S", &self.S)
          .finish()
+    }
+}
+
+impl Share {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::new();
+
+        // A: AccessStructure
+        out.extend(self.A.to_bytes());
+
+        // S: sharks::Share
+        store_bytes(&Vec::from(&self.S), &mut out);
+
+        // C: Vec<u8>
+        store_bytes(&self.C, &mut out);
+
+        // D: Vec<u8>
+        store_bytes(&self.D, &mut out);
+
+        // J: [u8; 64]
+        out.extend(self.J);
+
+        out
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Share> {
+        let mut slice = bytes;
+
+        // A: AccessStructure
+        let a = AccessStructure::from_bytes(&slice[..ACCESS_STRUCTURE_LENGTH])?;
+        slice = &slice[ACCESS_STRUCTURE_LENGTH..];
+
+        // S: sharks::Share
+        let sb = load_bytes(slice)?;
+        slice = &slice[4 + sb.len()..];
+
+        // C: Vec<u8>
+        let c = load_bytes(slice)?;
+        slice = &slice[4 + c.len()..];
+
+        // D: Vec<u8>
+        let d = load_bytes(slice)?;
+        slice = &slice[4 + d.len()..];
+
+        // J: [u8; 64]
+        let mut j: [u8; MAC_LENGTH] = [0u8; MAC_LENGTH];
+        j.copy_from_slice(slice);
+
+        Some(Share {
+            A: a,
+            S: sharks::Share::try_from(sb.as_slice()).ok()?,
+            C: c,
+            D: d,
+            J: j,
+            T: (),
+        })
     }
 }
 
@@ -184,6 +288,54 @@ mod tests {
     use core::iter;
 
     use crate::*;
+
+    #[test]
+    fn serialization_u32() {
+        for &i in &[0, 10, 100, u32::MAX] {
+            let mut out: Vec<u8> = Vec::new();
+            store_u32(i, &mut out);
+            assert_eq!(load_u32(out.as_slice()), Some(i));
+        }
+    }
+
+    #[test]
+    fn serialization_empty_bytes() {
+        let mut out: Vec<u8> = Vec::new();
+        store_bytes(Vec::new().as_slice(), &mut out);
+        assert_eq!(load_bytes(out.as_slice()), Some(Vec::new()));
+    }
+
+    #[test]
+    fn serialization_bytes() {
+        let mut out: Vec<u8> = Vec::new();
+        let bytes: &[u8] = &[0, 1, 10, 100];
+        store_bytes(bytes, &mut out);
+        assert_eq!(load_bytes(out.as_slice()), Some(bytes.to_vec()));
+    }
+
+    #[test]
+    fn serialization_access_structure() {
+        for i in &[0, 10, 100, u32::MAX] {
+            let a = AccessStructure { threshold: *i };
+            let s: &[u8] = &a.to_bytes()[..];
+            assert_eq!(AccessStructure::from_bytes(s), Some(a));
+        }
+    }
+
+    #[test]
+    fn serialization_share() {
+        let c = Commune {
+            A: AccessStructure { threshold: 50 },
+            M: vec![1, 2, 3, 4],
+            R: vec![5, 6, 7, 8],
+            T: None,
+        };
+
+        for share in iter::repeat_with(|| c.clone().share()).take(150) {
+            let s = share.to_bytes();
+            assert_eq!(Share::from_bytes(s.as_slice()), Some(share));
+        }
+    }
 
     #[test]
     fn it_works() {

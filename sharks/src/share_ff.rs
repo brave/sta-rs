@@ -113,7 +113,7 @@ impl Iterator for Evaluator {
 }
 
 /// A share used to reconstruct the secret. Can be serialized to and from a byte array.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary, Debug))]
 pub struct Share {
     pub x: Fp,
