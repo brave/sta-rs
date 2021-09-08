@@ -130,7 +130,7 @@ impl From<&[u8]> for AssociatedData {
 
 // The `Ciphertext` struct holds the symmetrically encrypted data that
 // corresponds to the concatenation of `Measurement` and any optional
-// `ÀssociatedData`.
+// `AssociatedData`.
 #[derive(Debug, Clone)]
 struct Ciphertext {
     bytes: Vec<u8>,
@@ -197,7 +197,7 @@ impl Triple {
 // An `Output` corresponds to a single client `Measurement` sent to the
 // `AggregationServer` that satisfied the `threshold` check. Such
 // structs contain the `Measurement` value itself, along with a vector
-// of all the optional `ÀssociatedData` values sent by clients.
+// of all the optional `AssociatedData` values sent by clients.
 pub struct Output {
     x: Measurement,
     aux: Vec<Option<AssociatedData>>,
@@ -217,7 +217,7 @@ impl fmt::Debug for Output {
 // encoded `Measurement` value.
 //
 // Note that the `Client` struct holds all of the public protocol
-// parameters, the secret `Measurement` and `ÀssociatedData` objects,
+// parameters, the secret `Measurement` and `AssociatedData` objects,
 // and where randomness should be sampled from.
 //
 // In the STAR1 protocol, the `Client` samples randomness locally: derived
@@ -356,7 +356,7 @@ enum AggServerError {
 }
 
 // The `AggregationServer` is the entity that processes `Client`
-// messages and learns `Measurement` values and `ÀssociatedData` if the
+// messages and learns `Measurement` values and `AssociatedData` if the
 // `threshold` is met. These servers possess no secret data.
 pub struct AggregationServer {
     threshold: usize,
