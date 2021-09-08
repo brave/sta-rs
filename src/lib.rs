@@ -228,7 +228,7 @@ impl fmt::Debug for Output {
 // specifically-defined server that runs a POPRF.
 pub struct Client {
     x: Measurement,
-    threshold: usize,
+    threshold: u32,
     epoch: String,
     use_local_rand: bool,
     aux: Option<AssociatedData>,
@@ -236,7 +236,7 @@ pub struct Client {
 impl Client {
     pub fn new(
         x: &[u8],
-        threshold: usize,
+        threshold: u32,
         epoch: &str,
         use_local_rand: bool,
         aux: Option<Vec<u8>>,
@@ -263,7 +263,7 @@ impl Client {
     pub fn zipf(
         n: usize,
         s: f64,
-        threshold: usize,
+        threshold: u32,
         epoch: &str,
         use_local_rand: bool,
         aux: Option<Vec<u8>>,
@@ -361,11 +361,11 @@ enum AggServerError {
 // messages and learns `Measurement` values and `AssociatedData` if the
 // `threshold` is met. These servers possess no secret data.
 pub struct AggregationServer {
-    threshold: usize,
+    threshold: u32,
     epoch: String,
 }
 impl AggregationServer {
-    pub fn new(threshold: usize, epoch: &str) -> Self {
+    pub fn new(threshold: u32, epoch: &str) -> Self {
         AggregationServer {
             threshold,
             epoch: epoch.to_string(),
