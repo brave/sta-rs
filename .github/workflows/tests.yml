@@ -56,3 +56,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+
+      - name: WASM
+        run: |
+          cd ./wasm
+          make build
