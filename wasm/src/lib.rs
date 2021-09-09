@@ -6,7 +6,7 @@ use adss_rs::{recover, Share};
 use sta_rs::{derive_ske_key, Client};
 
 /// This function takes as input a secret (the `url`), a `threshold` (number of shares required to
-/// retrieved the encryption key and the initial secret on the server-side) and an `epoch` (used for
+/// retrieve the encryption key and the initial secret on the server-side) and an `epoch` (used for
 /// versioning).
 ///
 /// It returns a triple (tag, share, key) where:
