@@ -37,20 +37,17 @@ pub fn store_bytes(s: &[u8], out: &mut Vec<u8>) {
     out.extend(s);
 }
 
-// TODO - return Option<&[u8]> to avoid copy
-pub fn load_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
+pub fn load_bytes(bytes: &[u8]) -> Option<&[u8]> {
     if bytes.len() < 4 {
-        println!("!<1> too small {}", bytes.len());
         return None;
     }
 
     let len: u32 = load_u32(&bytes[..4])?;
     if bytes.len() < (4 + len) as usize {
-        println!("!<2> too small {} expected at least {}", bytes.len(), 4 + len);
         return None;
     }
 
-    Some(Vec::from(&bytes[4..4 + len as usize]))
+    Some(&bytes[4..4 + len as usize])
 }
 
 /// An `AccessStructure` defines how a message is to be split among multiple parties
@@ -164,9 +161,9 @@ impl Share {
 
         Some(Share {
             A: a,
-            S: sharks::Share::try_from(sb.as_slice()).ok()?,
-            C: c,
-            D: d,
+            S: sharks::Share::try_from(sb).ok()?,
+            C: c.to_vec(),
+            D: d.to_vec(),
             J: j,
             T: (),
         })
@@ -302,7 +299,7 @@ mod tests {
     fn serialization_empty_bytes() {
         let mut out: Vec<u8> = Vec::new();
         store_bytes(Vec::new().as_slice(), &mut out);
-        assert_eq!(load_bytes(out.as_slice()), Some(Vec::new()));
+        assert_eq!(load_bytes(out.as_slice()), Some(&[] as &[u8]));
     }
 
     #[test]
@@ -310,7 +307,7 @@ mod tests {
         let mut out: Vec<u8> = Vec::new();
         let bytes: &[u8] = &[0, 1, 10, 100];
         store_bytes(bytes, &mut out);
-        assert_eq!(load_bytes(out.as_slice()), Some(bytes.to_vec()));
+        assert_eq!(load_bytes(out.as_slice()), Some(bytes));
     }
 
     #[test]
