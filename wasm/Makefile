@@ -2,8 +2,8 @@
 all: build
 
 build:
-	cargo build # --release
-	wasm-pack build --target bundler # --release
+	cargo build --release
+	wasm-pack build --target bundler --release
 
 clean:
 	cargo clean
