@@ -207,9 +207,9 @@ impl Ciphertext {
         nonce.copy_from_slice(slice);
 
         Some(Ciphertext {
-            bytes,
+            bytes: bytes.to_vec(),
             nonce,
-            aad: if aad.is_empty() { None } else { Some(aad) },
+            aad: if aad.is_empty() { None } else { Some(aad.to_vec()) },
         })
     }
 }
@@ -254,12 +254,12 @@ impl Triple {
 
         // ciphertext: Ciphertext
         let cb = load_bytes(slice)?;
-        let ciphertext = Ciphertext::from_bytes(&cb)?;
+        let ciphertext = Ciphertext::from_bytes(cb)?;
         slice = &slice[4 + cb.len() as usize..];
 
         // share: Share
         let sb = load_bytes(slice)?;
-        let share = Share::from_bytes(&sb)?;
+        let share = Share::from_bytes(sb)?;
         slice = &slice[4 + sb.len() as usize..];
 
         // tag: Vec<u8>
@@ -268,7 +268,7 @@ impl Triple {
         Some(Triple {
             ciphertext,
             share,
-            tag,
+            tag: tag.to_vec(),
         })
     }
 }
@@ -383,7 +383,7 @@ impl Client {
         Triple::new(ciphertext, share, tag)
     }
 
-    fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
+    pub fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
         let mut output = Vec::new();
         for i in 0..3 {
             let mut hash = Context::new(&SHA256);
@@ -394,9 +394,14 @@ impl Client {
         output
     }
 
-    fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
+    pub fn derive_key(&self, r1: &[u8]) -> Vec<u8> {
         let mut enc_key = vec![0u8; 16];
         derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
+        enc_key
+    }
+
+    fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
+        let enc_key = self.derive_key(r1);
         let mut data = self.x.as_vec();
         if let Some(aux) = &self.aux {
             data.extend(aux.0.clone());
@@ -404,7 +409,7 @@ impl Client {
         Ciphertext::new(&enc_key, &data)
     }
 
-    fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
+    pub fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
         let c = Commune::new(self.threshold, r1.to_vec(), r2.to_vec(), None);
         c.share()
     }
@@ -420,6 +425,7 @@ impl Client {
         let mut hash = Context::new(&digest::SHA256);
         hash.update(self.x.as_slice());
         hash.update(self.epoch.as_bytes());
+        hash.update(&self.threshold.to_le_bytes());
         let digest = hash.finish();
         out.copy_from_slice(digest.as_ref());
     }
@@ -427,6 +433,10 @@ impl Client {
     pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
         end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }
+}
+
+pub fn share_recover(shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
+    recover(shares)
 }
 
 #[derive(Debug)]
@@ -495,17 +505,13 @@ impl AggregationServer {
 
     fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) -> Result<(), AggServerError> {
         let shares: Vec<Share> = triples.iter().map(|triple| triple.share.clone()).collect();
-        let res = self.share_recover(&shares);
+        let res = share_recover(&shares);
         if res.is_err() {
             return Err(AggServerError::PossibleShareCollision);
         }
         let message = res.unwrap().get_message();
         derive_ske_key(&message, self.epoch.as_bytes(), enc_key);
         Ok(())
-    }
-
-    fn share_recover(&self, shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
-        recover(shares)
     }
 
     fn filter_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
@@ -536,7 +542,7 @@ impl AggregationServer {
 // The `derive_ske_key` helper function derives symmetric encryption
 // keys that are used for encrypting/decrypting `Ciphertext` objects
 // during the STAR protocol.
-fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
+pub fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
     if key_out.len() != digest::SHA256_OUTPUT_LEN / 2 {
         panic!(
             "Output buffer length ({}) does not match randomness length ({})",
