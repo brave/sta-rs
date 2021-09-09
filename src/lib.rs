@@ -209,7 +209,11 @@ impl Ciphertext {
         Some(Ciphertext {
             bytes: bytes.to_vec(),
             nonce,
-            aad: if aad.is_empty() { None } else { Some(aad.to_vec()) },
+            aad: if aad.is_empty() {
+                None
+            } else {
+                Some(aad.to_vec())
+            },
         })
     }
 }
