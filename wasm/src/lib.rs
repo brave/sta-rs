@@ -45,7 +45,10 @@ pub fn create_share(url: &str, threshold: u32, epoch: &str) -> String {
 
     format!(
         r#"{{"key": "{}", "share": "{}", "tag": "{}", "kl": "{}"}}"#,
-        key_b64, share_b64, tag_b64, key.len(),
+        key_b64,
+        share_b64,
+        tag_b64,
+        key.len(),
     )
 }
 
