@@ -137,7 +137,7 @@ async function recoverEncryptionKey(messages) {
       name: "AES-GCM",
     },
     false,
-    ["decrypt", "encrypt"]
+    ["decrypt"]
   );
 }
 
