@@ -1,6 +1,6 @@
 [package]
 name = "star-wasm"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["Rémi Berson <remi@brave.com>"]
 edition = "2018"
 
@@ -16,6 +16,7 @@ adss-rs = { path = "../secret-sharing/adss-rs" }
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = "0.2"
 base64 = "0.13"
+console_error_panic_hook = "0.1.6"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

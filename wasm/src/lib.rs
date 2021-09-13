@@ -5,6 +5,10 @@ use base64::{decode, encode};
 use adss_rs::{recover, Share};
 use sta_rs::{derive_ske_key, Client};
 
+// NOTE - this can be used for debugging. Disabled for the production build.
+// extern crate console_error_panic_hook;
+// use std::panic;
+
 /// This function takes as input a secret (the `url`), a `threshold` (number of shares required to
 /// retrieve the encryption key and the initial secret on the server-side) and an `epoch` (used for
 /// versioning).
@@ -23,6 +27,9 @@ use sta_rs::{derive_ske_key, Client};
 /// decryption key and decrypt `encrypted_metadata`.
 #[wasm_bindgen]
 pub fn create_share(url: &str, threshold: u32, epoch: &str) -> String {
+    // NOTE - enable for debugging.
+    // panic::set_hook(Box::new(console_error_panic_hook::hook));
+
     let client = Client::new(url.as_bytes(), threshold, epoch, true, None);
 
     let mut rnd = vec![0u8; 32];
@@ -44,11 +51,8 @@ pub fn create_share(url: &str, threshold: u32, epoch: &str) -> String {
     let tag_b64 = encode(&tag);
 
     format!(
-        r#"{{"key": "{}", "share": "{}", "tag": "{}", "kl": "{}"}}"#,
-        key_b64,
-        share_b64,
-        tag_b64,
-        key.len(),
+        r#"{{"key": "{}", "share": "{}", "tag": "{}"}}"#,
+        key_b64, share_b64, tag_b64,
     )
 }
 
