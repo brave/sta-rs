@@ -35,6 +35,7 @@ use ring::hkdf;
 use adss_rs::{recover, Commune};
 pub use {adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share};
 
+#[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
 
 pub const AES_BLOCK_LEN: usize = 24;
@@ -181,6 +182,7 @@ impl Client {
         out.copy_from_slice(digest.as_ref());
     }
 
+    #[cfg(feature = "star2")]
     pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
         end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }

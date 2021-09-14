@@ -1,8 +1,6 @@
 use sta_rs::*;
 use sta_rs_test_utils::*;
 
-use ppoprf::ppoprf::Server as PPOPRFServer;
-
 #[test]
 fn serialize_ciphertext() {
     let client = Client::new(b"foobar", 0, "epoch", None);
@@ -64,21 +62,25 @@ fn star1_rand_with_aux_multiple_block() {
     star_rand_with_aux_multiple_block(None);
 }
 
+#[cfg(feature = "star2")]
 #[test]
 fn star2_no_aux_multiple_block() {
     star_no_aux_multiple_block(Some(PPOPRFServer::new()));
 }
 
+#[cfg(feature = "star2")]
 #[test]
 fn star2_no_aux_single_block() {
     star_no_aux_single_block(Some(PPOPRFServer::new()));
 }
 
+#[cfg(feature = "star2")]
 #[test]
 fn star2_with_aux_multiple_block() {
     star_with_aux_multiple_block(Some(PPOPRFServer::new()));
 }
 
+#[cfg(feature = "star2")]
 #[test]
 fn star2_rand_with_aux_multiple_block() {
     star_rand_with_aux_multiple_block(Some(PPOPRFServer::new()));

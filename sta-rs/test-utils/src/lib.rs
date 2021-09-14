@@ -9,7 +9,11 @@ use ring::digest::{self, SHA256};
 use ring::rand::{SecureRandom, SystemRandom};
 use zipf::ZipfDistribution;
 
-use ppoprf::ppoprf::Server as PPOPRFServer;
+#[cfg(feature = "star2")]
+pub use ppoprf::ppoprf::Server as PPOPRFServer;
+
+#[cfg(not(feature = "star2"))]
+pub struct PPOPRFServer;
 
 use sta_rs::*;
 
@@ -143,7 +147,10 @@ impl Triple {
         if oprf_server.is_none() {
             client.sample_local_randomness(&mut rnd);
         } else {
+            #[cfg(feature = "star2")]
             client.sample_oprf_randomness(oprf_server.unwrap(), &mut rnd);
+            #[cfg(not(feature = "star2"))]
+            unimplemented!();
         }
         let r = client.derive_random_values(&rnd);
         let r1 = &r[0];

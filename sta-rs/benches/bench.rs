@@ -2,7 +2,6 @@ use core::iter;
 use criterion::{criterion_group, criterion_main, Criterion, PlotConfiguration};
 use rand::Rng;
 
-use ppoprf::ppoprf::Server as PPOPRFServer;
 use sta_rs::*;
 use sta_rs_test_utils::*;
 
@@ -22,6 +21,7 @@ fn benchmark_client_randomness_sampling(c: &mut Criterion) {
         });
     });
 
+    #[cfg(feature = "star2")]
     c.bench_function("Client ppoprf randomness", |b| {
         let client = client_zipf(10000, 1.03, 2, "t", None);
         let ppoprf_server = PPOPRFServer::new();
@@ -40,6 +40,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
         });
     });
 
+    #[cfg(feature = "star2")]
     c.bench_function("Client generate triple (ppoprf)", |b| {
         let client = client_zipf(10000, 1.03, 2, "t", None);
         let ppoprf_server = PPOPRFServer::new();
@@ -56,6 +57,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
         });
     });
 
+    #[cfg(feature = "star2")]
     c.bench_function("Client generate triple (ppoprf, aux)", |b| {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
         let client = client_zipf(10000, 1.03, 2, "t", Some(random_bytes.to_vec()));
@@ -113,22 +115,27 @@ fn benchmark_end_to_end(c: &mut Criterion) {
 fn get_triples(params: &Params, epoch: &str) -> Vec<Triple> {
     let triples: Vec<Triple>;
     if !params.local {
-        let mut ppoprf_server = PPOPRFServer::new();
-        triples = iter::repeat_with(|| {
-            Triple::generate(
-                &client_zipf(
-                    params.n,
-                    params.s,
-                    params.threshold,
-                    epoch,
-                    get_aux_data(params.aux_data),
-                ),
-                Some(&ppoprf_server),
-            )
-        })
-        .take(params.clients)
-        .collect();
-        ppoprf_server.puncture(epoch.as_bytes());
+        #[cfg(not(feature = "star2"))]
+        unimplemented!();
+        #[cfg(feature = "star2")]
+        {
+            let mut ppoprf_server = PPOPRFServer::new();
+            triples = iter::repeat_with(|| {
+                Triple::generate(
+                    &client_zipf(
+                        params.n,
+                        params.s,
+                        params.threshold,
+                        epoch,
+                        get_aux_data(params.aux_data),
+                    ),
+                    Some(&ppoprf_server),
+                )
+            })
+            .take(params.clients)
+            .collect();
+            ppoprf_server.puncture(epoch.as_bytes());
+        }
     } else {
         triples = iter::repeat_with(|| {
             Triple::generate(
