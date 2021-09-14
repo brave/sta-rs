@@ -2,9 +2,38 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 
+use rand::distributions::Distribution;
 use rayon::prelude::*;
+use ring::digest::{self, SHA256};
+use zipf::ZipfDistribution;
 
 use sta_rs::*;
+
+// The `zipf_measurement` function returns a client `Measurement` sampled from
+// Zipf power-law distribution with `n` corresponding to the number
+// of potential elements, and `s` the exponent.
+pub fn measurement_zipf(n: usize, s: f64) -> Measurement {
+    let mut rng = rand::thread_rng();
+    let zipf = ZipfDistribution::new(n, s).unwrap();
+    let sample = zipf.sample(&mut rng).to_le_bytes();
+    let extended = sample.to_vec();
+    // essentially we compute a hash here so that we can simulate
+    // having a full 32 bytes of data
+    let val = digest::digest(&SHA256, &extended);
+    Measurement::new(val.as_ref())
+}
+
+pub fn client_zipf(
+    n: usize,
+    s: f64,
+    threshold: u32,
+    epoch: &str,
+    use_local_rand: bool,
+    aux: Option<Vec<u8>>,
+) -> Client {
+    let x = measurement_zipf(n, s);
+    Client::new(x.as_slice(), threshold, epoch, use_local_rand, aux)
+}
 
 // An `Output` corresponds to a single client `Measurement` sent to the
 // `AggregationServer` that satisfied the `threshold` check. Such

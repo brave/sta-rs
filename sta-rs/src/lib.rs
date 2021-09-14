@@ -28,16 +28,11 @@
 use std::error::Error;
 use std::str;
 
-use rand::distributions::Distribution;
-
 extern crate ring;
 use ring::aead;
-use ring::digest;
-use ring::digest::{Context, SHA256};
+use ring::digest::{self, Context, SHA256};
 use ring::hkdf;
 use ring::rand::{SecureRandom, SystemRandom};
-
-use zipf::ZipfDistribution;
 
 use adss_rs::{recover, store_bytes, Commune};
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
@@ -65,20 +60,6 @@ impl Measurement {
             panic!("Length of string ({:?}) is too long", m.len());
         }
         Self(m)
-    }
-
-    // The `zipf` function returns a client `Measurement` sampled from
-    // Zipf power-law distribution with `n` corresponding to the number
-    // of potential elements, and `s` the exponent.
-    pub fn zipf(n: usize, s: f64) -> Self {
-        let mut rng = rand::thread_rng();
-        let zipf = ZipfDistribution::new(n, s).unwrap();
-        let sample = zipf.sample(&mut rng).to_le_bytes();
-        let extended = sample.to_vec();
-        // essentially we compute a hash here so that we can simulate
-        // having a full 32 bytes of data
-        let val = digest::digest(&SHA256, &extended);
-        Self(val.as_ref().to_vec())
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -306,48 +287,12 @@ impl Client {
         aux: Option<Vec<u8>>,
     ) -> Self {
         let x = Measurement::new(x);
-        if let Some(v) = aux {
-            return Self {
-                x,
-                threshold,
-                epoch: epoch.to_string(),
-                use_local_rand,
-                aux: Some(AssociatedData::new(&v)),
-            };
-        }
         Self {
             x,
             threshold,
             epoch: epoch.to_string(),
             use_local_rand,
-            aux: None,
-        }
-    }
-
-    pub fn zipf(
-        n: usize,
-        s: f64,
-        threshold: u32,
-        epoch: &str,
-        use_local_rand: bool,
-        aux: Option<Vec<u8>>,
-    ) -> Self {
-        let x = Measurement::zipf(n, s);
-        if let Some(v) = aux {
-            return Self {
-                x,
-                threshold,
-                epoch: epoch.to_string(),
-                use_local_rand,
-                aux: Some(AssociatedData::new(&v)),
-            };
-        }
-        Self {
-            x,
-            threshold,
-            epoch: epoch.to_string(),
-            use_local_rand,
-            aux: None,
+            aux: aux.and_then(|x| Some(AssociatedData::new(&x))),
         }
     }
 

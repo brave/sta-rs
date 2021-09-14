@@ -1,5 +1,5 @@
 use sta_rs::*;
-use sta_rs_test_utils::AggregationServer;
+use sta_rs_test_utils::*;
 
 use ppoprf::ppoprf::Server as PPOPRFServer;
 
@@ -238,7 +238,7 @@ fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<P
     let threshold = 5;
     let epoch = "t";
     for i in 0..254 {
-        clients.push(Client::zipf(
+        clients.push(client_zipf(
             1000,
             1.03,
             threshold,
