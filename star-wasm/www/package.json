@@ -1,0 +1,36 @@
+{
+  "name": "star",
+  "version": "0.1.0",
+  "description": "Browser demo for STAR with WebAssembly",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "build:release": "webpack --config webpack.config.js --mode production"
+  },
+  "author": "remi@brave.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brave-experiments/sta-rs.git"
+  },
+  "keywords": [
+    "webassembly",
+    "wasm",
+    "rust",
+    "webpack",
+    "star"
+  ],
+  "bugs": {
+    "url": "https://github.com/brave-experiments/sta-rs/issues"
+  },
+  "homepage": "https://github.com/brave-experiments/sta-rs#readme",
+  "dependencies": {
+    "koa": "2.13.1",
+    "koa-static": "5.0.0",
+    "star-wasm": "file:../wasm/pkg"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^9.0.1",
+    "eslint": "7.32.0",
+    "webpack": "5.52.0",
+    "webpack-cli": "4.8.0"
+  }
+}
