@@ -11,8 +11,8 @@ crate-type = ["cdylib", "rlib"]
 default = []
 
 [dependencies]
-sta-rs = { path = "../", default-features = false }
-adss-rs = { path = "../secret-sharing/adss-rs" }
+sta-rs = { path = "../sta-rs", default-features = false }
+adss-rs = { path = "../adss-rs" }
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = "0.2"
 base64 = "0.13"
