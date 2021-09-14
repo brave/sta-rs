@@ -2,8 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};
 
-use adss_rs::{recover, Share};
-use sta_rs::{derive_ske_key, Client};
+use sta_rs::{derive_ske_key, share_recover, Client, Share};
 
 // NOTE - this can be used for debugging. Disabled for the production build.
 // extern crate console_error_panic_hook;
@@ -68,7 +67,7 @@ pub fn group_shares(serialized_shares: &str, epoch: &str) -> Option<String> {
         .collect();
 
     // 2. call recover(shares)
-    let res = recover(&shares);
+    let res = share_recover(&shares);
     if res.is_err() {
         return None;
     }

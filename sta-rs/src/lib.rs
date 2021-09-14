@@ -25,15 +25,10 @@
 //! randomness is only revealed after the epoch metadata tag has been
 //! punctured from the randomness server's secret key.
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::error::Error;
-use std::fmt;
 use std::str;
 
 use rand::distributions::Distribution;
-
-use rayon::prelude::*;
 
 extern crate ring;
 use ring::aead;
@@ -44,10 +39,12 @@ use ring::rand::{SecureRandom, SystemRandom};
 
 use zipf::ZipfDistribution;
 
-use adss_rs::{load_bytes, recover, store_bytes, Commune, Share};
+use adss_rs::{recover, store_bytes, Commune};
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
+pub use {adss_rs::load_bytes, adss_rs::Share};
 
 pub const AES_BLOCK_LEN: usize = 24;
+// FIXME
 pub const MEASUREMENT_MAX_LEN: usize = 32;
 pub const DEBUG: bool = false;
 
@@ -59,14 +56,14 @@ pub const DEBUG: bool = false;
 //
 // Such data is essentially arbitrary subject to the maximum length
 // requirement specified by `MEASUREMENT_MAX_LEN`
+#[derive(Debug)]
 pub struct Measurement(Vec<u8>);
 impl Measurement {
     pub fn new(x: &[u8]) -> Self {
-        let mut m = x.to_vec();
+        let m = x.to_vec();
         if m.len() > MEASUREMENT_MAX_LEN {
             panic!("Length of string ({:?}) is too long", m.len());
         }
-        m.extend(vec![0u8; MEASUREMENT_MAX_LEN - x.len()]);
         Self(m)
     }
 
@@ -77,19 +74,18 @@ impl Measurement {
         let mut rng = rand::thread_rng();
         let zipf = ZipfDistribution::new(n, s).unwrap();
         let sample = zipf.sample(&mut rng).to_le_bytes();
-        let mut extended = sample.to_vec();
-        extended.extend(vec![0u8; MEASUREMENT_MAX_LEN - sample.len()]);
+        let extended = sample.to_vec();
         // essentially we compute a hash here so that we can simulate
         // having a full 32 bytes of data
         let val = digest::digest(&SHA256, &extended);
         Self(val.as_ref().to_vec())
     }
 
-    fn as_slice(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    fn as_vec(&self) -> Vec<u8> {
+    pub fn as_vec(&self) -> Vec<u8> {
         self.0.clone()
     }
 
@@ -118,6 +114,10 @@ impl AssociatedData {
         Self(buf.to_vec())
     }
 
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
     pub fn as_vec(&self) -> Vec<u8> {
         self.0.clone()
     }
@@ -137,7 +137,7 @@ impl From<&[u8]> for AssociatedData {
 // corresponds to the concatenation of `Measurement` and any optional
 // `AssociatedData`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Ciphertext {
+pub struct Ciphertext {
     bytes: Vec<u8>,
     nonce: [u8; 12],
     aad: Option<Vec<u8>>,
@@ -165,7 +165,7 @@ impl Ciphertext {
         }
     }
 
-    fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
+    pub fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
         let ls_key =
             aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, enc_key_buf).unwrap());
         let mut in_out = self.bytes.clone();
@@ -224,9 +224,9 @@ impl Ciphertext {
 // of clients possess the same measurement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Triple {
-    ciphertext: Ciphertext,
-    share: Share,
-    tag: Vec<u8>,
+    pub ciphertext: Ciphertext,
+    pub share: Share,
+    pub tag: Vec<u8>,
 }
 
 impl Triple {
@@ -274,23 +274,6 @@ impl Triple {
             share,
             tag: tag.to_vec(),
         })
-    }
-}
-
-// An `Output` corresponds to a single client `Measurement` sent to the
-// `AggregationServer` that satisfied the `threshold` check. Such
-// structs contain the `Measurement` value itself, along with a vector
-// of all the optional `AssociatedData` values sent by clients.
-pub struct Output {
-    x: Measurement,
-    aux: Vec<Option<AssociatedData>>,
-}
-impl fmt::Debug for Output {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Output")
-            .field("tag", &self.x.0)
-            .field("aux", &self.aux)
-            .finish()
     }
 }
 
@@ -406,9 +389,11 @@ impl Client {
 
     fn derive_ciphertext(&self, r1: &[u8]) -> Ciphertext {
         let enc_key = self.derive_key(r1);
-        let mut data = self.x.as_vec();
+
+        let mut data: Vec<u8> = Vec::new();
+        store_bytes(&self.x.0, &mut data);
         if let Some(aux) = &self.aux {
-            data.extend(aux.0.clone());
+            store_bytes(&aux.0, &mut data);
         }
         Ciphertext::new(&enc_key, &data)
     }
@@ -439,108 +424,9 @@ impl Client {
     }
 }
 
+// FIXME can we implement collect trait?
 pub fn share_recover(shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
     recover(shares)
-}
-
-#[derive(Debug)]
-enum AggServerError {
-    PossibleShareCollision,
-}
-
-// The `AggregationServer` is the entity that processes `Client`
-// messages and learns `Measurement` values and `AssociatedData` if the
-// `threshold` is met. These servers possess no secret data.
-pub struct AggregationServer {
-    threshold: u32,
-    epoch: String,
-}
-impl AggregationServer {
-    pub fn new(threshold: u32, epoch: &str) -> Self {
-        AggregationServer {
-            threshold,
-            epoch: epoch.to_string(),
-        }
-    }
-
-    pub fn retrieve_outputs(&self, all_triples: &[Triple]) -> Vec<Output> {
-        let filtered = self.filter_triples(all_triples);
-        filtered
-            .into_par_iter()
-            .map(|triples| self.recover_measurements(&triples))
-            .map(|output| output.unwrap())
-            .collect()
-    }
-
-    fn recover_measurements(&self, triples: &[Triple]) -> Result<Output, AggServerError> {
-        let mut enc_key_buf = vec![0u8; 16];
-        let res = self.key_recover(triples, &mut enc_key_buf);
-        if let Err(e) = res {
-            return Err(e);
-        }
-
-        let ciphertexts = triples.iter().map(|t| t.ciphertext.clone());
-        let plaintexts = ciphertexts.map(|c| c.decrypt(&enc_key_buf));
-
-        let splits: Vec<(Vec<u8>, Option<AssociatedData>)> = plaintexts
-            .map(|p| {
-                let max_aes_length =
-                    MEASUREMENT_MAX_LEN + AES_BLOCK_LEN - (MEASUREMENT_MAX_LEN % AES_BLOCK_LEN);
-                if p.len() > max_aes_length {
-                    return (
-                        p[..MEASUREMENT_MAX_LEN].to_vec(),
-                        Some(AssociatedData(p[MEASUREMENT_MAX_LEN..].to_vec())),
-                    );
-                }
-                (p, None)
-            })
-            .collect();
-        let tag = &splits[0].0;
-        for new_tag in splits.iter().skip(1) {
-            if &new_tag.0 != tag {
-                panic!("tag mismatch ({:?} != {:?})", tag, new_tag.0);
-            }
-        }
-        Ok(Output {
-            x: Measurement(tag.clone()),
-            aux: splits.into_iter().map(|val| val.1).collect(),
-        })
-    }
-
-    fn key_recover(&self, triples: &[Triple], enc_key: &mut [u8]) -> Result<(), AggServerError> {
-        let shares: Vec<Share> = triples.iter().map(|triple| triple.share.clone()).collect();
-        let res = share_recover(&shares);
-        if res.is_err() {
-            return Err(AggServerError::PossibleShareCollision);
-        }
-        let message = res.unwrap().get_message();
-        derive_ske_key(&message, self.epoch.as_bytes(), enc_key);
-        Ok(())
-    }
-
-    fn filter_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
-        let collected = self.collect_triples(triples);
-        collected
-            .into_iter()
-            .filter(|bucket| bucket.len() >= (self.threshold as usize))
-            .collect()
-    }
-
-    fn collect_triples(&self, triples: &[Triple]) -> Vec<Vec<Triple>> {
-        let mut collected_triples: HashMap<String, Vec<Triple>> = HashMap::new();
-        for triple in triples {
-            let s = format!("{:x?}", triple.tag);
-            match collected_triples.entry(s) {
-                Entry::Vacant(e) => {
-                    e.insert(vec![triple.clone()]);
-                }
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push(triple.clone());
-                }
-            }
-        }
-        collected_triples.values().cloned().collect()
-    }
 }
 
 // The `derive_ske_key` helper function derives symmetric encryption
@@ -584,267 +470,27 @@ mod tests {
     }
 
     #[test]
-    fn star1_no_aux_multiple_block() {
-        star_no_aux_multiple_block(true, None);
-    }
+    fn roundtrip() {
+        let client = Client::new(b"foobar", 1, "epoch", true, None);
+        let triple = client.generate_triple(None);
 
-    #[test]
-    fn star1_no_aux_single_block() {
-        star_no_aux_single_block(true, None);
-    }
+        let commune = share_recover(&vec![triple.share]).unwrap();
+        let message = commune.get_message();
 
-    #[test]
-    fn star1_with_aux_multiple_block() {
-        star_with_aux_multiple_block(true, None);
-    }
+        let mut enc_key_buf = vec![0u8; 16];
+        derive_ske_key(&message, "epoch".as_bytes(), &mut enc_key_buf);
+        let plaintext = triple.ciphertext.decrypt(&enc_key_buf);
 
-    #[test]
-    fn star1_rand_with_aux_multiple_block() {
-        star_rand_with_aux_multiple_block(true, None);
-    }
+        let mut slice = &plaintext[..];
 
-    #[test]
-    fn star2_no_aux_multiple_block() {
-        star_no_aux_multiple_block(false, Some(PPOPRFServer::new()));
-    }
+        let measurement_bytes = load_bytes(&slice).unwrap();
+        slice = &slice[4 + measurement_bytes.len() as usize..];
 
-    #[test]
-    fn star2_no_aux_single_block() {
-        star_no_aux_single_block(false, Some(PPOPRFServer::new()));
-    }
-
-    #[test]
-    fn star2_with_aux_multiple_block() {
-        star_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
-    }
-
-    #[test]
-    fn star2_rand_with_aux_multiple_block() {
-        star_rand_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
-    }
-
-    fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
-        let mut clients = Vec::new();
-        let threshold = 2;
-        let epoch = "t";
-        let str1 = "hello world";
-        let str2 = "goodbye sweet prince";
-        for i in 0..10 {
-            if i % 3 == 0 {
-                clients.push(Client::new(
-                    str1.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            } else if i % 4 == 0 {
-                clients.push(Client::new(
-                    str2.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            } else {
-                clients.push(Client::new(
-                    &[i as u8],
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            }
+        if slice.len() > 0 {
+            let aux_bytes = load_bytes(&slice).unwrap();
+            assert_eq!(aux_bytes.len(), 0);
         }
-        let agg_server = AggregationServer::new(threshold, epoch);
 
-        let triples: Vec<Triple> = clients
-            .into_iter()
-            .map(|c| c.generate_triple(oprf_server.as_ref()))
-            .collect();
-        let outputs = agg_server.retrieve_outputs(&triples);
-        for o in outputs {
-            let tag_str = str::from_utf8(&o.x.0)
-                .unwrap()
-                .trim_end_matches(char::from(0));
-            if tag_str == str1 {
-                assert_eq!(o.aux.len(), 4);
-            } else if tag_str == str2 {
-                assert_eq!(o.aux.len(), 2);
-            } else {
-                panic!("Unexpected tag: {}", tag_str);
-            }
-
-            for b in o.aux.into_iter().flatten() {
-                panic!("Unexpected auxiliary data: {:?}", b);
-            }
-        }
-    }
-
-    fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
-        let mut clients = Vec::new();
-        let threshold = 2;
-        let epoch = "t";
-        let str1 = "three";
-        let str2 = "four";
-        for i in 0..10 {
-            if i % 3 == 0 {
-                clients.push(Client::new(
-                    str1.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            } else if i % 4 == 0 {
-                clients.push(Client::new(
-                    str2.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            } else {
-                clients.push(Client::new(
-                    &[i as u8],
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    None,
-                ));
-            }
-        }
-        let agg_server = AggregationServer::new(threshold, epoch);
-
-        let triples: Vec<Triple> = clients
-            .into_iter()
-            .map(|c| c.generate_triple(oprf_server.as_ref()))
-            .collect();
-        let outputs = agg_server.retrieve_outputs(&triples);
-        for o in outputs {
-            let tag_str = str::from_utf8(&o.x.0)
-                .unwrap()
-                .trim_end_matches(char::from(0));
-            if tag_str == str1 {
-                assert_eq!(o.aux.len(), 4);
-            } else if tag_str == str2 {
-                assert_eq!(o.aux.len(), 2);
-            } else {
-                panic!("Unexpected tag: {}", tag_str);
-            }
-
-            for b in o.aux.into_iter().flatten() {
-                panic!("Unexpected auxiliary data: {:?}", b);
-            }
-        }
-    }
-
-    fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
-        let mut clients = Vec::new();
-        let threshold = 2;
-        let epoch = "t";
-        let str1 = "hello world";
-        let str2 = "goodbye sweet prince";
-        for i in 0..10 {
-            if i % 3 == 0 {
-                clients.push(Client::new(
-                    str1.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    Some(vec![i + 1; 1]),
-                ));
-            } else if i % 4 == 0 {
-                clients.push(Client::new(
-                    str2.as_bytes(),
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    Some(vec![i + 1; 1]),
-                ));
-            } else {
-                clients.push(Client::new(
-                    &[i as u8],
-                    threshold,
-                    epoch,
-                    use_local_rand,
-                    Some(vec![i + 1; 1]),
-                ));
-            }
-        }
-        let agg_server = AggregationServer::new(threshold, epoch);
-
-        let triples: Vec<Triple> = clients
-            .into_iter()
-            .map(|c| c.generate_triple(oprf_server.as_ref()))
-            .collect();
-        let outputs = agg_server.retrieve_outputs(&triples);
-        for o in outputs {
-            let tag_str = str::from_utf8(&o.x.0)
-                .unwrap()
-                .trim_end_matches(char::from(0));
-            if tag_str == str1 {
-                assert_eq!(o.aux.len(), 4);
-            } else if tag_str == str2 {
-                assert_eq!(o.aux.len(), 2);
-            } else {
-                panic!("Unexpected tag: {}", tag_str);
-            }
-
-            for a in o.aux {
-                match a {
-                    None => panic!("Expected auxiliary data!"),
-                    Some(b) => {
-                        let v = b.as_vec();
-                        for i in 0..10 {
-                            let aux_str =
-                                str::from_utf8(&v).unwrap().trim_end_matches(char::from(0));
-                            if aux_str.len() > 1 {
-                                panic!("Auxiliary data has wrong length: {}", v.len());
-                            } else if v[0] == i as u8 {
-                                return;
-                            }
-                        }
-                        panic!("Auxiliary data has unexpected value: {}", v[0]);
-                    }
-                }
-            }
-        }
-    }
-
-    fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
-        let mut clients = Vec::new();
-        let threshold = 5;
-        let epoch = "t";
-        for i in 0..254 {
-            clients.push(Client::zipf(
-                1000,
-                1.03,
-                threshold,
-                epoch,
-                use_local_rand,
-                Some(vec![i + 1; 4]),
-            ));
-        }
-        let agg_server = AggregationServer::new(threshold, epoch);
-
-        let triples: Vec<Triple> = clients
-            .into_iter()
-            .map(|c| c.generate_triple(oprf_server.as_ref()))
-            .collect();
-        let outputs = agg_server.retrieve_outputs(&triples);
-        for o in outputs {
-            for aux in o.aux {
-                if aux.is_none() {
-                    panic!("Expected auxiliary data");
-                } else if let Some(a) = aux {
-                    let val = a.0[0];
-                    assert!(val < 255);
-                    for i in 1..3 {
-                        assert_eq!(a.0[i], val);
-                    }
-                }
-            }
-        }
+        assert_eq!(measurement_bytes, b"foobar");
     }
 }

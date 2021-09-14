@@ -4,6 +4,7 @@ use rand::Rng;
 
 use ppoprf::ppoprf::Server as PPOPRFServer;
 use sta_rs::*;
+use sta_rs_test_utils::*;
 
 fn criterion_benchmark(c: &mut Criterion) {
     benchmark_client_randomness_sampling(c);
