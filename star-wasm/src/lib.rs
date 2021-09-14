@@ -29,7 +29,7 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
     // NOTE - enable for debugging.
     // panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-    let client = Client::new(measurement, threshold, epoch, true, None);
+    let client = Client::new(measurement, threshold, epoch, None);
 
     let mut rnd = vec![0u8; 32];
     client.sample_local_randomness(&mut rnd);

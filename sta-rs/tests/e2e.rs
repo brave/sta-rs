@@ -4,46 +4,87 @@ use sta_rs_test_utils::*;
 use ppoprf::ppoprf::Server as PPOPRFServer;
 
 #[test]
+fn serialize_ciphertext() {
+    let client = Client::new(b"foobar", 0, "epoch", None);
+    let triple = Triple::generate(&client, None);
+    let bytes = triple.ciphertext.to_bytes();
+    assert_eq!(Ciphertext::from_bytes(&bytes), Some(triple.ciphertext));
+}
+
+#[test]
+fn serialize_triple() {
+    let client = Client::new(b"foobar", 0, "epoch", None);
+    let triple = Triple::generate(&client, None);
+    let bytes = triple.to_bytes();
+    assert_eq!(Triple::from_bytes(&bytes), Some(triple));
+}
+
+#[test]
+fn roundtrip() {
+    let client = Client::new(b"foobar", 1, "epoch", None);
+    let triple = Triple::generate(&client, None);
+
+    let commune = share_recover(&vec![triple.share]).unwrap();
+    let message = commune.get_message();
+
+    let mut enc_key_buf = vec![0u8; 16];
+    derive_ske_key(&message, "epoch".as_bytes(), &mut enc_key_buf);
+    let plaintext = triple.ciphertext.decrypt(&enc_key_buf);
+
+    let mut slice = &plaintext[..];
+
+    let measurement_bytes = load_bytes(&slice).unwrap();
+    slice = &slice[4 + measurement_bytes.len() as usize..];
+
+    if slice.len() > 0 {
+        let aux_bytes = load_bytes(&slice).unwrap();
+        assert_eq!(aux_bytes.len(), 0);
+    }
+
+    assert_eq!(measurement_bytes, b"foobar");
+}
+
+#[test]
 fn star1_no_aux_multiple_block() {
-    star_no_aux_multiple_block(true, None);
+    star_no_aux_multiple_block(None);
 }
 
 #[test]
 fn star1_no_aux_single_block() {
-    star_no_aux_single_block(true, None);
+    star_no_aux_single_block(None);
 }
 
 #[test]
 fn star1_with_aux_multiple_block() {
-    star_with_aux_multiple_block(true, None);
+    star_with_aux_multiple_block(None);
 }
 
 #[test]
 fn star1_rand_with_aux_multiple_block() {
-    star_rand_with_aux_multiple_block(true, None);
+    star_rand_with_aux_multiple_block(None);
 }
 
 #[test]
 fn star2_no_aux_multiple_block() {
-    star_no_aux_multiple_block(false, Some(PPOPRFServer::new()));
+    star_no_aux_multiple_block(Some(PPOPRFServer::new()));
 }
 
 #[test]
 fn star2_no_aux_single_block() {
-    star_no_aux_single_block(false, Some(PPOPRFServer::new()));
+    star_no_aux_single_block(Some(PPOPRFServer::new()));
 }
 
 #[test]
 fn star2_with_aux_multiple_block() {
-    star_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
+    star_with_aux_multiple_block(Some(PPOPRFServer::new()));
 }
 
 #[test]
 fn star2_rand_with_aux_multiple_block() {
-    star_rand_with_aux_multiple_block(false, Some(PPOPRFServer::new()));
+    star_rand_with_aux_multiple_block(Some(PPOPRFServer::new()));
 }
 
-fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
+fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
     let mut clients = Vec::new();
     let threshold = 2;
     let epoch = "t";
@@ -51,36 +92,18 @@ fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFSe
     let str2 = "goodbye sweet prince";
     for i in 0..10 {
         if i % 3 == 0 {
-            clients.push(Client::new(
-                str1.as_bytes(),
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
         } else if i % 4 == 0 {
-            clients.push(Client::new(
-                str2.as_bytes(),
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
         } else {
-            clients.push(Client::new(
-                &[i as u8],
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(&[i as u8], threshold, epoch, None));
         }
     }
     let agg_server = AggregationServer::new(threshold, epoch);
 
     let triples: Vec<Triple> = clients
         .into_iter()
-        .map(|c| c.generate_triple(oprf_server.as_ref()))
+        .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
@@ -101,7 +124,7 @@ fn star_no_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFSe
     }
 }
 
-fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
+fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
     let mut clients = Vec::new();
     let threshold = 2;
     let epoch = "t";
@@ -109,36 +132,18 @@ fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<PPOPRFServ
     let str2 = "four";
     for i in 0..10 {
         if i % 3 == 0 {
-            clients.push(Client::new(
-                str1.as_bytes(),
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(str1.as_bytes(), threshold, epoch, None));
         } else if i % 4 == 0 {
-            clients.push(Client::new(
-                str2.as_bytes(),
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(str2.as_bytes(), threshold, epoch, None));
         } else {
-            clients.push(Client::new(
-                &[i as u8],
-                threshold,
-                epoch,
-                use_local_rand,
-                None,
-            ));
+            clients.push(Client::new(&[i as u8], threshold, epoch, None));
         }
     }
     let agg_server = AggregationServer::new(threshold, epoch);
 
     let triples: Vec<Triple> = clients
         .into_iter()
-        .map(|c| c.generate_triple(oprf_server.as_ref()))
+        .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples);
     for o in outputs {
@@ -159,7 +164,7 @@ fn star_no_aux_single_block(use_local_rand: bool, oprf_server: Option<PPOPRFServ
     }
 }
 
-fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
+fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
     let mut clients = Vec::new();
     let threshold = 2;
     let epoch = "t";
@@ -171,7 +176,6 @@ fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRF
                 str1.as_bytes(),
                 threshold,
                 epoch,
-                use_local_rand,
                 Some(vec![i + 1; 1]),
             ));
         } else if i % 4 == 0 {
@@ -179,7 +183,6 @@ fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRF
                 str2.as_bytes(),
                 threshold,
                 epoch,
-                use_local_rand,
                 Some(vec![i + 1; 1]),
             ));
         } else {
@@ -187,7 +190,6 @@ fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRF
                 &[i as u8],
                 threshold,
                 epoch,
-                use_local_rand,
                 Some(vec![i + 1; 1]),
             ));
         }
@@ -196,7 +198,7 @@ fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRF
 
     let triples: Vec<Triple> = clients
         .into_iter()
-        .map(|c| c.generate_triple(oprf_server.as_ref()))
+        .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
@@ -233,7 +235,7 @@ fn star_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRF
     }
 }
 
-fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<PPOPRFServer>) {
+fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
     let mut clients = Vec::new();
     let threshold = 5;
     let epoch = "t";
@@ -243,7 +245,6 @@ fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<P
             1.03,
             threshold,
             epoch,
-            use_local_rand,
             Some(vec![i + 1; 4]),
         ));
     }
@@ -251,7 +252,7 @@ fn star_rand_with_aux_multiple_block(use_local_rand: bool, oprf_server: Option<P
 
     let triples: Vec<Triple> = clients
         .into_iter()
-        .map(|c| c.generate_triple(oprf_server.as_ref()))
+        .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
