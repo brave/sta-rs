@@ -69,7 +69,9 @@ const THRESHOLD = 2;
 async function prepareMessage(url, page) {
   // `tag`, `key` and `share` are base64-encoded strings.
   const t0 = Date.now();
-  const { tag, key, share } = JSON.parse(create_share(url, THRESHOLD, EPOCH));
+  const { tag, key, share } = JSON.parse(
+    create_share(_fromString(url), THRESHOLD, EPOCH)
+  );
   const t1 = Date.now();
   console.log("create_share:", t1 - t0);
 

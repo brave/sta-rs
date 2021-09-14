@@ -9,9 +9,9 @@ use sta_rs::{derive_ske_key, Client};
 // extern crate console_error_panic_hook;
 // use std::panic;
 
-/// This function takes as input a secret (the `url`), a `threshold` (number of shares required to
-/// retrieve the encryption key and the initial secret on the server-side) and an `epoch` (used for
-/// versioning).
+/// This function takes as input a secret (the `measurement`), a `threshold` (number of shares
+/// required to retrieve the encryption key and the initial secret on the server-side) and an
+/// `epoch` (used for versioning).
 ///
 /// It returns a triple (tag, share, key) where:
 /// - `tag` is used to group "compatible" shares on the server-side, this is used to get all the
@@ -26,11 +26,11 @@ use sta_rs::{derive_ske_key, Client};
 /// must have received at least `threshold` shares for a given secret to be able to recover the
 /// decryption key and decrypt `encrypted_metadata`.
 #[wasm_bindgen]
-pub fn create_share(url: &str, threshold: u32, epoch: &str) -> String {
+pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
     // NOTE - enable for debugging.
     // panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-    let client = Client::new(url.as_bytes(), threshold, epoch, true, None);
+    let client = Client::new(measurement, threshold, epoch, true, None);
 
     let mut rnd = vec![0u8; 32];
     client.sample_local_randomness(&mut rnd);
@@ -78,5 +78,5 @@ pub fn group_shares(serialized_shares: &str, epoch: &str) -> Option<String> {
     let mut enc_key = vec![0u8; 16];
     derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
 
-    Some(encode(&enc_key).to_string())
+    Some(encode(&enc_key))
 }
