@@ -143,30 +143,25 @@ impl Triple {
 
     // Generates a triple that is used in the aggregation phase
     pub fn generate(client: &Client, oprf_server: Option<&PPOPRFServer>) -> Self {
-        let mut rnd = vec![0u8; 32];
-        if oprf_server.is_none() {
-            client.sample_local_randomness(&mut rnd);
+        let ClientSharingMaterial {
+            key, share, tag
+        } = if oprf_server.is_none() {
+            client.share_with_local_randomness()
         } else {
-            #[cfg(feature = "star2")]
-            client.sample_oprf_randomness(oprf_server.unwrap(), &mut rnd);
             #[cfg(not(feature = "star2"))]
             unimplemented!();
-        }
-        let r = client.derive_random_values(&rnd);
-        let r1 = &r[0];
-
-        let enc_key = client.derive_key(r1);
+            #[cfg(feature = "star2")]
+            client.share_with_oprf_randomness(oprf_server.unwrap())
+        };
 
         let mut data: Vec<u8> = Vec::new();
         store_bytes(&client.x.as_slice(), &mut data);
         if let Some(aux) = &client.aux {
             store_bytes(&aux.as_slice(), &mut data);
         }
-        let ciphertext = Ciphertext::new(&enc_key, &data);
+        let ciphertext = Ciphertext::new(&key, &data);
 
-        let share = client.share(&r[0], &r[1]);
-        let tag = &r[2];
-        Triple::new(ciphertext, share, tag)
+        Triple::new(ciphertext, share, &tag)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
