@@ -143,11 +143,12 @@ impl Triple {
 
     // Generates a triple that is used in the aggregation phase
     pub fn generate(client: &Client, oprf_server: Option<&PPOPRFServer>) -> Self {
-        let ClientSharingMaterial { key, share, tag } = if let Some(oprf) = oprf_server {
+        // Adding '_' in as prefix of 'oprf' because when star2 is disabled then Clippy complains.
+        let ClientSharingMaterial { key, share, tag } = if let Some(_oprf) = oprf_server {
             #[cfg(not(feature = "star2"))]
             unimplemented!();
             #[cfg(feature = "star2")]
-            client.share_with_oprf_randomness(oprf)
+            client.share_with_oprf_randomness(_oprf)
         } else {
             client.share_with_local_randomness()
         };
