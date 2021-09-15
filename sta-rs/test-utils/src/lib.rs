@@ -143,13 +143,13 @@ impl Triple {
 
     // Generates a triple that is used in the aggregation phase
     pub fn generate(client: &Client, oprf_server: Option<&PPOPRFServer>) -> Self {
-        let ClientSharingMaterial { key, share, tag } = if oprf_server.is_none() {
-            client.share_with_local_randomness()
-        } else {
+        let ClientSharingMaterial { key, share, tag } = if let Some(oprf) = oprf_server {
             #[cfg(not(feature = "star2"))]
             unimplemented!();
             #[cfg(feature = "star2")]
-            client.share_with_oprf_randomness(oprf_server.unwrap())
+            client.share_with_oprf_randomness(oprf)
+        } else {
+            client.share_with_local_randomness()
         };
 
         let mut data: Vec<u8> = Vec::new();

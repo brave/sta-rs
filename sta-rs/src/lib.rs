@@ -253,7 +253,7 @@ impl Client {
         c.share()
     }
 
-    fn sample_local_randomness(&self, out: &mut [u8]) {
+    pub fn sample_local_randomness(&self, out: &mut [u8]) {
         if out.len() != digest::SHA256_OUTPUT_LEN {
             panic!(
                 "Output buffer length ({}) does not match randomness length ({})",
@@ -270,7 +270,7 @@ impl Client {
     }
 
     #[cfg(feature = "star2")]
-    fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
+    pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
         end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }
 }
