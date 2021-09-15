@@ -263,7 +263,7 @@ impl AggregationServer {
 
                 let measurement_bytes = load_bytes(&slice).unwrap();
                 slice = &slice[4 + measurement_bytes.len() as usize..];
-                if slice.len() > 0 {
+                if !slice.is_empty() {
                     let aux_bytes = load_bytes(slice).unwrap();
                     if !aux_bytes.is_empty() {
                         return (
