@@ -30,7 +30,7 @@
 //! The following example shows how to generate a triple of 
 //! `(key, share, tag)` for each client in the STAR1 protocol. The STAR2
 //! protocol is not yet supported. Note
-//! that `key` MUST then used to encrypt the measurement and associated
+//! that `key` MUST then be used to encrypt the measurement and associated
 //! data into a `ciphertext`. The triple `(ciphertext, share, tag)` is
 //! then sent to the server.
 //! 
