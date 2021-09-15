@@ -24,6 +24,56 @@
 //! security guarantees hold even for low-entropy inputs, as long as the
 //! randomness is only revealed after the epoch metadata tag has been
 //! punctured from the randomness server's secret key.
+//! 
+//! # Example (client)
+//! 
+//! The following example shows how to generate a triple of 
+//! `(key, share, tag)` for each client in the STAR1 protocol. In STAR2
+//! we need to replace `client.sample_local_randomness(&mut rnd)` with
+//! sampling randomness using `sample_oprf_randomness` instead. Note
+//! that `key` MUST then used to encrypt the measurement and associated
+//! data into a `ciphertext`. The triple `(ciphertext, share, tag)` is
+//! then sent to the server.
+//! 
+//! ```
+//! # use sta_rs::*;
+//! # let threshold = 2;
+//! # let epoch = "t";
+//! # let measurement = "hello world".as_bytes();
+//! let client = Client::new(measurement, threshold, epoch, None);
+//! let mut rnd = vec![0u8; 32];
+//! client.sample_local_randomness(&mut rnd);
+//! let r = client.derive_random_values(&rnd);
+//!
+//! // key is then used for encrypting measurement and associated data
+//! let key = client.derive_key(&r[0]);
+//! let share = client.share(&r[0], &r[1]);
+//! let tag = &r[2];
+//! ```
+//! 
+//! # Example (server)
+//! 
+//! Once over `threshold` shares are recovered from clients, it is
+//! possible to recover the randomness encoded in each of the shares
+//! 
+//! ```
+//! # use sta_rs::*;
+//! # use sta_rs_test_utils::*;
+//! # let mut clients = Vec::new();
+//! # let threshold = 2;
+//! # let epoch = "t";
+//! # let measurement = "hello world";
+//! # for i in 0..3 {
+//! #     clients.push(Client::new(measurement.as_bytes(), threshold, epoch, None));
+//! # }
+//! # let triples: Vec<Triple> = clients.into_iter().map(|c| Triple::generate(&c, None)).collect();
+//! # let shares: Vec<Share> = triples.iter().map(|triple| triple.share.clone()).collect();
+//! let message = share_recover(&shares).unwrap().get_message();
+//! 
+//! // derive key for decrypting payload data in client message
+//! let mut enc_key = vec![0u8; 16];
+//! derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
+//! ```
 
 use std::error::Error;
 use std::str;
