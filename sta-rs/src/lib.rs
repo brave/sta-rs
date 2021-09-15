@@ -304,8 +304,3 @@ pub fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
     okm.fill(&mut to_fill).unwrap();
     key_out.copy_from_slice(&to_fill[..16]);
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
