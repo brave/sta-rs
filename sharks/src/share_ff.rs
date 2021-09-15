@@ -112,7 +112,7 @@ impl Iterator for Evaluator {
     type Item = Share;
 
     fn next(&mut self) -> Option<Share> {
-        self.x = self.x + Fp::one();
+        self.x += Fp::one();
         Some(self.evaluate(self.x))
     }
 }
