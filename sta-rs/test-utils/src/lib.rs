@@ -155,7 +155,7 @@ impl Triple {
         let mut data: Vec<u8> = Vec::new();
         store_bytes(&client.x.as_slice(), &mut data);
         if let Some(aux) = &client.aux {
-            store_bytes(&aux.as_slice(), &mut data);
+            store_bytes(aux.as_slice(), &mut data);
         }
         let ciphertext = Ciphertext::new(&key, &data);
 
