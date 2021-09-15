@@ -143,9 +143,7 @@ impl Triple {
 
     // Generates a triple that is used in the aggregation phase
     pub fn generate(client: &Client, oprf_server: Option<&PPOPRFServer>) -> Self {
-        let ClientSharingMaterial {
-            key, share, tag
-        } = if oprf_server.is_none() {
+        let ClientSharingMaterial { key, share, tag } = if oprf_server.is_none() {
             client.share_with_local_randomness()
         } else {
             #[cfg(not(feature = "star2"))]

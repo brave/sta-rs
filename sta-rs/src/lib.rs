@@ -24,16 +24,16 @@
 //! security guarantees hold even for low-entropy inputs, as long as the
 //! randomness is only revealed after the epoch metadata tag has been
 //! punctured from the randomness server's secret key.
-//! 
+//!
 //! # Example (client)
-//! 
-//! The following example shows how to generate a triple of 
+//!
+//! The following example shows how to generate a triple of
 //! `(key, share, tag)` for each client in the STAR1 protocol. The STAR2
 //! protocol is not yet supported. Note
 //! that `key` MUST then be used to encrypt the measurement and associated
 //! data into a `ciphertext`. The triple `(ciphertext, share, tag)` is
 //! then sent to the server.
-//! 
+//!
 //! ```
 //! # use sta_rs::*;
 //! # let threshold = 2;
@@ -46,12 +46,12 @@
 //!   tag: tag,
 //! } = client.share_with_local_randomness();
 //! ```
-//! 
+//!
 //! # Example (server)
-//! 
+//!
 //! Once over `threshold` shares are recovered from clients, it is
 //! possible to recover the randomness encoded in each of the shares
-//! 
+//!
 //! ```
 //! # use sta_rs::*;
 //! # use sta_rs_test_utils::*;
@@ -65,7 +65,7 @@
 //! # let triples: Vec<Triple> = clients.into_iter().map(|c| Triple::generate(&c, None)).collect();
 //! # let shares: Vec<Share> = triples.iter().map(|triple| triple.share.clone()).collect();
 //! let message = share_recover(&shares).unwrap().get_message();
-//! 
+//!
 //! // derive key for decrypting payload data in client message
 //! let mut enc_key = vec![0u8; 16];
 //! derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
@@ -166,7 +166,7 @@ impl From<&[u8]> for AssociatedData {
 pub struct ClientSharingMaterial {
     /// 16-byte AES encryption key
     pub key: Vec<u8>,
-    /// Secret share of key derivation randomness 
+    /// Secret share of key derivation randomness
     pub share: Share,
     /// 32-byte random tag associated with client measurement
     pub tag: Vec<u8>,
@@ -207,17 +207,13 @@ impl Client {
         let mut rnd = vec![0u8; 32];
         self.sample_local_randomness(&mut rnd);
         let r = self.derive_random_values(&rnd);
-        
+
         // key is then used for encrypting measurement and associated
         // data
         let key = self.derive_key(&r[0]);
         let share = self.share(&r[0], &r[1]);
         let tag = r[2].clone();
-        ClientSharingMaterial {
-            key,
-            share,
-            tag,
-        }
+        ClientSharingMaterial { key, share, tag }
     }
 
     #[cfg(feature = "star2")]
@@ -226,17 +222,13 @@ impl Client {
         let mut rnd = vec![0u8; 32];
         self.sample_oprf_randomness(oprf_server, &mut rnd);
         let r = self.derive_random_values(&rnd);
-        
+
         // key is then used for encrypting measurement and associated
         // data
         let key = self.derive_key(&r[0]);
         let share = self.share(&r[0], &r[1]);
         let tag = r[2].clone();
-        ClientSharingMaterial {
-            key,
-            share,
-            tag,
-        }
+        ClientSharingMaterial { key, share, tag }
     }
 
     fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {

@@ -39,7 +39,9 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
                     let f: Fp = shares
                         .iter()
                         .filter(|s_j| s_j.x != s_i.x)
-                        .map(|s_j| s_j.x.clone() * (s_j.x.clone() - s_i.x.clone()).invert().unwrap())
+                        .map(|s_j| {
+                            s_j.x.clone() * (s_j.x.clone() - s_i.x.clone()).invert().unwrap()
+                        })
                         .fold(Fp::one(), |acc, x| acc * x); // take product of all fractions
                     f * s_i.y[s].clone()
                 })
@@ -47,7 +49,8 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
             Vec::from(e) // turn into byte vector
         })
         .collect();
-    res.iter().fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat())
+    res.iter()
+        .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat())
 }
 
 // Generates `k` polynomial coefficients, being the last one `s` and the
@@ -69,7 +72,10 @@ pub fn random_polynomial<R: rand::Rng>(s: Fp, k: u32, rng: &mut R) -> Vec<Fp> {
 // Each item of the iterator is a tuple `(x, [f_1(x), f_2(x)..])` where eaxh `f_i` is the result for the ith polynomial.
 // Each polynomial corresponds to one byte chunk of the original secret.
 pub fn get_evaluator(polys: Vec<Vec<Fp>>) -> Evaluator {
-    Evaluator { polys, x: Fp::zero() }
+    Evaluator {
+        polys,
+        x: Fp::zero(),
+    }
 }
 
 #[derive(Debug)]
@@ -87,9 +93,7 @@ impl Evaluator {
                 .iter()
                 .map(|p| {
                     p.iter()
-                        .fold(Fp::zero(), |acc, c| {
-                            acc * x.clone() + c.clone()
-                        })
+                        .fold(Fp::zero(), |acc, c| acc * x.clone() + c.clone())
                 })
                 .collect(),
         }
@@ -126,7 +130,10 @@ impl From<&Share> for Vec<u8> {
         let mut bytes: Vec<u8> = Vec::with_capacity(s.y.len() + FIELD_ELEMENT_LEN);
         let repr = s.x.to_repr();
         let x_coord = repr.as_ref().to_vec();
-        let y_coords: Vec<u8> = s.y.iter().map(|p| p.to_repr().as_ref().to_vec()).fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat());
+        let y_coords: Vec<u8> =
+            s.y.iter()
+                .map(|p| p.to_repr().as_ref().to_vec())
+                .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat());
         bytes.extend(x_coord);
         bytes.extend(y_coords);
         bytes
@@ -141,13 +148,23 @@ impl core::convert::TryFrom<&[u8]> for Share {
         if s.len() < 2 {
             Err("A Share must be at least 2 bytes long")
         } else {
-            let x = Fp::from_repr(FpRepr(s[..FIELD_ELEMENT_LEN].try_into().expect("Failed to parse bytes for x coordinate"))).unwrap();
+            let x = Fp::from_repr(FpRepr(
+                s[..FIELD_ELEMENT_LEN]
+                    .try_into()
+                    .expect("Failed to parse bytes for x coordinate"),
+            ))
+            .unwrap();
             let y_coords_bytes = s[FIELD_ELEMENT_LEN..].to_vec();
             let total_y_coords_len = y_coords_bytes.len();
-            let mut y = Vec::with_capacity(total_y_coords_len/FIELD_ELEMENT_LEN);
-            for i in 0..total_y_coords_len/FIELD_ELEMENT_LEN {
+            let mut y = Vec::with_capacity(total_y_coords_len / FIELD_ELEMENT_LEN);
+            for i in 0..total_y_coords_len / FIELD_ELEMENT_LEN {
                 y.push(
-                    Fp::from_repr(FpRepr(y_coords_bytes[i*FIELD_ELEMENT_LEN..(i+1)*FIELD_ELEMENT_LEN].try_into().expect("Failed to parse bytes for y coordinates"))).unwrap()
+                    Fp::from_repr(FpRepr(
+                        y_coords_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
+                            .try_into()
+                            .expect("Failed to parse bytes for y coordinates"),
+                    ))
+                    .unwrap(),
                 )
             }
             Ok(Share { x, y })
@@ -157,9 +174,9 @@ impl core::convert::TryFrom<&[u8]> for Share {
 
 #[cfg(test)]
 mod tests {
-    use crate::ff::{Field};
-    use super::{Share, Fp};
     use super::{get_evaluator, interpolate, random_polynomial};
+    use super::{Fp, Share};
+    use crate::ff::Field;
     use alloc::{vec, vec::Vec};
     use core::convert::TryFrom;
     use rand_chacha::rand_core::SeedableRng;
@@ -167,7 +184,7 @@ mod tests {
     fn fp_one() -> Fp {
         Fp::one()
     }
-    
+
     fn fp_two() -> Fp {
         fp_one().double()
     }
@@ -208,16 +225,22 @@ mod tests {
             values,
             vec![
                 (
-                    fp_one(), 
-                    vec![
-                        Fp([94489280490u64, 14822445601838602262, 11026904598472781706, 690069828877630411])
-                    ]
-                ), 
+                    fp_one(),
+                    vec![Fp([
+                        94489280490u64,
+                        14822445601838602262,
+                        11026904598472781706,
+                        690069828877630411
+                    ])]
+                ),
                 (
-                    fp_two(), 
-                    vec![
-                        Fp([197568495570u64, 17576572386601039918, 14671371399666020106, 3119850012535913734])
-                    ]
+                    fp_two(),
+                    vec![Fp([
+                        197568495570u64,
+                        17576572386601039918,
+                        14671371399666020106,
+                        3119850012535913734
+                    ])]
                 )
             ]
         );
@@ -264,4 +287,3 @@ mod tests {
         bytes
     }
 }
-
