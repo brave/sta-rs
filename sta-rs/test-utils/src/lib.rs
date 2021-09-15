@@ -282,7 +282,7 @@ impl AggregationServer {
             }
         }
         Ok(Output {
-            x: Measurement::new(&tag),
+            x: Measurement::new(tag),
             aux: splits.into_iter().map(|val| val.1).collect(),
         })
     }
