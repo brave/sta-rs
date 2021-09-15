@@ -164,8 +164,11 @@ impl From<&[u8]> for AssociatedData {
 // higher-level application for encrypting and sending the client
 // measurements int he STAR protocol.
 pub struct ClientSharingMaterial {
+    /// 16-byte AES encryption key
     pub key: Vec<u8>,
+    /// Secret share of key derivation randomness 
     pub share: Share,
+    /// 32-byte random tag associated with client measurement
     pub tag: Vec<u8>,
 }
 
