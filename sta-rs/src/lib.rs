@@ -198,7 +198,7 @@ impl Client {
             x,
             threshold,
             epoch: epoch.to_string(),
-            aux: aux.and_then(|x| Some(AssociatedData::new(&x))),
+            aux: aux.map(|x| AssociatedData::new(&x)),
         }
     }
 
