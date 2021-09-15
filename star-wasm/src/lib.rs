@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};
 
-use sta_rs::{derive_ske_key, share_recover, Client, Share};
+use sta_rs::{share_recover, derive_ske_key, Client, Share, ClientSharingMaterial};
 
 // NOTE - this can be used for debugging. Disabled for the production build.
 // extern crate console_error_panic_hook;
@@ -30,21 +30,12 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
     // panic::set_hook(Box::new(console_error_panic_hook::hook));
 
     let client = Client::new(measurement, threshold, epoch, None);
+    let ClientSharingMaterial {
+        key,
+        share,
+        tag,
+    } = client.share_with_local_randomness();
 
-    let mut rnd = vec![0u8; 32];
-    client.sample_local_randomness(&mut rnd);
-    let r = client.derive_random_values(&rnd);
-
-    // Replaced `derive_ciphertext` by `derive_key` with same argument.
-    // let ciphertext = self.derive_ciphertext(&r[0]);
-    let key = client.derive_key(&r[0]);
-
-    let share = client.share(&r[0], &r[1]);
-    let tag = &r[2];
-
-    // key: Vec<u8>
-    // share: Share
-    // tag: Vec<u8>
     let key_b64 = encode(&key);
     let share_b64 = encode(&share.to_bytes());
     let tag_b64 = encode(&tag);

@@ -28,9 +28,8 @@
 //! # Example (client)
 //! 
 //! The following example shows how to generate a triple of 
-//! `(key, share, tag)` for each client in the STAR1 protocol. In STAR2
-//! we need to replace `client.sample_local_randomness(&mut rnd)` with
-//! sampling randomness using `sample_oprf_randomness` instead. Note
+//! `(key, share, tag)` for each client in the STAR1 protocol. The STAR2
+//! protocol is not yet supported. Note
 //! that `key` MUST then used to encrypt the measurement and associated
 //! data into a `ciphertext`. The triple `(ciphertext, share, tag)` is
 //! then sent to the server.
@@ -41,14 +40,11 @@
 //! # let epoch = "t";
 //! # let measurement = "hello world".as_bytes();
 //! let client = Client::new(measurement, threshold, epoch, None);
-//! let mut rnd = vec![0u8; 32];
-//! client.sample_local_randomness(&mut rnd);
-//! let r = client.derive_random_values(&rnd);
-//!
-//! // key is then used for encrypting measurement and associated data
-//! let key = client.derive_key(&r[0]);
-//! let share = client.share(&r[0], &r[1]);
-//! let tag = &r[2];
+//! let ClientSharingMaterial {
+//!   key: key,
+//!   share: share,
+//!   tag: tag,
+//! } = client.share_with_local_randomness();
 //! ```
 //! 
 //! # Example (server)
@@ -164,6 +160,15 @@ impl From<&[u8]> for AssociatedData {
     }
 }
 
+// The `ClientSharingMaterial` consists of all data that is passed to the
+// higher-level application for encrypting and sending the client
+// measurements int he STAR protocol.
+pub struct ClientSharingMaterial {
+    pub key: Vec<u8>,
+    pub share: Share,
+    pub tag: Vec<u8>,
+}
+
 // In the STAR protocol, the `Client` is the entity which samples and
 // sends `Measurement` to the `AggregationServer`. The measurements will
 // only be revealed if a `threshold` number of clients send the same
@@ -194,7 +199,44 @@ impl Client {
         }
     }
 
-    pub fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
+    // Share with OPRF randomness (STAR1)
+    pub fn share_with_local_randomness(&self) -> ClientSharingMaterial {
+        let mut rnd = vec![0u8; 32];
+        self.sample_local_randomness(&mut rnd);
+        let r = self.derive_random_values(&rnd);
+        
+        // key is then used for encrypting measurement and associated
+        // data
+        let key = self.derive_key(&r[0]);
+        let share = self.share(&r[0], &r[1]);
+        let tag = r[2].clone();
+        ClientSharingMaterial {
+            key,
+            share,
+            tag,
+        }
+    }
+
+    #[cfg(feature = "star2")]
+    // Share with OPRF randomness (STAR2)
+    pub fn share_with_oprf_randomness(&self, oprf_server: &PPOPRFServer) -> ClientSharingMaterial {
+        let mut rnd = vec![0u8; 32];
+        self.sample_oprf_randomness(oprf_server, &mut rnd);
+        let r = self.derive_random_values(&rnd);
+        
+        // key is then used for encrypting measurement and associated
+        // data
+        let key = self.derive_key(&r[0]);
+        let share = self.share(&r[0], &r[1]);
+        let tag = r[2].clone();
+        ClientSharingMaterial {
+            key,
+            share,
+            tag,
+        }
+    }
+
+    fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
         let mut output = Vec::new();
         for i in 0..3 {
             let mut hash = Context::new(&SHA256);
@@ -205,18 +247,18 @@ impl Client {
         output
     }
 
-    pub fn derive_key(&self, r1: &[u8]) -> Vec<u8> {
+    fn derive_key(&self, r1: &[u8]) -> Vec<u8> {
         let mut enc_key = vec![0u8; 16];
         derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
         enc_key
     }
 
-    pub fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
+    fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
         let c = Commune::new(self.threshold, r1.to_vec(), r2.to_vec(), None);
         c.share()
     }
 
-    pub fn sample_local_randomness(&self, out: &mut [u8]) {
+    fn sample_local_randomness(&self, out: &mut [u8]) {
         if out.len() != digest::SHA256_OUTPUT_LEN {
             panic!(
                 "Output buffer length ({}) does not match randomness length ({})",
@@ -233,7 +275,7 @@ impl Client {
     }
 
     #[cfg(feature = "star2")]
-    pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
+    fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
         end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
     }
 }
