@@ -40,9 +40,7 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
                     let f: Fp = shares
                         .iter()
                         .filter(|s_j| s_j.x != s_i.x)
-                        .map(|s_j| {
-                            s_j.x * (s_j.x - s_i.x).invert().unwrap()
-                        })
+                        .map(|s_j| s_j.x * (s_j.x - s_i.x).invert().unwrap())
                         .fold(Fp::one(), |acc, x| acc * x); // take product of all fractions
                     f * s_i.y[s]
                 })
@@ -92,10 +90,7 @@ impl Evaluator {
             y: self
                 .polys
                 .iter()
-                .map(|p| {
-                    p.iter()
-                        .fold(Fp::zero(), |acc, c| acc * x + c)
-                })
+                .map(|p| p.iter().fold(Fp::zero(), |acc, c| acc * x + c))
                 .collect(),
         }
     }
