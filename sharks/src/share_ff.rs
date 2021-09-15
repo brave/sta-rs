@@ -8,6 +8,7 @@ use crate::ff::*;
 
 pub const FIELD_ELEMENT_LEN: usize = 32;
 
+#[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "52435875175126190479447740508185965837690552500527637822603658699938581184513"]
 #[PrimeFieldGenerator = "7"]
