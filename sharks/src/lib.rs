@@ -116,10 +116,8 @@ impl Sharks {
 
             if Some(share.y.len()) != share_length {
                 return Err("All shares must have the same length");
-            } else {
-                if keys.insert(share.x.to_repr().as_ref().to_vec()) {
-                    values.push(share.clone());
-                }
+            } else if keys.insert(share.x.to_repr().as_ref().to_vec()) {
+                values.push(share.clone());
             }
         }
 
