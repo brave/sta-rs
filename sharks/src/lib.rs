@@ -188,7 +188,7 @@ mod tests {
         let sharks = Sharks(500);
         let mut shares: Vec<Share> = sharks.make_shares(&fp_one_repr()).take(500).collect();
         shares[1] = Share {
-            x: shares[0].x.clone(),
+            x: shares[0].x,
             y: shares[0].y.clone(),
         };
         let secret = sharks.recover(&shares);

@@ -41,10 +41,10 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
                         .iter()
                         .filter(|s_j| s_j.x != s_i.x)
                         .map(|s_j| {
-                            s_j.x.clone() * (s_j.x.clone() - s_i.x.clone()).invert().unwrap()
+                            s_j.x * (s_j.x - s_i.x).invert().unwrap()
                         })
                         .fold(Fp::one(), |acc, x| acc * x); // take product of all fractions
-                    f * s_i.y[s].clone()
+                    f * s_i.y[s]
                 })
                 .fold(Fp::zero(), |acc, x| acc + x); // take sum of all field elements
             Vec::from(e) // turn into byte vector
@@ -88,13 +88,13 @@ pub struct Evaluator {
 impl Evaluator {
     fn evaluate(&self, x: Fp) -> Share {
         Share {
-            x: x.clone(),
+            x,
             y: self
                 .polys
                 .iter()
                 .map(|p| {
                     p.iter()
-                        .fold(Fp::zero(), |acc, c| acc * x.clone() + c.clone())
+                        .fold(Fp::zero(), |acc, c| acc * x + c)
                 })
                 .collect(),
         }
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn evaluator_works() {
         let iter = get_evaluator(vec![vec![fp_three(), fp_two(), fp_three() + fp_two()]]);
-        let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x.clone(), s.y.clone())).collect();
+        let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x, s.y)).collect();
         assert_eq!(
             values,
             vec![
@@ -284,7 +284,7 @@ mod tests {
         bytes.extend(vec![2u8; 1]);
         bytes.extend(suffix.clone()); // y coord #1
         bytes.extend(vec![3u8; 1]);
-        bytes.extend(suffix.clone()); // y coord #2
+        bytes.extend(suffix); // y coord #2
         bytes
     }
 }
