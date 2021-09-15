@@ -236,7 +236,7 @@ mod tests {
         bytes.extend(vec![3u8; 1]);
         bytes.extend(suffix.clone()); // y coord #2
         bytes.extend(vec![4u8; 1]);
-        bytes.extend(suffix.clone()); // y coord #3
+        bytes.extend(suffix); // y coord #3
         bytes
     }
 }
