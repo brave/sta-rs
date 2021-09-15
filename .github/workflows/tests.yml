@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.54.0]
+        rust: [1.55.0]
         os: [ubuntu-20.04]
 
     env:
@@ -25,9 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
-          token: ${{ secrets.CI_CHECKOUT_TOKEN }}
 
       - name: Toolchain
         uses: actions-rs/toolchain@v1
@@ -60,5 +57,5 @@ jobs:
       - name: WASM
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          cd ./wasm
+          cd ./star-wasm
           make build
