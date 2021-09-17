@@ -10,7 +10,7 @@ edition = "2018"
 adss-rs = { path = "../adss-rs" }
 ring = "0.16.20"
 
-ppoprf = { git = "ssh://git@github.com/brave-experiments/ppoprf", rev = "73cd5e3d3758e34b85f71908bacdb034bc05926d", optional = true }
+# ppoprf = { git = "ssh://git@github.com/brave-experiments/ppoprf", rev = "73cd5e3d3758e34b85f71908bacdb034bc05926d", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"
@@ -18,7 +18,7 @@ sta-rs-test-utils = { path = "./test-utils" }
 rand = { version = "0.7", default-features = false }
 
 [features]
-star2 = ["ppoprf", "sta-rs-test-utils/star2"]
+star2 = ["sta-rs-test-utils/star2"]
 
 [[bench]]
 name = "bench"
