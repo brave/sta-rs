@@ -1,5 +1,5 @@
-use std::convert::TryFrom;
 use sharks::Sharks;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use strobe_rs::{SecParam, Strobe};
@@ -108,9 +108,7 @@ pub struct Share {
 
 impl fmt::Debug for Share {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Share")
-         .field("S", &self.S)
-         .finish()
+        f.debug_struct("Share").field("S", &self.S).finish()
     }
 }
 
@@ -172,8 +170,18 @@ impl Share {
 
 #[allow(non_snake_case)]
 impl Commune {
-    pub fn new(threshold: u32, message: Vec<u8>, randomness: Vec<u8>, transcript: Option<Strobe>) -> Self {
-        Commune{ A: AccessStructure{ threshold }, M: message, R: randomness, T: transcript }
+    pub fn new(
+        threshold: u32,
+        message: Vec<u8>,
+        randomness: Vec<u8>,
+        transcript: Option<Strobe>,
+    ) -> Self {
+        Commune {
+            A: AccessStructure { threshold },
+            M: message,
+            R: randomness,
+            T: transcript,
+        }
     }
 
     pub fn share(self) -> Share {
@@ -236,7 +244,6 @@ impl Commune {
         transcript.ad(&self.A.to_bytes(), false);
         transcript.ad(&self.M, false);
         transcript.key(&self.R, false);
-
 
         transcript
             .recv_mac(J)

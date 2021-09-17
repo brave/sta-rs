@@ -25,7 +25,7 @@
   "dependencies": {
     "koa": "2.13.1",
     "koa-static": "5.0.0",
-    "star-wasm": "file:../wasm/pkg"
+    "star-wasm": "file:../pkg"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^9.0.1",

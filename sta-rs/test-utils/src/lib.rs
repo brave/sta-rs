@@ -143,21 +143,20 @@ impl Triple {
 
     // Generates a triple that is used in the aggregation phase
     pub fn generate(client: &Client, oprf_server: Option<&PPOPRFServer>) -> Self {
-        let ClientSharingMaterial {
-            key, share, tag
-        } = if oprf_server.is_none() {
-            client.share_with_local_randomness()
-        } else {
+        // Adding '_' in as prefix of 'oprf' because when star2 is disabled then Clippy complains.
+        let ClientSharingMaterial { key, share, tag } = if let Some(_oprf) = oprf_server {
             #[cfg(not(feature = "star2"))]
             unimplemented!();
             #[cfg(feature = "star2")]
-            client.share_with_oprf_randomness(oprf_server.unwrap())
+            client.share_with_oprf_randomness(_oprf)
+        } else {
+            client.share_with_local_randomness()
         };
 
         let mut data: Vec<u8> = Vec::new();
-        store_bytes(&client.x.as_slice(), &mut data);
+        store_bytes(client.x.as_slice(), &mut data);
         if let Some(aux) = &client.aux {
-            store_bytes(&aux.as_slice(), &mut data);
+            store_bytes(aux.as_slice(), &mut data);
         }
         let ciphertext = Ciphertext::new(&key, &data);
 
@@ -263,11 +262,11 @@ impl AggregationServer {
             .map(|p| {
                 let mut slice = &p[..];
 
-                let measurement_bytes = load_bytes(&slice).unwrap();
+                let measurement_bytes = load_bytes(slice).unwrap();
                 slice = &slice[4 + measurement_bytes.len() as usize..];
-                if slice.len() > 0 {
-                    let aux_bytes = load_bytes(&slice).unwrap();
-                    if aux_bytes.len() > 0 {
+                if !slice.is_empty() {
+                    let aux_bytes = load_bytes(slice).unwrap();
+                    if !aux_bytes.is_empty() {
                         return (
                             measurement_bytes.to_vec(),
                             Some(AssociatedData::new(aux_bytes)),
@@ -284,7 +283,7 @@ impl AggregationServer {
             }
         }
         Ok(Output {
-            x: Measurement::new(&tag),
+            x: Measurement::new(tag),
             aux: splits.into_iter().map(|val| val.1).collect(),
         })
     }

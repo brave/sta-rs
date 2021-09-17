@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.54.0]
+        rust: [1.55.0]
         os: [ubuntu-20.04]
 
     env:
@@ -25,9 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
-          token: ${{ secrets.CI_CHECKOUT_TOKEN }}
 
       - name: Toolchain
         uses: actions-rs/toolchain@v1
@@ -44,21 +41,28 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: -- --check ./src/lib.rs ./benches/bench.rs ./wasm/src/lib.rs
+          args: -- --check
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-targets
 
       - name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --profile test --all-targets --all-features -- -D warnings
+          args: --release --all-targets -- -D warnings -A clippy::too_many_arguments
 
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --release
 
       - name: WASM
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          cd ./wasm
+          cd ./star-wasm
           make build

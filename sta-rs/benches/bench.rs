@@ -2,7 +2,6 @@ use core::iter;
 use criterion::{criterion_group, criterion_main, Criterion, PlotConfiguration};
 use rand::Rng;
 
-use sta_rs::*;
 use sta_rs_test_utils::*;
 
 fn criterion_benchmark(c: &mut Criterion) {

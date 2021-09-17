@@ -9,15 +9,15 @@ extern crate alloc;
 extern crate ff;
 mod share_ff;
 
-use core::convert::TryInto;
 use alloc::vec::Vec;
+use core::convert::TryInto;
 use hashbrown::HashSet;
 
-use crate::ff::{PrimeField};
+use crate::ff::PrimeField;
 pub use share_ff::Evaluator;
 pub use share_ff::Share;
-pub use share_ff::{Fp,FpRepr,FIELD_ELEMENT_LEN};
-pub use share_ff::{get_evaluator, random_polynomial, interpolate};
+pub use share_ff::{get_evaluator, interpolate, random_polynomial};
+pub use share_ff::{Fp, FpRepr, FIELD_ELEMENT_LEN};
 
 /// Tuple struct which implements methods to generate shares and recover secrets over a 256 bits Galois Field.
 /// Its only parameter is the minimum shares threshold.
@@ -49,9 +49,14 @@ impl Sharks {
     ) -> Evaluator {
         let mut polys = Vec::with_capacity(secret.len());
 
-        let secret_fp_len = secret.len()/FIELD_ELEMENT_LEN;
+        let secret_fp_len = secret.len() / FIELD_ELEMENT_LEN;
         for i in 0..secret_fp_len {
-            let element = Fp::from_repr(FpRepr(secret[i*FIELD_ELEMENT_LEN..(i+1)*FIELD_ELEMENT_LEN].try_into().expect("bad chunk"))).unwrap();
+            let element = Fp::from_repr(FpRepr(
+                secret[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
+                    .try_into()
+                    .expect("bad chunk"),
+            ))
+            .unwrap();
             polys.push(random_polynomial(element, self.0, rng));
         }
 
@@ -111,10 +116,8 @@ impl Sharks {
 
             if Some(share.y.len()) != share_length {
                 return Err("All shares must have the same length");
-            } else {
-                if keys.insert(share.x.to_repr().as_ref().to_vec()) {
-                    values.push(share.clone());
-                }
+            } else if keys.insert(share.x.to_repr().as_ref().to_vec()) {
+                values.push(share.clone());
             }
         }
 
@@ -129,8 +132,8 @@ impl Sharks {
 
 #[cfg(test)]
 mod tests {
-    use crate::ff::{Field,PrimeField};
-    use super::{Share, Sharks, Fp};
+    use super::{Fp, Share, Sharks};
+    use crate::ff::{Field, PrimeField};
     use alloc::{vec, vec::Vec};
 
     impl Sharks {
@@ -151,15 +154,15 @@ mod tests {
     fn fp_one() -> Fp {
         Fp::one()
     }
-    
+
     fn fp_two() -> Fp {
         fp_one().double()
     }
-    
+
     fn fp_one_repr() -> Vec<u8> {
         (Fp::one()).to_repr().as_ref().to_vec()
     }
-    
+
     fn fp_two_repr() -> Vec<u8> {
         (fp_one().double()).to_repr().as_ref().to_vec()
     }
@@ -167,7 +170,7 @@ mod tests {
     fn fp_three_repr() -> Vec<u8> {
         (fp_two() + fp_one()).to_repr().as_ref().to_vec()
     }
-    
+
     fn fp_four_repr() -> Vec<u8> {
         (fp_two() + fp_two()).to_repr().as_ref().to_vec()
     }
@@ -185,7 +188,7 @@ mod tests {
         let sharks = Sharks(500);
         let mut shares: Vec<Share> = sharks.make_shares(&fp_one_repr()).take(500).collect();
         shares[1] = Share {
-            x: shares[0].x.clone(),
+            x: shares[0].x,
             y: shares[0].y.clone(),
         };
         let secret = sharks.recover(&shares);
@@ -233,7 +236,7 @@ mod tests {
         bytes.extend(vec![3u8; 1]);
         bytes.extend(suffix.clone()); // y coord #2
         bytes.extend(vec![4u8; 1]);
-        bytes.extend(suffix.clone()); // y coord #3
+        bytes.extend(suffix); // y coord #3
         bytes
     }
 }

@@ -22,7 +22,7 @@ fn roundtrip() {
     let client = Client::new(b"foobar", 1, "epoch", None);
     let triple = Triple::generate(&client, None);
 
-    let commune = share_recover(&vec![triple.share]).unwrap();
+    let commune = share_recover(&[triple.share]).unwrap();
     let message = commune.get_message();
 
     let mut enc_key_buf = vec![0u8; 16];
@@ -31,11 +31,11 @@ fn roundtrip() {
 
     let mut slice = &plaintext[..];
 
-    let measurement_bytes = load_bytes(&slice).unwrap();
+    let measurement_bytes = load_bytes(slice).unwrap();
     slice = &slice[4 + measurement_bytes.len() as usize..];
 
-    if slice.len() > 0 {
-        let aux_bytes = load_bytes(&slice).unwrap();
+    if !slice.is_empty() {
+        let aux_bytes = load_bytes(slice).unwrap();
         assert_eq!(aux_bytes.len(), 0);
     }
 
@@ -109,7 +109,7 @@ fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
-        let tag_str = std::str::from_utf8(&o.x.as_slice())
+        let tag_str = std::str::from_utf8(o.x.as_slice())
             .unwrap()
             .trim_end_matches(char::from(0));
         if tag_str == str1 {
@@ -149,7 +149,7 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples);
     for o in outputs {
-        let tag_str = std::str::from_utf8(&o.x.as_slice())
+        let tag_str = std::str::from_utf8(o.x.as_slice())
             .unwrap()
             .trim_end_matches(char::from(0));
         if tag_str == str1 {
@@ -204,7 +204,7 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         .collect();
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
-        let tag_str = std::str::from_utf8(&o.x.as_slice())
+        let tag_str = std::str::from_utf8(o.x.as_slice())
             .unwrap()
             .trim_end_matches(char::from(0));
         if tag_str == str1 {
