@@ -43,16 +43,23 @@ jobs:
           command: fmt
           args: -- --check
 
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-targets
+
       - name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --profile test --all-targets -- -D warnings -A clippy::too_many_arguments
+          args: --release --all-targets -- -D warnings -A clippy::too_many_arguments
 
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --release
 
       - name: WASM
         run: |
