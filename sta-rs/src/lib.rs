@@ -301,7 +301,7 @@ pub fn strobe_digest(key: &[u8], ad: &[&[u8]], label: &str, out: &mut [u8]) {
             out.len(),
             DIGEST_LEN
         );
-    } else if ad.len() < 1 {
+    } else if ad.is_empty() {
         panic!("No additional data provided");
     }
     let mut t = Strobe::new(label.as_bytes(), SecParam::B128);

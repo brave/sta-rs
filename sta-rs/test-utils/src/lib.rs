@@ -28,7 +28,7 @@ pub fn measurement_zipf(n: usize, s: f64) -> Measurement {
     // essentially we compute a hash here so that we can simulate
     // having a full 32 bytes of data
     let mut to_fill = vec![0u8; 32];
-    strobe_digest(&vec![0u8; 32], &[&extended], "star_zipf_sample", &mut to_fill);
+    strobe_digest(&[0u8; 32], &[&extended], "star_zipf_sample", &mut to_fill);
     Measurement::new(&to_fill)
 }
 
@@ -52,9 +52,7 @@ impl Ciphertext {
         x.copy_from_slice(data);
         s.send_enc(&mut x, false);
 
-        Self {
-            bytes: x.to_vec(),
-        }
+        Self { bytes: x.to_vec() }
     }
 
     pub fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
@@ -71,8 +69,10 @@ impl Ciphertext {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Ciphertext {
-        Self { bytes: bytes.to_vec() }
-    }    
+        Self {
+            bytes: bytes.to_vec(),
+        }
+    }
 }
 
 // A `Triple` is the message that a client sends to the server during
