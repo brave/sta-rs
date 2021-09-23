@@ -1,0 +1,9 @@
+[package]
+name = "strobe-rng"
+version = "0.1.0"
+authors = ["eV <ev@7pr.xyz>"]
+edition = "2018"
+
+[dependencies]
+strobe-rs = "0.6.2"
+rand_core = "0.6.2"

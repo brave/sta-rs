@@ -4,8 +4,7 @@ use std::error::Error;
 use std::fmt;
 use strobe_rs::{SecParam, Strobe};
 
-mod rng;
-use crate::rng::StrobeRng;
+use strobe_rng::StrobeRng;
 
 // The length of a `AccessStructure`, in bytes.
 pub const ACCESS_STRUCTURE_LENGTH: usize = 4;
