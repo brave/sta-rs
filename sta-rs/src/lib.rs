@@ -74,9 +74,9 @@
 use std::error::Error;
 use std::str;
 
-extern crate ring;
-use ring::digest::{self, Context, SHA256};
-use ring::hkdf;
+use rand_core::RngCore;
+use strobe_rs::{SecParam, Strobe};
+use strobe_rng::StrobeRng;
 
 use adss_rs::{recover, Commune};
 pub use {adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share};
@@ -87,6 +87,7 @@ use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
 pub const AES_BLOCK_LEN: usize = 24;
 // FIXME
 pub const MEASUREMENT_MAX_LEN: usize = 32;
+pub const DIGEST_LEN: usize = 32;
 pub const DEBUG: bool = false;
 
 // A `Measurement` provides the wrapper for a client-generated value in
@@ -234,10 +235,9 @@ impl Client {
     fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
         let mut output = Vec::new();
         for i in 0..3 {
-            let mut hash = Context::new(&SHA256);
-            hash.update(randomness);
-            hash.update(&[i as u8]);
-            output.push(hash.finish().as_ref().to_vec());
+            let mut to_fill = vec![0u8; 32];
+            strobe_digest(randomness, &[&[i as u8]], "star_derive_randoms", &mut to_fill);
+            output.push(to_fill);
         }
         output
     }
@@ -254,19 +254,14 @@ impl Client {
     }
 
     pub fn sample_local_randomness(&self, out: &mut [u8]) {
-        if out.len() != digest::SHA256_OUTPUT_LEN {
+        if out.len() != DIGEST_LEN {
             panic!(
                 "Output buffer length ({}) does not match randomness length ({})",
                 out.len(),
-                digest::SHA256_OUTPUT_LEN
+                DIGEST_LEN
             );
         }
-        let mut hash = Context::new(&digest::SHA256);
-        hash.update(self.x.as_slice());
-        hash.update(self.epoch.as_bytes());
-        hash.update(&self.threshold.to_le_bytes());
-        let digest = hash.finish();
-        out.copy_from_slice(digest.as_ref());
+        strobe_digest(self.x.as_slice(), &[self.epoch.as_bytes(), &self.threshold.to_le_bytes()], "star_sample_local", out);
     }
 
     #[cfg(feature = "star2")]
@@ -284,18 +279,26 @@ pub fn share_recover(shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
 // keys that are used for encrypting/decrypting `Ciphertext` objects
 // during the STAR protocol.
 pub fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
-    if key_out.len() != digest::SHA256_OUTPUT_LEN / 2 {
-        panic!(
-            "Output buffer length ({}) does not match randomness length ({})",
-            key_out.len(),
-            digest::SHA256_OUTPUT_LEN / 2
-        );
-    }
-    let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, epoch);
-    let prk = salt.extract(r1);
-    let expand_info = &["star_threshold_agg".as_bytes()];
-    let okm = prk.expand(expand_info, hkdf::HKDF_SHA256).unwrap();
     let mut to_fill = vec![0u8; 32];
-    okm.fill(&mut to_fill).unwrap();
+    strobe_digest(r1, &[epoch], "star_derive_ske_key", &mut to_fill);
     key_out.copy_from_slice(&to_fill[..16]);
+}
+
+fn strobe_digest(key: &[u8], ad: &[&[u8]], label: &str, out: &mut [u8]) {
+    if out.len() != DIGEST_LEN {
+        panic!(
+            "Output buffer length ({}) does not match intended output length ({})",
+            out.len(),
+            DIGEST_LEN
+        );
+    } else if ad.len() < 1 {
+        panic!("No additional data provided");
+    }
+    let mut t = Strobe::new(label.as_bytes(), SecParam::B128);
+    t.key(key, false);
+    for x in ad.iter() {
+        t.ad(x, false);
+    }
+    let mut rng: StrobeRng = t.into();
+    rng.fill_bytes(out);
 }
