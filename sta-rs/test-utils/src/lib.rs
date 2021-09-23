@@ -4,9 +4,9 @@ use std::fmt;
 
 use rand::distributions::Distribution;
 use rayon::prelude::*;
-use ring::aead;
-use ring::digest::{self, SHA256};
-use ring::rand::{SecureRandom, SystemRandom};
+
+use strobe_rs::{SecParam, Strobe};
+
 use zipf::ZipfDistribution;
 
 #[cfg(feature = "star2")]
@@ -27,8 +27,9 @@ pub fn measurement_zipf(n: usize, s: f64) -> Measurement {
     let extended = sample.to_vec();
     // essentially we compute a hash here so that we can simulate
     // having a full 32 bytes of data
-    let val = digest::digest(&SHA256, &extended);
-    Measurement::new(val.as_ref())
+    let mut to_fill = vec![0u8; 32];
+    strobe_digest(&vec![0u8; 32], &[&extended], "star_zipf_sample", &mut to_fill);
+    Measurement::new(&to_fill)
 }
 
 pub fn client_zipf(n: usize, s: f64, threshold: u32, epoch: &str, aux: Option<Vec<u8>>) -> Client {
@@ -42,83 +43,36 @@ pub fn client_zipf(n: usize, s: f64, threshold: u32, epoch: &str, aux: Option<Ve
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ciphertext {
     bytes: Vec<u8>,
-    nonce: [u8; 12],
-    aad: Option<Vec<u8>>,
 }
 impl Ciphertext {
     fn new(enc_key_buf: &[u8], data: &[u8]) -> Self {
-        let mut nonce_buf = [0; 12];
-        let prng = SystemRandom::new();
-        prng.fill(&mut nonce_buf).unwrap();
-        let nonce = aead::Nonce::assume_unique_for_key(nonce_buf);
-
-        let mut in_out = data.to_vec();
-        in_out.extend(vec![0u8; aead::AES_128_GCM.tag_len()]);
-
-        let unbound = aead::UnboundKey::new(&aead::AES_128_GCM, enc_key_buf).unwrap();
-        let ls_key = aead::LessSafeKey::new(unbound);
-        ls_key
-            .seal_in_place_append_tag(nonce, aead::Aad::empty(), &mut in_out)
-            .unwrap();
+        let mut s = Strobe::new(b"star_encrypt", SecParam::B128);
+        s.key(enc_key_buf, false);
+        let mut x = vec![0u8; data.len()];
+        x.copy_from_slice(data);
+        s.send_enc(&mut x, false);
 
         Self {
-            bytes: in_out,
-            nonce: nonce_buf,
-            aad: None,
+            bytes: x.to_vec(),
         }
     }
 
     pub fn decrypt(&self, enc_key_buf: &[u8]) -> Vec<u8> {
-        let ls_key =
-            aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, enc_key_buf).unwrap());
-        let mut in_out = self.bytes.clone();
-        let nonce = aead::Nonce::assume_unique_for_key(self.nonce);
-        ls_key
-            .open_in_place(nonce, aead::Aad::empty(), &mut in_out)
-            .unwrap();
-        in_out[..in_out.len() - aead::AES_128_GCM.tag_len()].to_vec() // plaintext
+        let mut s = Strobe::new(b"star_encrypt", SecParam::B128);
+        s.key(enc_key_buf, false);
+        let mut m = vec![0u8; self.bytes.len()];
+        m.copy_from_slice(&self.bytes);
+        s.recv_enc(&mut m, false);
+        m
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out: Vec<u8> = Vec::new();
-
-        // bytes: Vec<u8>
-        store_bytes(&self.bytes, &mut out);
-
-        // aad: Option<Vec<u8>>
-        store_bytes(if let Some(aad) = &self.aad { aad } else { &[] }, &mut out);
-
-        // nonce: [u8; 12]
-        out.extend(&self.nonce);
-
-        out
+        self.bytes.clone()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Option<Ciphertext> {
-        let mut slice = bytes;
-
-        // bytes: Vec<u8>
-        let bytes = load_bytes(slice)?;
-        slice = &slice[4 + bytes.len() as usize..];
-
-        // aad: Option<Vec<u8>>
-        let aad = load_bytes(slice)?;
-        slice = &slice[4 + aad.len() as usize..];
-
-        // nonce: [u8; 12]
-        let mut nonce: [u8; 12] = [0u8; 12];
-        nonce.copy_from_slice(slice);
-
-        Some(Ciphertext {
-            bytes: bytes.to_vec(),
-            nonce,
-            aad: if aad.is_empty() {
-                None
-            } else {
-                Some(aad.to_vec())
-            },
-        })
-    }
+    pub fn from_bytes(bytes: &[u8]) -> Ciphertext {
+        Self { bytes: bytes.to_vec() }
+    }    
 }
 
 // A `Triple` is the message that a client sends to the server during
@@ -183,7 +137,7 @@ impl Triple {
 
         // ciphertext: Ciphertext
         let cb = load_bytes(slice)?;
-        let ciphertext = Ciphertext::from_bytes(cb)?;
+        let ciphertext = Ciphertext::from_bytes(cb);
         slice = &slice[4 + cb.len() as usize..];
 
         // share: Share

@@ -41,9 +41,9 @@
 //! # let measurement = "hello world".as_bytes();
 //! let client = Client::new(measurement, threshold, epoch, None);
 //! let ClientSharingMaterial {
-//!   key: key,
-//!   share: share,
-//!   tag: tag,
+//!   key,
+//!   share,
+//!   tag,
 //! } = client.share_with_local_randomness();
 //! ```
 //!
@@ -75,8 +75,8 @@ use std::error::Error;
 use std::str;
 
 use rand_core::RngCore;
-use strobe_rs::{SecParam, Strobe};
 use strobe_rng::StrobeRng;
+use strobe_rs::{SecParam, Strobe};
 
 use adss_rs::{recover, Commune};
 pub use {adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share};
@@ -236,7 +236,12 @@ impl Client {
         let mut output = Vec::new();
         for i in 0..3 {
             let mut to_fill = vec![0u8; 32];
-            strobe_digest(randomness, &[&[i as u8]], "star_derive_randoms", &mut to_fill);
+            strobe_digest(
+                randomness,
+                &[&[i as u8]],
+                "star_derive_randoms",
+                &mut to_fill,
+            );
             output.push(to_fill);
         }
         output
@@ -261,7 +266,12 @@ impl Client {
                 DIGEST_LEN
             );
         }
-        strobe_digest(self.x.as_slice(), &[self.epoch.as_bytes(), &self.threshold.to_le_bytes()], "star_sample_local", out);
+        strobe_digest(
+            self.x.as_slice(),
+            &[self.epoch.as_bytes(), &self.threshold.to_le_bytes()],
+            "star_sample_local",
+            out,
+        );
     }
 
     #[cfg(feature = "star2")]
@@ -284,7 +294,7 @@ pub fn derive_ske_key(r1: &[u8], epoch: &[u8], key_out: &mut [u8]) {
     key_out.copy_from_slice(&to_fill[..16]);
 }
 
-fn strobe_digest(key: &[u8], ad: &[&[u8]], label: &str, out: &mut [u8]) {
+pub fn strobe_digest(key: &[u8], ad: &[&[u8]], label: &str, out: &mut [u8]) {
     if out.len() != DIGEST_LEN {
         panic!(
             "Output buffer length ({}) does not match intended output length ({})",
