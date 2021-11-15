@@ -12,6 +12,7 @@ strobe-rng = { path = "../strobe-rng" }
 adss-rs = { path = "../adss-rs" }
 ring = "0.16.20"
 rand_core = "0.6.2"
+base64 = "0.13"
 
 # ppoprf = { git = "ssh://git@github.com/brave-experiments/ppoprf", rev = "73cd5e3d3758e34b85f71908bacdb034bc05926d", optional = true }
 

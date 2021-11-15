@@ -94,18 +94,20 @@ fn benchmark_end_to_end(c: &mut Criterion) {
     let mut group = c.benchmark_group("end-to-end");
     group.plot_config(plot_config);
     group.sample_size(10);
-    [
-        Params { n: 10000, s: 1.03, clients: 100000, threshold: 100, local: true, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 250000, threshold: 250, local: true, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 500000, threshold: 500, local: true, aux_data: false },
-        Params { n: 10000, s: 1.03, clients: 1000000, threshold: 1000, local: true, aux_data: false },
-    ].iter().for_each(|params| {
-        let epoch = "t";
-        let triples = get_triples(params, epoch);
-        group.bench_function(&format!("E2E server (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
-            let agg_server = AggregationServer::new(params.threshold, epoch);
-            b.iter(|| {
-                let _o = agg_server.retrieve_outputs(&triples);
+    [1, 10, 100].iter().for_each(|modifier| {
+        [
+            Params { n: 10000, s: 1.03, clients: 100000, threshold: 10*modifier, local: true, aux_data: false },
+            Params { n: 10000, s: 1.03, clients: 250000, threshold: 25*modifier, local: true, aux_data: false },
+            Params { n: 10000, s: 1.03, clients: 500000, threshold: 50*modifier, local: true, aux_data: false },
+            Params { n: 10000, s: 1.03, clients: 1000000, threshold: 100*modifier, local: true, aux_data: false },
+        ].iter().for_each(|params| {
+            let epoch = "t";
+            let triples = get_triples(params, epoch);
+            group.bench_function(&format!("E2E server (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
+                let agg_server = AggregationServer::new(params.threshold, epoch);
+                b.iter(|| {
+                    let _o = agg_server.retrieve_outputs(&triples);
+                });
             });
         });
     });

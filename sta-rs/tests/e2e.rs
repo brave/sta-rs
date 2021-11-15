@@ -1,6 +1,8 @@
 use sta_rs::*;
 use sta_rs_test_utils::*;
 
+use base64::{decode, encode};
+
 #[test]
 fn serialize_ciphertext() {
     let client = Client::new(b"foobar", 0, "epoch", None);
@@ -146,6 +148,13 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
         .into_iter()
         .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
+
+    //  inspect lengths etc
+    let t = &triples[0];
+    println!("ciphertext: {:?}", encode(t.ciphertext.to_bytes()));
+    println!("share: {:?}", encode(t.share.to_bytes()));
+    println!("tag: {:?}", encode(&t.tag));
+
     let outputs = agg_server.retrieve_outputs(&triples);
     for o in outputs {
         let tag_str = std::str::from_utf8(o.x.as_slice())
@@ -246,7 +255,7 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
             1.03,
             threshold,
             epoch,
-            Some(vec![i + 1; 4]),
+            Some(vec![i + 1; 256]),
         ));
     }
     let agg_server = AggregationServer::new(threshold, epoch);
@@ -255,6 +264,13 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         .into_iter()
         .map(|c| Triple::generate(&c, oprf_server.as_ref()))
         .collect();
+
+    //  inspect lengths etc
+    let t = &triples[0];
+    println!("ciphertext: {:?}", encode(t.ciphertext.to_bytes()));
+    println!("share: {:?}", encode(t.share.to_bytes()));
+    println!("tag: {:?}", encode(&t.tag));
+    
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
         for aux in o.aux {
