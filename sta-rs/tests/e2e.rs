@@ -151,9 +151,14 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
 
     //  inspect lengths etc
     let t = &triples[0];
-    println!("ciphertext: {:?}", encode(t.ciphertext.to_bytes()).len());
-    println!("share: {:?}", encode(t.share.to_bytes()).len());
-    println!("tag: {:?}", encode(&t.tag).len());
+    let ciph_bytes = t.ciphertext.to_bytes();
+    let share_bytes = t.share.to_bytes();
+    let tag_bytes = &t.tag;
+    let mut concat = Vec::with_capacity(ciph_bytes.len() + share_bytes.len() + tag_bytes.len());
+    concat.extend(ciph_bytes);
+    concat.extend(share_bytes);
+    concat.extend(tag_bytes);
+    println!("total: {:?}", concat.len());
 
     let outputs = agg_server.retrieve_outputs(&triples);
     for o in outputs {
@@ -267,9 +272,14 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
 
     //  inspect lengths etc
     let t = &triples[0];
-    println!("ciphertext: {:?}", encode(t.ciphertext.to_bytes()).len());
-    println!("share: {:?}", encode(t.share.to_bytes()).len());
-    println!("tag: {:?}", encode(&t.tag).len());
+    let ciph_bytes = t.ciphertext.to_bytes();
+    let share_bytes = t.share.to_bytes();
+    let tag_bytes = &t.tag;
+    let mut concat = Vec::with_capacity(ciph_bytes.len() + share_bytes.len() + tag_bytes.len());
+    concat.extend(ciph_bytes);
+    concat.extend(share_bytes);
+    concat.extend(tag_bytes);
+    println!("total: {:?}", concat.len());
     
     let outputs = agg_server.retrieve_outputs(&triples[..]);
     for o in outputs {
