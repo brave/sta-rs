@@ -228,7 +228,7 @@ mod tests {
     }
 
     fn get_test_bytes() -> Vec<u8> {
-        let suffix = vec![0u8; 31];
+        let suffix = vec![0u8; 23];
         let mut bytes = vec![1u8; 1];
         bytes.extend(suffix.clone()); // x coord
         bytes.extend(vec![2u8; 1]);

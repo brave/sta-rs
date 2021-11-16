@@ -6,14 +6,14 @@ use arbitrary::Arbitrary;
 
 use crate::ff::*;
 
-pub const FIELD_ELEMENT_LEN: usize = 32;
+pub const FIELD_ELEMENT_LEN: usize = 24;
 
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[derive(PrimeField)]
-#[PrimeFieldModulus = "52435875175126190479447740508185965837690552500527637822603658699938581184513"]
+#[PrimeFieldModulus = "680564733841876926926749214863536422887"]
 #[PrimeFieldGenerator = "7"]
 #[PrimeFieldReprEndianness = "little"]
-pub struct Fp([u64; 4]);
+pub struct Fp([u64; 3]);
 
 impl From<Fp> for Vec<u8> {
     fn from(s: Fp) -> Vec<u8> {
@@ -222,21 +222,11 @@ mod tests {
             vec![
                 (
                     fp_one(),
-                    vec![Fp([
-                        94489280490u64,
-                        14822445601838602262,
-                        11026904598472781706,
-                        690069828877630411
-                    ])]
+                    vec![Fp([0, 125, 0])]
                 ),
                 (
                     fp_two(),
-                    vec![Fp([
-                        197568495570u64,
-                        17576572386601039918,
-                        14671371399666020106,
-                        3119850012535913734
-                    ])]
+                    vec![Fp([9223372036854775808, 262, 0])]
                 )
             ]
         );
@@ -249,7 +239,7 @@ mod tests {
         let iter = get_evaluator(vec![poly]);
         let shares: Vec<Share> = iter.take(5).collect();
         let root = interpolate(&shares);
-        let mut chk = vec![0u8; 32];
+        let mut chk = vec![0u8; 24];
         chk[0] = 1u8;
         assert_eq!(root, chk);
     }
@@ -273,7 +263,7 @@ mod tests {
     }
 
     fn get_test_bytes() -> Vec<u8> {
-        let suffix = vec![0u8; 31];
+        let suffix = vec![0u8; 23];
         let mut bytes = vec![1u8; 1];
         bytes.extend(suffix.clone()); // x coord
         bytes.extend(vec![2u8; 1]);
