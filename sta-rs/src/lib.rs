@@ -276,7 +276,9 @@ impl Client {
 
     #[cfg(feature = "star2")]
     pub fn sample_oprf_randomness(&self, oprf_server: &PPOPRFServer, out: &mut [u8]) {
-        end_to_end_evaluation(oprf_server, self.x.as_slice(), self.epoch.as_bytes(), out);
+        let mds = oprf_server.get_valid_metadata_tags();
+        let index = mds.iter().position(|r| r == self.epoch.as_bytes()).unwrap();
+        end_to_end_evaluation(oprf_server, self.x.as_slice(), index, true, out);
     }
 }
 

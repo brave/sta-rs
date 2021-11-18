@@ -23,7 +23,7 @@ fn recover(c: &mut Criterion) {
 }
 
 fn share(c: &mut Criterion) {
-    let bytes_vec = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let bytes_vec = get_test_bytes();
     let bytes = bytes_vec.as_slice();
     let share = Share::try_from(bytes).unwrap();
 
@@ -34,6 +34,17 @@ fn share(c: &mut Criterion) {
     c.bench_function("share_to_bytes", |b| {
         b.iter(|| Vec::from(black_box(&share)))
     });
+}
+
+fn get_test_bytes() -> Vec<u8> {
+    let suffix = vec![0u8; 31];
+    let mut bytes = vec![1u8; 1];
+    bytes.extend(suffix.clone()); // x coord
+    bytes.extend(vec![2u8; 1]);
+    bytes.extend(suffix.clone()); // y coord #1
+    bytes.extend(vec![3u8; 1]);
+    bytes.extend(suffix); // y coord #2
+    bytes
 }
 
 criterion_group!(benches, dealer, recover, share);

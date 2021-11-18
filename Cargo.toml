@@ -4,5 +4,6 @@ members = [
   "./adss-rs",
   "./sharks",
   "./sta-rs",
-  "./star-wasm"
+  "./star-wasm",
+  "./ppoprf",
 ]
