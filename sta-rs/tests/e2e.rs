@@ -6,7 +6,7 @@ fn serialize_ciphertext() {
     let client = Client::new(b"foobar", 0, "epoch", None);
     let triple = Triple::generate(&client, None);
     let bytes = triple.ciphertext.to_bytes();
-    assert_eq!(Ciphertext::from_bytes(&bytes), Some(triple.ciphertext));
+    assert_eq!(Ciphertext::from_bytes(&bytes), triple.ciphertext);
 }
 
 #[test]
@@ -28,7 +28,6 @@ fn roundtrip() {
     let mut enc_key_buf = vec![0u8; 16];
     derive_ske_key(&message, "epoch".as_bytes(), &mut enc_key_buf);
     let plaintext = triple.ciphertext.decrypt(&enc_key_buf);
-
     let mut slice = &plaintext[..];
 
     let measurement_bytes = load_bytes(slice).unwrap();
