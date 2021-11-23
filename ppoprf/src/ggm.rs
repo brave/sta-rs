@@ -339,7 +339,7 @@ mod tests {
         }
         let mut ggm = GGM::setup();
         for x in &inputs {
-            ggm.puncture(&x);
+            ggm.puncture(x);
         }
     }
 

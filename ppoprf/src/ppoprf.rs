@@ -270,7 +270,7 @@ mod tests {
         c_input: &[u8],
         md_idx: usize,
     ) -> (CompressedRistretto, CompressedRistretto) {
-        let (blinded_point, r) = Client::blind(&c_input.as_ref());
+        let (blinded_point, r) = Client::blind(c_input);
         let evaluated = server.eval(&blinded_point, md_idx, true);
         if !Client::verify(
             &server.public_key,
