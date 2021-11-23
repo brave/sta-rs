@@ -10,10 +10,10 @@ edition = "2018"
 strobe-rs = "0.6.2"
 strobe-rng = { path = "../strobe-rng" }
 adss-rs = { path = "../adss-rs" }
+ppoprf = { path = "../ppoprf" }
 ring = "0.16.20"
 rand_core = "0.6.2"
 
-# ppoprf = { git = "ssh://git@github.com/brave-experiments/ppoprf", rev = "73cd5e3d3758e34b85f71908bacdb034bc05926d", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"

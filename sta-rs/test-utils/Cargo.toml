@@ -14,8 +14,7 @@ rand_core = "0.6.2"
 rayon = "1.5"
 zipf = "6.1.0"
 ring = "0.16.20"
-
-# ppoprf = { git = "ssh://git@github.com/brave-experiments/ppoprf", rev = "73cd5e3d3758e34b85f71908bacdb034bc05926d", optional = true }
+ppoprf = { path = "../../ppoprf" }
 
 [features]
 star2 = ["sta-rs/star2"]

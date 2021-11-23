@@ -64,25 +64,29 @@ fn star1_rand_with_aux_multiple_block() {
 #[cfg(feature = "star2")]
 #[test]
 fn star2_no_aux_multiple_block() {
-    star_no_aux_multiple_block(Some(PPOPRFServer::new()));
+    let mds: &[Vec<u8>] = &[b"t".to_vec()];
+    star_no_aux_multiple_block(Some(PPOPRFServer::new(&mds)));
 }
 
 #[cfg(feature = "star2")]
 #[test]
 fn star2_no_aux_single_block() {
-    star_no_aux_single_block(Some(PPOPRFServer::new()));
+    let mds: &[Vec<u8>] = &[b"t".to_vec()];
+    star_no_aux_single_block(Some(PPOPRFServer::new(&mds)));
 }
 
 #[cfg(feature = "star2")]
 #[test]
 fn star2_with_aux_multiple_block() {
-    star_with_aux_multiple_block(Some(PPOPRFServer::new()));
+    let mds: &[Vec<u8>] = &[b"t".to_vec()];
+    star_with_aux_multiple_block(Some(PPOPRFServer::new(&mds)));
 }
 
 #[cfg(feature = "star2")]
 #[test]
 fn star2_rand_with_aux_multiple_block() {
-    star_rand_with_aux_multiple_block(Some(PPOPRFServer::new()));
+    let mds: &[Vec<u8>] = &[b"t".to_vec()];
+    star_rand_with_aux_multiple_block(Some(PPOPRFServer::new(&mds)));
 }
 
 fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {

@@ -23,7 +23,7 @@ fn benchmark_client_randomness_sampling(c: &mut Criterion) {
     #[cfg(feature = "star2")]
     c.bench_function("Client ppoprf randomness", |b| {
         let client = client_zipf(10000, 1.03, 2, "t", None);
-        let ppoprf_server = PPOPRFServer::new();
+        let ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
         let mut out = vec![0u8; 32];
         b.iter(|| {
             client.sample_oprf_randomness(&ppoprf_server, &mut out);
@@ -42,7 +42,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     #[cfg(feature = "star2")]
     c.bench_function("Client generate triple (ppoprf)", |b| {
         let client = client_zipf(10000, 1.03, 2, "t", None);
-        let ppoprf_server = PPOPRFServer::new();
+        let ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
         b.iter(|| {
             Triple::generate(&client, Some(&ppoprf_server));
         });
@@ -60,7 +60,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     c.bench_function("Client generate triple (ppoprf, aux)", |b| {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
         let client = client_zipf(10000, 1.03, 2, "t", Some(random_bytes.to_vec()));
-        let ppoprf_server = PPOPRFServer::new();
+        let ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
         b.iter(|| {
             Triple::generate(&client, Some(&ppoprf_server));
         });
@@ -118,7 +118,7 @@ fn get_triples(params: &Params, epoch: &str) -> Vec<Triple> {
         unimplemented!();
         #[cfg(feature = "star2")]
         {
-            let mut ppoprf_server = PPOPRFServer::new();
+            let mut ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
             triples = iter::repeat_with(|| {
                 Triple::generate(
                     &client_zipf(
