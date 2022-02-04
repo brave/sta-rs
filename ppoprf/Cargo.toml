@@ -17,6 +17,9 @@ criterion = "0.3.1"
 strobe-rs = "0.6.2"
 strobe-rng = { path = "../strobe-rng" }
 
+[dev-dependencies]
+actix-web = "4.0.0-rc.2"
+
 [[bench]]
 name = "bench"
 harness = false
