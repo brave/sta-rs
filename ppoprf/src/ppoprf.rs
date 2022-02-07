@@ -21,6 +21,8 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
+use serde::{Serialize, Deserialize};
+
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
@@ -29,6 +31,7 @@ use crate::{ggm::GGM, PPRF};
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
 
+#[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
     c: Scalar,
     s: Scalar,
@@ -81,6 +84,7 @@ impl ProofDLEQ {
 pub type ServerPublicKey = Vec<RistrettoPoint>;
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
+#[derive(Serialize, Deserialize)]
 pub struct Evaluation {
     output: CompressedRistretto,
     proof: Option<ProofDLEQ>,
