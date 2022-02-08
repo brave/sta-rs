@@ -1,7 +1,29 @@
-/// Example ppoprf randomness web service.
-///
-/// This wraps the ppoprf evaluation function in an Actix-Web
-/// service application so it can be accessed over https.
+//! Example ppoprf randomness web service.
+//!
+//! This wraps the ppoprf evaluation function in an Actix-Web
+//! service application so it can be accessed over https.
+//!
+//! To verify the example works, start the server in one terminal:
+//! ```sh
+//! cargo run --example server
+//! ```
+//!
+//! In another terminal, verify the GET method returns a service
+//! identification:
+//! ```sh
+//! curl --silent localhost:8080
+//! ```
+//!
+//! Finally verify the POST method returns an altered point:
+//! ```sh
+//! curl --silent localhost:8080 \
+//!     --header 'Content-Type: application/json' \
+//!     --data '{"name":"Nested STAR", "points": [
+//!         [226, 242, 174, 10, 106, 188, 78, 113,
+//!          168, 132, 169, 97, 197, 0, 81, 95,
+//!          88, 227, 11, 106, 165, 130, 221, 141,
+//!          182, 166, 89, 69, 224, 141, 45, 118]]}'
+//! ```
 
 use actix_web::{get, post, web};
 use actix_web::middleware::Logger;
