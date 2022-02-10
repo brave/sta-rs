@@ -25,15 +25,15 @@
 //!          182, 166, 89, 69, 224, 141, 45, 118]]}'
 //! ```
 
-use actix_web::{get, post, web};
 use actix_web::middleware::Logger;
+use actix_web::{get, post, web};
 use env_logger::Env;
 use log::info;
 
 use curve25519_dalek::ristretto::CompressedRistretto;
 use ppoprf::ppoprf;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 struct EvalRequest {
@@ -50,15 +50,21 @@ struct EvalResponse {
 #[get("/")]
 async fn index() -> &'static str {
     // Simple string to identify the server.
-    concat!("STAR protocol randomness server.\n",
-        "See https://arxiv.org/abs/2109.10074 for more information.\n")
+    concat!(
+        "STAR protocol randomness server.\n",
+        "See https://arxiv.org/abs/2109.10074 for more information.\n"
+    )
 }
 
 #[post("/")]
-async fn eval(server: web::Data<ppoprf::Server>, data: web::Json<EvalRequest>)
-        -> web::Json<EvalResponse> {
+async fn eval(
+    server: web::Data<ppoprf::Server>,
+    data: web::Json<EvalRequest>,
+) -> web::Json<EvalResponse> {
     // Pass each point from the client through the ppoprf.
-    let result = data.points.iter()
+    let result = data
+        .points
+        .iter()
         .map(|p| server.eval(&p, 0, false))
         .collect();
 

@@ -21,7 +21,7 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
