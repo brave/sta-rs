@@ -13,9 +13,11 @@
 //! cargo run --example client
 //! ```
 
+use curve25519_dalek::constants::RISTRETTO_BASEPOINT_COMPRESSED;
 use env_logger::Env;
 use log::info;
 use reqwest::blocking::{Client, get};
+use serde::Serialize;
 
 /// Fetch the server identification string.
 ///
@@ -30,18 +32,24 @@ fn fetch_ident(url: &str) -> reqwest::Result<()> {
     Ok(())
 }
 
+/// Explicit query body.
+#[derive(Serialize)]
+struct Query {
+    name: String,
+    points: Vec<Vec<u8>>,
+}
+
 /// Fetch randomness from the server.
 ///
 /// Acts as a basic round-trip test.
 fn fetch_randomness(url: &str) -> reqwest::Result<()> {
+    let query = Query {
+        name: "example client".into(),
+        points: vec![ RISTRETTO_BASEPOINT_COMPRESSED.0.to_vec(), ],
+    };
     let client = Client::new();
     let res = client.post(url)
-        .header("Content-Type", "application/json")
-        .body("{\"name\":\"example client\", \"points\": [
-                [226, 242, 174, 10, 106, 188, 78, 113,
-                 168, 132, 169, 97, 197, 0, 81, 95,
-                 88, 227, 11, 106, 165, 130, 221, 141,
-                 182, 166, 89, 69, 224, 141, 45, 118]]}")
+        .json(&query)
         .send()?;
     let status = res.status();
     let text = res.text()?;
@@ -50,6 +58,7 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
 
     Ok(())
 }
+
 fn main() {
     let url = "http://localhost:8080";
 
