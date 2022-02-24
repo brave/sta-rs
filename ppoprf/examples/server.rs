@@ -30,6 +30,8 @@ use actix_web::{get, post, web};
 use env_logger::Env;
 use log::info;
 
+use std::sync::{Arc, RwLock};
+
 use curve25519_dalek::ristretto::CompressedRistretto;
 use ppoprf::ppoprf;
 
@@ -47,6 +49,8 @@ struct EvalResponse {
     results: Vec<ppoprf::Evaluation>,
 }
 
+type State = Arc<RwLock<ppoprf::Server>>;
+
 #[get("/")]
 async fn index() -> &'static str {
     // Simple string to identify the server.
@@ -58,9 +62,10 @@ async fn index() -> &'static str {
 
 #[post("/")]
 async fn eval(
-    server: web::Data<ppoprf::Server>,
+    state: web::Data<State>,
     data: web::Json<EvalRequest>,
 ) -> web::Json<EvalResponse> {
+    let server = state.read().unwrap();
     // Pass each point from the client through the ppoprf.
     let result = data
         .points
@@ -83,15 +88,35 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
     info!("Server configured on {} port {}", host, port);
 
-    // Actix webapp state cloned into each server thread.
+    // Metadata tags marking each randomness epoch.
     let test_mds = vec![vec!['t' as u8]];
-    let server = ppoprf::Server::new(&test_mds);
+    // Time interval between puncturing each successive md.
+    let epoch = std::time::Duration::from_secs(5);
+
+    // Shared actix webapp state cloned into each server thread.
+    // We use an RWLock to handle the infrequent puncture events.
+    // Only read access is necessary to answer queries.
+    let state = Arc::new(RwLock::new(ppoprf::Server::new(&test_mds)));
+
+    // Spawn a background task.
+    let background_state = state.clone();
+    actix_web::rt::spawn(async move {
+        log::info!("Spawned background epoch rotation task");
+        // Wait for the end of an epoch.
+        actix_web::rt::time::delay_for(epoch).await;
+        if let Ok(mut server) = background_state.write() {
+            let md = &test_mds[0];
+            log::info!("Epoch rotation: puncturing '{:?}'", md);
+            server.puncture(md);
+        }
+        log::info!("Epoch rotation complete");
+    });
 
     // Pass a factory closure to configure the server.
     actix_web::HttpServer::new(move || {
         actix_web::App::new()
             // Register app state.
-            .data(server.clone())
+            .data(state.clone())
             // Register routes.
             .service(index)
             .service(eval)
