@@ -36,7 +36,7 @@ fn fetch_ident(url: &str) -> reqwest::Result<()> {
 #[derive(Serialize)]
 struct Query {
     name: String,
-    points: Vec<Vec<u8>>,
+    points: Vec<String>,
 }
 
 /// Fetch randomness from the server.
@@ -45,7 +45,7 @@ struct Query {
 fn fetch_randomness(url: &str) -> reqwest::Result<()> {
     let query = Query {
         name: "example client".into(),
-        points: vec![ RISTRETTO_BASEPOINT_COMPRESSED.0.to_vec(), ],
+        points: vec![ base64::encode(RISTRETTO_BASEPOINT_COMPRESSED.0), ],
     };
     let client = Client::new();
     let res = client.post(url)

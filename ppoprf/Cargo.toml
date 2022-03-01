@@ -17,12 +17,14 @@ criterion = "0.3.1"
 serde = "1.0.136"
 strobe-rs = "0.6.2"
 strobe-rng = { path = "../strobe-rng" }
+base64 = "0.13"
 
 [dev-dependencies]
 actix-web = "3.3.3"
 env_logger = "0.9.0"
 log = "0.4.14"
 reqwest = { version = "0.11.9", features = [ "blocking", "json" ] }
+dotenv = "0.15"
 
 [[bench]]
 name = "bench"
