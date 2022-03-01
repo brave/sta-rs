@@ -21,7 +21,8 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
-use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use serde::{Deserialize, Serialize, de, ser};
 
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
@@ -84,10 +85,31 @@ impl ProofDLEQ {
 pub type ServerPublicKey = Vec<RistrettoPoint>;
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct Evaluation {
+    #[serde(serialize_with = "ristretto_serialize")]
     output: CompressedRistretto,
     proof: Option<ProofDLEQ>,
+}
+
+#[derive(Deserialize)]
+pub struct Point(
+    #[serde(deserialize_with = "ristretto_deserialize")]
+    CompressedRistretto
+);
+
+fn ristretto_serialize<S>(o: &CompressedRistretto, s: S) -> Result<S::Ok, S::Error>
+where S: ser::Serializer {
+    s.serialize_str(&base64::encode(o.0))
+}
+
+fn ristretto_deserialize<'de, D>(d: D) -> Result<CompressedRistretto, D::Error>
+where D: de::Deserializer<'de> {
+    let s: &str = de::Deserialize::deserialize(d)?;
+    let data = base64::decode(s).map_err(de::Error::custom)?;
+    let fixed_data: [u8; 32] = data.try_into()
+        .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
+    Ok(CompressedRistretto(fixed_data))
 }
 
 // The `Server` runs the server-side component of the PPOPRF protocol.
@@ -119,7 +141,8 @@ impl Server {
         }
     }
 
-    pub fn eval(&self, p: &CompressedRistretto, md_idx: usize, verifiable: bool) -> Evaluation {
+    pub fn eval(&self, p: &Point, md_idx: usize, verifiable: bool) -> Evaluation {
+        let p = p.0;
         let point = p.decompress().unwrap();
         if md_idx >= self.mds.len() {
             panic!("Specified tag index is out of bounds for stored tags, indicated index {} is not in [0..{})", md_idx, self.mds.len());
@@ -217,7 +240,7 @@ pub fn end_to_end_evaluation(
     out: &mut [u8],
 ) {
     let (blinded_point, r) = Client::blind(input);
-    let evaluated = server.eval(&blinded_point, md_idx, verify);
+    let evaluated = server.eval(&Point(blinded_point), md_idx, verify);
     if verify
         && !Client::verify(
             &server.public_key,

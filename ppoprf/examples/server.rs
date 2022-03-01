@@ -19,10 +19,8 @@
 //! curl --silent localhost:8080 \
 //!     --header 'Content-Type: application/json' \
 //!     --data '{"name":"Nested STAR", "points": [
-//!         [226, 242, 174, 10, 106, 188, 78, 113,
-//!          168, 132, 169, 97, 197, 0, 81, 95,
-//!          88, 227, 11, 106, 165, 130, 221, 141,
-//!          182, 166, 89, 69, 224, 141, 45, 118]]}'
+//!         "4vKuCmq8TnGohKlhxQBRX1jjC2qlgt2NtqZZReCNLXY="
+//!         ]}'
 //! ```
 
 use actix_web::middleware::Logger;
@@ -34,7 +32,6 @@ use log::info;
 
 use std::sync::{Arc, RwLock};
 
-use curve25519_dalek::ristretto::CompressedRistretto;
 use ppoprf::ppoprf;
 
 use serde::{Deserialize, Serialize};
@@ -47,7 +44,7 @@ const MDS_ENV_KEY: &str = "METADATA_TAGS";
 #[derive(Deserialize)]
 struct EvalRequest {
     name: String,
-    points: Vec<CompressedRistretto>,
+    points: Vec<ppoprf::Point>,
 }
 
 #[derive(Serialize)]
