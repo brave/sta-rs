@@ -28,7 +28,7 @@ use actix_web::{get, post, web};
 use env_logger::Env;
 use dotenv::dotenv;
 use std::env;
-use log::info;
+use log::{info, warn};
 
 use std::sync::{Arc, RwLock};
 
@@ -141,21 +141,24 @@ async fn main() -> std::io::Result<()> {
         prf_server: ppoprf::Server::new(&mds),
         md_idx: 0
     }));
+    info!("PPOPRF initialized with epoch metadata tags {:?}", &mds);
 
     // Spawn a background task.
     let background_state = state.clone();
     actix_web::rt::spawn(async move {
-        log::info!("Spawned background epoch rotation task");
-        // Wait for the end of an epoch.
+        info!("Background task will rotate epoch every {} seconds", epoch.as_secs());
+        // Loop over the list of configured epoch metadata tags.
         for md in &mds {
+            info!("Epoch tag now '{:?}'; next rotation in {} seconds", md, epoch.as_secs());
+            // Wait for the end of an epoch.
             actix_web::rt::time::delay_for(epoch).await;
             if let Ok(mut state) = background_state.write() {
-                log::info!("Epoch rotation: puncturing '{:?}'", md);
+                info!("Epoch rotation: puncturing '{:?}'", md);
                 state.prf_server.puncture(md);
                 state.md_idx += 1;
             }
-            log::info!("Epoch rotation complete");
         }
+        warn!("All epoch tags punctured! No further evaluations possible.");
     });
 
     // Pass a factory closure to configure the server.
