@@ -99,9 +99,17 @@ async fn main() -> std::io::Result<()> {
     info!("Server configured on {} port {}", host, port);
 
     // Metadata tags marking each randomness epoch.
-    let mds: Vec<Vec<u8>> = env::var(MDS_ENV_KEY)
-        .unwrap_or(DEFAULT_MDS.to_string())
-        .split(';')
+    let mds_str = match env::var(MDS_ENV_KEY) {
+        Ok(val) => {
+            val
+        },
+        Err(_) => {
+            info!("{} env var not defined, using default: {}",
+                MDS_ENV_KEY, DEFAULT_MDS);
+            DEFAULT_MDS.to_string()
+        }
+    };
+    let mds: Vec<Vec<u8>> = mds_str.split(';')
         .map(|y| {
             y.split(',').map(|x| {
                 x.parse().expect(
@@ -118,7 +126,11 @@ async fn main() -> std::io::Result<()> {
                     "Could not parse epoch duration. It must be a positive number!"
                 )
             },
-            Err(_) => DEFAULT_EPOCH_DURATION
+            Err(_) => {
+                info!("{} env var not defined, using default: {} seconds",
+                    EPOCH_DURATION_ENV_KEY, DEFAULT_EPOCH_DURATION);
+                DEFAULT_EPOCH_DURATION
+            }
         }
     );
 
