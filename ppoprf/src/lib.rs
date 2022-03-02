@@ -15,8 +15,30 @@
 pub mod ggm;
 pub mod ppoprf;
 
+use derive_more::{Display, Error};
+
+#[derive(Debug, Error, Display, PartialEq)]
+pub enum PPRFError {
+    #[display(
+        fmt = "Tag index is out of bounds, indicated index {} is above length of {}",
+        index,
+        tag_size
+    )]
+    BadTagIndex { index: usize, tag_size: usize },
+    #[display(fmt = "No prefix found")]
+    NoPrefixFound,
+    #[display(fmt = "Tag already punctured")]
+    AlreadyPunctured,
+    #[display(
+        fmt = "Input length ({}) does not match input param ({})",
+        actual,
+        expected
+    )]
+    BadInputLength { actual: usize, expected: usize },
+}
+
 pub trait PPRF {
     fn setup() -> Self;
-    fn eval(&self, input: &[u8], output: &mut [u8]);
-    fn puncture(&mut self, input: &[u8]);
+    fn eval(&self, input: &[u8], output: &mut [u8]) -> Result<(), PPRFError>;
+    fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError>;
 }
