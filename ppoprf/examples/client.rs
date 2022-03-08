@@ -16,14 +16,14 @@
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_COMPRESSED;
 use env_logger::Env;
 use log::info;
-use reqwest::blocking::{Client, get};
+use reqwest::blocking::Client as HttpClient;
 use serde::Serialize;
 
 /// Fetch the server identification string.
 ///
 /// Acts as a basic availability ping.
 fn fetch_ident(url: &str) -> reqwest::Result<()> {
-    let res = get(url)?;
+    let res = HttpClient::new().get(url).send()?;
     let status = res.status();
     let text = res.text()?;
 
@@ -47,8 +47,8 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
         name: "example client".into(),
         points: vec![ base64::encode(RISTRETTO_BASEPOINT_COMPRESSED.0), ],
     };
-    let client = Client::new();
-    let res = client.post(url)
+    let res = HttpClient::new()
+        .post(url)
         .json(&query)
         .send()?;
     let status = res.status();
