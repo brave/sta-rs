@@ -85,17 +85,19 @@ impl ProofDLEQ {
 pub type ServerPublicKey = Vec<RistrettoPoint>;
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Evaluation {
+    #[serde(deserialize_with = "ristretto_deserialize")]
     #[serde(serialize_with = "ristretto_serialize")]
-    output: CompressedRistretto,
-    proof: Option<ProofDLEQ>,
+    pub output: CompressedRistretto,
+    pub proof: Option<ProofDLEQ>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Point(
     #[serde(deserialize_with = "ristretto_deserialize")]
-    CompressedRistretto
+    #[serde(serialize_with = "ristretto_serialize")]
+    CompressedRistretto,
 );
 
 fn ristretto_serialize<S>(o: &CompressedRistretto, s: S) -> Result<S::Ok, S::Error>
