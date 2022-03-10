@@ -75,7 +75,7 @@ async fn eval(state: web::Data<State>, data: web::Json<EvalRequest>) -> web::Jso
     let result = data
         .points
         .iter()
-        .map(|p| state.prf_server.eval(&p, state.md_idx, false))
+        .map(|p| state.prf_server.eval(p, state.md_idx, false))
         .collect();
 
     // Return the results.

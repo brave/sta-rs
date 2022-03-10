@@ -101,6 +101,6 @@ fn main() {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     info!("Contacting server at {}", url);
-    fetch_ident(&url).unwrap();
-    fetch_randomness(&url).unwrap();
+    fetch_ident(url).unwrap();
+    fetch_randomness(url).unwrap();
 }
