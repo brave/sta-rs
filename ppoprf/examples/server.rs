@@ -25,10 +25,10 @@
 
 use actix_web::middleware::Logger;
 use actix_web::{get, post, web};
-use env_logger::Env;
 use dotenv::dotenv;
-use std::env;
+use env_logger::Env;
 use log::{info, warn};
+use std::env;
 
 use std::sync::{Arc, RwLock};
 
@@ -55,7 +55,7 @@ struct EvalResponse {
 
 struct ServerState {
     prf_server: ppoprf::Server,
-    md_idx: usize
+    md_idx: usize,
 }
 type State = Arc<RwLock<ServerState>>;
 
@@ -69,10 +69,7 @@ async fn index() -> &'static str {
 }
 
 #[post("/")]
-async fn eval(
-    state: web::Data<State>,
-    data: web::Json<EvalRequest>,
-) -> web::Json<EvalResponse> {
+async fn eval(state: web::Data<State>, data: web::Json<EvalRequest>) -> web::Json<EvalResponse> {
     let state = state.read().unwrap();
     // Pass each point from the client through the ppoprf.
     let result = data
@@ -100,56 +97,65 @@ async fn main() -> std::io::Result<()> {
 
     // Metadata tags marking each randomness epoch.
     let mds_str = match env::var(MDS_ENV_KEY) {
-        Ok(val) => {
-            val
-        },
+        Ok(val) => val,
         Err(_) => {
-            info!("{} env var not defined, using default: {}",
-                MDS_ENV_KEY, DEFAULT_MDS);
+            info!(
+                "{} env var not defined, using default: {}",
+                MDS_ENV_KEY, DEFAULT_MDS
+            );
             DEFAULT_MDS.to_string()
         }
     };
-    let mds: Vec<Vec<u8>> = mds_str.split(';')
+    let mds: Vec<Vec<u8>> = mds_str
+        .split(';')
         .map(|y| {
-            y.split(',').map(|x| {
-                x.parse().expect(
-                    "Could not parse metadata tags. Must contain 8-bit unsigned values!"
-                )
-            }).collect()
-        }).collect();
+            y.split(',')
+                .map(|x| {
+                    x.parse().expect(
+                        "Could not parse metadata tags. Must contain 8-bit unsigned values!",
+                    )
+                })
+                .collect()
+        })
+        .collect();
 
     // Time interval between puncturing each successive md.
-    let epoch = std::time::Duration::from_secs(
-        match env::var(EPOCH_DURATION_ENV_KEY) {
-            Ok(val) => {
-                val.parse().expect(
-                    "Could not parse epoch duration. It must be a positive number!"
-                )
-            },
-            Err(_) => {
-                info!("{} env var not defined, using default: {} seconds",
-                    EPOCH_DURATION_ENV_KEY, DEFAULT_EPOCH_DURATION);
-                DEFAULT_EPOCH_DURATION
-            }
+    let epoch = std::time::Duration::from_secs(match env::var(EPOCH_DURATION_ENV_KEY) {
+        Ok(val) => val
+            .parse()
+            .expect("Could not parse epoch duration. It must be a positive number!"),
+        Err(_) => {
+            info!(
+                "{} env var not defined, using default: {} seconds",
+                EPOCH_DURATION_ENV_KEY, DEFAULT_EPOCH_DURATION
+            );
+            DEFAULT_EPOCH_DURATION
         }
-    );
+    });
 
     // Shared actix webapp state cloned into each server thread.
     // We use an RWLock to handle the infrequent puncture events.
     // Only read access is necessary to answer queries.
     let state = Arc::new(RwLock::new(ServerState {
         prf_server: ppoprf::Server::new(&mds),
-        md_idx: 0
+        md_idx: 0,
     }));
     info!("PPOPRF initialized with epoch metadata tags {:?}", &mds);
 
     // Spawn a background task.
     let background_state = state.clone();
     actix_web::rt::spawn(async move {
-        info!("Background task will rotate epoch every {} seconds", epoch.as_secs());
+        info!(
+            "Background task will rotate epoch every {} seconds",
+            epoch.as_secs()
+        );
         // Loop over the list of configured epoch metadata tags.
         for md in &mds {
-            info!("Epoch tag now '{:?}'; next rotation in {} seconds", md, epoch.as_secs());
+            info!(
+                "Epoch tag now '{:?}'; next rotation in {} seconds",
+                md,
+                epoch.as_secs()
+            );
             // Wait for the end of an epoch.
             actix_web::rt::time::delay_for(epoch).await;
             if let Ok(mut state) = background_state.write() {

@@ -56,20 +56,25 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
     // Submit it to the server.
     let query = Query {
         name: "example client".into(),
-        points: vec![ blinded_message, ],
+        points: vec![blinded_message],
     };
-    let res = HttpClient::new()
-        .post(url)
-        .json(&query)
-        .send()?;
+    let res = HttpClient::new().post(url).json(&query).send()?;
     let status = res.status();
     let result = res.json::<Response>()?;
     let results = result.results;
 
     // We only submit one hash; confirm the server returned the same.
-    info!("{} {} - {} points returned", status, result.name, results.len());
-    assert_eq!(query.points.len(), results.len(),
-        "Server returned a different number of points!");
+    info!(
+        "{} {} - {} points returned",
+        status,
+        result.name,
+        results.len()
+    );
+    assert_eq!(
+        query.points.len(),
+        results.len(),
+        "Server returned a different number of points!"
+    );
     assert_eq!(results.len(), 1, "Expected one point!");
     if let Some(result) = results.first() {
         // Unblind the message hash.

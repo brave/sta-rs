@@ -21,8 +21,8 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
+use serde::{de, ser, Deserialize, Serialize};
 use std::convert::TryInto;
-use serde::{Deserialize, Serialize, de, ser};
 
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
@@ -101,15 +101,20 @@ pub struct Point(
 );
 
 fn ristretto_serialize<S>(o: &CompressedRistretto, s: S) -> Result<S::Ok, S::Error>
-where S: ser::Serializer {
+where
+    S: ser::Serializer,
+{
     s.serialize_str(&base64::encode(o.0))
 }
 
 fn ristretto_deserialize<'de, D>(d: D) -> Result<CompressedRistretto, D::Error>
-where D: de::Deserializer<'de> {
+where
+    D: de::Deserializer<'de>,
+{
     let s: &str = de::Deserialize::deserialize(d)?;
     let data = base64::decode(s).map_err(de::Error::custom)?;
-    let fixed_data: [u8; 32] = data.try_into()
+    let fixed_data: [u8; 32] = data
+        .try_into()
         .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
     Ok(CompressedRistretto(fixed_data))
 }
