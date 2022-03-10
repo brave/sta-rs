@@ -186,13 +186,13 @@ impl Server {
 // for computing client-side operations in the PPOPRF protocol.
 pub struct Client {}
 impl Client {
-    pub fn blind(input: &[u8]) -> (CompressedRistretto, Scalar) {
+    pub fn blind(input: &[u8]) -> (Point, Scalar) {
         let mut hashed_input = [0u8; 64];
         strobe_hash(input, "ppoprf_derive_client_input", &mut hashed_input);
         let point = RistrettoPoint::from_uniform_bytes(&hashed_input);
         let mut csprng = OsRng;
         let r = Scalar::random(&mut csprng);
-        ((r * point).compress(), r)
+        (Point((r * point).compress()), r)
     }
 
     pub fn verify(
@@ -240,11 +240,11 @@ pub fn end_to_end_evaluation(
     out: &mut [u8],
 ) {
     let (blinded_point, r) = Client::blind(input);
-    let evaluated = server.eval(&Point(blinded_point), md_idx, verify);
+    let evaluated = server.eval(&blinded_point, md_idx, verify);
     if verify
         && !Client::verify(
             &server.public_key,
-            &blinded_point.decompress().unwrap(),
+            &blinded_point.0.decompress().unwrap(),
             &evaluated,
             md_idx,
         )
@@ -284,11 +284,8 @@ mod tests {
 
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
-        let chk_eval = server.eval(
-            &RistrettoPoint::from_uniform_bytes(&chk_inp).compress(),
-            md_idx,
-            false,
-        );
+        let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
+        let chk_eval = server.eval(&p, md_idx, false);
         (unblinded, chk_eval.output)
     }
 
@@ -301,7 +298,7 @@ mod tests {
         let evaluated = server.eval(&blinded_point, md_idx, true);
         if !Client::verify(
             &server.public_key,
-            &blinded_point.decompress().unwrap(),
+            &blinded_point.0.decompress().unwrap(),
             &evaluated,
             md_idx,
         ) {
@@ -311,11 +308,8 @@ mod tests {
 
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
-        let chk_eval = server.eval(
-            &RistrettoPoint::from_uniform_bytes(&chk_inp).compress(),
-            md_idx,
-            false,
-        );
+        let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
+        let chk_eval = server.eval(&p, md_idx, false);
         (unblinded, chk_eval.output)
     }
 
