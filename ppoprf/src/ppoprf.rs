@@ -21,6 +21,9 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
+use serde::{de, ser, Deserialize, Serialize};
+use std::convert::TryInto;
+
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
@@ -29,6 +32,7 @@ use crate::{ggm::GGM, PPRF};
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
 
+#[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
     c: Scalar,
     s: Scalar,
@@ -81,9 +85,38 @@ impl ProofDLEQ {
 pub type ServerPublicKey = Vec<RistrettoPoint>;
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
+#[derive(Deserialize, Serialize)]
 pub struct Evaluation {
-    output: CompressedRistretto,
-    proof: Option<ProofDLEQ>,
+    #[serde(deserialize_with = "ristretto_deserialize")]
+    #[serde(serialize_with = "ristretto_serialize")]
+    pub output: CompressedRistretto,
+    pub proof: Option<ProofDLEQ>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Point(
+    #[serde(deserialize_with = "ristretto_deserialize")]
+    #[serde(serialize_with = "ristretto_serialize")]
+    CompressedRistretto,
+);
+
+fn ristretto_serialize<S>(o: &CompressedRistretto, s: S) -> Result<S::Ok, S::Error>
+where
+    S: ser::Serializer,
+{
+    s.serialize_str(&base64::encode(o.0))
+}
+
+fn ristretto_deserialize<'de, D>(d: D) -> Result<CompressedRistretto, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let s: &str = de::Deserialize::deserialize(d)?;
+    let data = base64::decode(s).map_err(de::Error::custom)?;
+    let fixed_data: [u8; 32] = data
+        .try_into()
+        .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
+    Ok(CompressedRistretto(fixed_data))
 }
 
 // The `Server` runs the server-side component of the PPOPRF protocol.
@@ -115,7 +148,8 @@ impl Server {
         }
     }
 
-    pub fn eval(&self, p: &CompressedRistretto, md_idx: usize, verifiable: bool) -> Evaluation {
+    pub fn eval(&self, p: &Point, md_idx: usize, verifiable: bool) -> Evaluation {
+        let p = p.0;
         let point = p.decompress().unwrap();
         if md_idx >= self.mds.len() {
             panic!("Specified tag index is out of bounds for stored tags, indicated index {} is not in [0..{})", md_idx, self.mds.len());
@@ -159,13 +193,13 @@ impl Server {
 // for computing client-side operations in the PPOPRF protocol.
 pub struct Client {}
 impl Client {
-    pub fn blind(input: &[u8]) -> (CompressedRistretto, Scalar) {
+    pub fn blind(input: &[u8]) -> (Point, Scalar) {
         let mut hashed_input = [0u8; 64];
         strobe_hash(input, "ppoprf_derive_client_input", &mut hashed_input);
         let point = RistrettoPoint::from_uniform_bytes(&hashed_input);
         let mut csprng = OsRng;
         let r = Scalar::random(&mut csprng);
-        ((r * point).compress(), r)
+        (Point((r * point).compress()), r)
     }
 
     pub fn verify(
@@ -217,7 +251,7 @@ pub fn end_to_end_evaluation(
     if verify
         && !Client::verify(
             &server.public_key,
-            &blinded_point.decompress().unwrap(),
+            &blinded_point.0.decompress().unwrap(),
             &evaluated,
             md_idx,
         )
@@ -257,11 +291,8 @@ mod tests {
 
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
-        let chk_eval = server.eval(
-            &RistrettoPoint::from_uniform_bytes(&chk_inp).compress(),
-            md_idx,
-            false,
-        );
+        let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
+        let chk_eval = server.eval(&p, md_idx, false);
         (unblinded, chk_eval.output)
     }
 
@@ -274,7 +305,7 @@ mod tests {
         let evaluated = server.eval(&blinded_point, md_idx, true);
         if !Client::verify(
             &server.public_key,
-            &blinded_point.decompress().unwrap(),
+            &blinded_point.0.decompress().unwrap(),
             &evaluated,
             md_idx,
         ) {
@@ -284,11 +315,8 @@ mod tests {
 
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
-        let chk_eval = server.eval(
-            &RistrettoPoint::from_uniform_bytes(&chk_inp).compress(),
-            md_idx,
-            false,
-        );
+        let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
+        let chk_eval = server.eval(&p, md_idx, false);
         (unblinded, chk_eval.output)
     }
 
