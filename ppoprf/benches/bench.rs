@@ -7,7 +7,7 @@ use ring::digest;
 
 use ppoprf::ggm::GGM;
 use ppoprf::ppoprf::end_to_end_evaluation;
-use ppoprf::ppoprf::{Client, Server};
+use ppoprf::ppoprf::{Client, Point, Server};
 use ppoprf::PPRF;
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -108,14 +108,16 @@ fn benchmark_server(c: &mut Criterion) {
     c.bench_function("Server eval", |b| {
         b.iter(|| {
             let server = Server::new(&mds);
-            server.eval(&RistrettoPoint::random(&mut OsRng).compress(), 0, false);
+            let point = Point(RistrettoPoint::random(&mut OsRng).compress());
+            server.eval(&point, 0, false);
         })
     });
 
     c.bench_function("Server verifiable eval", |b| {
         b.iter(|| {
             let server = Server::new(&mds);
-            server.eval(&RistrettoPoint::random(&mut OsRng).compress(), 0, true);
+            let point = Point(RistrettoPoint::random(&mut OsRng).compress());
+            server.eval(&point, 0, true);
         })
     });
 }
@@ -140,7 +142,7 @@ fn benchmark_client(c: &mut Criterion) {
         b.iter(|| {
             Client::verify(
                 &server.get_public_key(),
-                &blinded_point.decompress().unwrap(),
+                &blinded_point.0.decompress().unwrap(),
                 &eval,
                 0,
             );
@@ -150,7 +152,7 @@ fn benchmark_client(c: &mut Criterion) {
     c.bench_function("Client unblind", |b| {
         let (blinded_point, r) = Client::blind(input.as_ref());
         b.iter(|| {
-            Client::unblind(&blinded_point, &r);
+            Client::unblind(&blinded_point.0, &r);
         })
     });
 

@@ -97,7 +97,7 @@ pub struct Evaluation {
 pub struct Point(
     #[serde(deserialize_with = "ristretto_deserialize")]
     #[serde(serialize_with = "ristretto_serialize")]
-    CompressedRistretto,
+    pub CompressedRistretto,
 );
 
 fn ristretto_serialize<S>(o: &CompressedRistretto, s: S) -> Result<S::Ok, S::Error>

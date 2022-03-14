@@ -1,3 +1,7 @@
+// Work around clippy warning from wasm_bidgen 0.2.79.
+// Can be removed after bumping to a release containing the upstream
+// fix in https://github.com/rustwasm/wasm-bindgen/pull/2778
+#![allow(clippy::unused_unit)]
 use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};
