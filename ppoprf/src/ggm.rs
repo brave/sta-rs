@@ -5,18 +5,12 @@
 
 use std::fmt;
 
-use super::PPRF;
+use super::{PPRFError, PPRF};
 use bitvec::prelude::*;
 use ring::{
     hmac,
     rand::{SecureRandom, SystemRandom},
 };
-
-#[derive(Debug)]
-enum GGMError {
-    NoPrefixFound,
-    AlreadyPunctured,
-}
 
 #[derive(Clone, Eq, PartialEq)]
 struct Prefix {
@@ -85,7 +79,7 @@ impl GGMPuncturableKey {
         }
     }
 
-    fn find_prefix(&self, bv: &BitVec) -> Result<(Prefix, Vec<u8>), GGMError> {
+    fn find_prefix(&self, bv: &BitVec) -> Result<(Prefix, Vec<u8>), PPRFError> {
         let key_prefixes = self.prefixes.clone();
         for prefix in key_prefixes {
             let bits = &prefix.0.bits;
@@ -93,7 +87,7 @@ impl GGMPuncturableKey {
                 return Ok(prefix);
             }
         }
-        Err(GGMError::NoPrefixFound)
+        Err(PPRFError::NoPrefixFound)
     }
 
     fn puncture(
@@ -101,9 +95,9 @@ impl GGMPuncturableKey {
         pfx: &Prefix,
         to_punc: &Prefix,
         new_prefixes: Vec<(Prefix, Vec<u8>)>,
-    ) -> Result<(), GGMError> {
+    ) -> Result<(), PPRFError> {
         if self.punctured.iter().any(|p| p.bits == pfx.bits) {
-            return Err(GGMError::AlreadyPunctured);
+            return Err(PPRFError::AlreadyPunctured);
         }
         if let Some(index) = self.prefixes.iter().position(|p| p.0.bits == pfx.bits) {
             self.prefixes.remove(index);
@@ -113,7 +107,7 @@ impl GGMPuncturableKey {
             self.punctured.push(to_punc.clone());
             return Ok(());
         }
-        Err(GGMError::NoPrefixFound)
+        Err(PPRFError::NoPrefixFound)
     }
 }
 
@@ -138,7 +132,7 @@ impl GGM {
         output.copy_from_slice(&eval);
     }
 
-    fn partial_eval(&self, input_bits: &mut BitVec, output: &mut [u8]) -> Result<(), GGMError> {
+    fn partial_eval(&self, input_bits: &mut BitVec, output: &mut [u8]) -> Result<(), PPRFError> {
         let res = self.key.find_prefix(input_bits);
         if let Ok(pfx) = res {
             let tail = pfx.1;
@@ -146,7 +140,7 @@ impl GGM {
             self.bit_eval(&right.to_bitvec(), &tail, output);
             return Ok(());
         }
-        Err(GGMError::NoPrefixFound)
+        Err(PPRFError::NoPrefixFound)
     }
 }
 
@@ -158,63 +152,54 @@ impl PPRF for GGM {
         }
     }
 
-    fn eval(&self, input: &[u8], output: &mut [u8]) {
+    fn eval(&self, input: &[u8], output: &mut [u8]) -> Result<(), PPRFError> {
         if input.len() != self.inp_len {
-            panic!(
-                "Input length ({}) does not match input param ({})",
-                input.len(),
-                self.inp_len
-            );
+            return Err(PPRFError::BadInputLength {
+                actual: input.len(),
+                expected: self.inp_len,
+            });
         }
         let mut input_bits = bvcast_u8_to_usize(&BitVec::<Lsb0, _>::from_slice(input).unwrap());
-        if let Err(e) = self.partial_eval(&mut input_bits, output) {
-            panic!("Error occurred for {:?}: {:?}", input, e);
-        }
+        self.partial_eval(&mut input_bits, output)
     }
 
-    fn puncture(&mut self, input: &[u8]) {
+    fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError> {
         if input.len() != self.inp_len {
-            panic!(
-                "Input length ({}) does not match input param ({})",
-                input.len(),
-                self.inp_len
-            );
+            return Err(PPRFError::BadInputLength {
+                actual: input.len(),
+                expected: self.inp_len,
+            });
         }
         let bv = bvcast_u8_to_usize(&BitVec::<Lsb0, _>::from_slice(input).unwrap());
-        if let Ok(pfx) = self.key.find_prefix(&bv) {
-            let pfx_len = pfx.0.len();
+        let pfx = self.key.find_prefix(&bv)?;
+        let pfx_len = pfx.0.len();
 
-            // If the prfix is smaller than the current input, then we
-            // need to recompute some parts of the tree. Otherwise we
-            // just remove the prefix entirely.
-            let mut new_pfxs: Vec<(Prefix, Vec<u8>)> = Vec::new();
-            if pfx_len != bv.len() {
-                let mut iter_bv = bv.clone();
-                for i in (0..bv.len()).rev() {
-                    if let Some((last, rest)) = iter_bv.clone().split_last() {
-                        let mut cbv = iter_bv.clone();
-                        cbv.set(i, !*last);
-                        let mut out = vec![0u8; 32];
-                        let (_, split) = cbv.split_at(pfx_len);
-                        self.bit_eval(&split.to_bitvec(), &pfx.1, &mut out);
-                        new_pfxs.push((Prefix::new(cbv), out));
-                        if rest.len() == pfx_len {
-                            // we don't want to recompute any further
-                            break;
-                        }
-                        iter_bv = rest.to_bitvec();
-                    } else {
-                        panic!("Unexpected end of input");
+        // If the prfix is smaller than the current input, then we
+        // need to recompute some parts of the tree. Otherwise we
+        // just remove the prefix entirely.
+        let mut new_pfxs: Vec<(Prefix, Vec<u8>)> = Vec::new();
+        if pfx_len != bv.len() {
+            let mut iter_bv = bv.clone();
+            for i in (0..bv.len()).rev() {
+                if let Some((last, rest)) = iter_bv.clone().split_last() {
+                    let mut cbv = iter_bv.clone();
+                    cbv.set(i, !*last);
+                    let mut out = vec![0u8; 32];
+                    let (_, split) = cbv.split_at(pfx_len);
+                    self.bit_eval(&split.to_bitvec(), &pfx.1, &mut out);
+                    new_pfxs.push((Prefix::new(cbv), out));
+                    if rest.len() == pfx_len {
+                        // we don't want to recompute any further
+                        break;
                     }
+                    iter_bv = rest.to_bitvec();
+                } else {
+                    return Err(PPRFError::UnexpectedEndOfBv);
                 }
             }
-
-            if let Err(e) = self.key.puncture(&pfx.0, &Prefix::new(bv), new_pfxs) {
-                panic!("Problem puncturing key: {:?}", e);
-            }
-        } else {
-            panic!("No prefix found");
         }
+
+        self.key.puncture(&pfx.0, &Prefix::new(bv), new_pfxs)
     }
 }
 
@@ -242,41 +227,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn eval() {
+    fn eval() -> Result<(), PPRFError> {
         let ggm = GGM::setup();
         let x0 = [8u8];
         let x1 = [7u8];
         let mut out = [0u8; 32];
-        ggm.eval(&x0, &mut out);
-        ggm.eval(&x1, &mut out);
+        ggm.eval(&x0, &mut out)?;
+        ggm.eval(&x1, &mut out)?;
+        Ok(())
     }
 
     #[test]
-    #[should_panic(expected = "NoPrefixFound")]
-    fn puncture_fail_eval() {
+    fn puncture_fail_eval() -> Result<(), PPRFError> {
         let mut ggm = GGM::setup();
         let x0 = [8u8];
         let mut out = [0u8; 32];
-        ggm.eval(&x0, &mut out);
-        ggm.puncture(&x0);
-        // next step should panic
-        ggm.eval(&x0, &mut out);
+        ggm.eval(&x0, &mut out)?;
+        ggm.puncture(&x0)?;
+        // next step should error out
+        assert_eq!(ggm.eval(&x0, &mut out), Err(PPRFError::NoPrefixFound));
+        Ok(())
     }
 
     #[test]
-    #[should_panic(expected = "NoPrefixFound")]
-    fn mult_puncture_fail_eval() {
+    fn mult_puncture_fail_eval() -> Result<(), PPRFError> {
         let mut ggm = GGM::setup();
         let x0 = [0u8];
         let x1 = [1u8];
-        ggm.puncture(&x0);
-        ggm.puncture(&x1);
-        // next step should panic
-        ggm.eval(&x0, &mut [0u8; 32]);
+        ggm.puncture(&x0)?;
+        ggm.puncture(&x1)?;
+        // next step should error out
+        assert_eq!(ggm.eval(&x0, &mut [0u8; 32]), Err(PPRFError::NoPrefixFound));
+        Ok(())
     }
 
     #[test]
-    fn puncture_eval_consistent() {
+    fn puncture_eval_consistent() -> Result<(), PPRFError> {
         let mut ggm = GGM::setup();
         let inputs = [[2u8], [4u8], [8u8], [16u8], [32u8], [64u8], [128u8]];
         let x0 = [0u8];
@@ -284,63 +270,66 @@ mod tests {
         let mut outputs_after = vec![vec![0u8; 1]; inputs.len()];
         for (i, x) in inputs.iter().enumerate() {
             let mut out = vec![0u8; 32];
-            ggm.eval(x, &mut out);
+            ggm.eval(x, &mut out)?;
             outputs_b4[i] = out;
         }
-        ggm.puncture(&x0);
+        ggm.puncture(&x0)?;
         for (i, x) in inputs.iter().enumerate() {
             let mut out = vec![0u8; 32];
-            ggm.eval(x, &mut out);
+            ggm.eval(x, &mut out)?;
             outputs_after[i] = out;
         }
         for (i, o) in outputs_b4.iter().enumerate() {
             assert_eq!(o, &outputs_after[i]);
         }
+        Ok(())
     }
 
     #[test]
-    fn multiple_puncture() {
+    fn multiple_puncture() -> Result<(), PPRFError> {
         let mut ggm = GGM::setup();
         let inputs = [[2u8], [4u8], [8u8], [16u8], [32u8], [64u8], [128u8]];
         let mut outputs_b4 = vec![vec![0u8; 1]; inputs.len()];
         let mut outputs_after = vec![vec![0u8; 1]; inputs.len()];
         for (i, x) in inputs.iter().enumerate() {
             let mut out = vec![0u8; 32];
-            ggm.eval(x, &mut out);
+            ggm.eval(x, &mut out)?;
             outputs_b4[i] = out;
         }
         let x0 = [0u8];
         let x1 = [1u8];
-        ggm.puncture(&x0);
+        ggm.puncture(&x0)?;
         for (i, x) in inputs.iter().enumerate() {
             let mut out = vec![0u8; 32];
-            ggm.eval(x, &mut out);
+            ggm.eval(x, &mut out)?;
             outputs_after[i] = out;
         }
         for (i, o) in outputs_b4.iter().enumerate() {
             assert_eq!(o, &outputs_after[i]);
         }
-        ggm.puncture(&x1);
+        ggm.puncture(&x1)?;
         for (i, x) in inputs.iter().enumerate() {
             let mut out = vec![0u8; 32];
-            ggm.eval(x, &mut out);
+            ggm.eval(x, &mut out)?;
             outputs_after[i] = out;
         }
         for (i, o) in outputs_b4.iter().enumerate() {
             assert_eq!(o, &outputs_after[i]);
         }
+        Ok(())
     }
 
     #[test]
-    fn puncture_all() {
+    fn puncture_all() -> Result<(), PPRFError> {
         let mut inputs = Vec::new();
         for i in 0..255 {
             inputs.push(vec![i as u8]);
         }
         let mut ggm = GGM::setup();
         for x in &inputs {
-            ggm.puncture(x);
+            ggm.puncture(x)?;
         }
+        Ok(())
     }
 
     #[test]

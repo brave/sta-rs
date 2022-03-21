@@ -27,7 +27,7 @@ fn benchmark_ggm(c: &mut Criterion) {
         let mut out = vec![0u8; 32];
         let input = b"x";
         b.iter(|| {
-            ggm.eval(input, &mut out);
+            ggm.eval(input, &mut out).unwrap();
         });
     });
 
@@ -35,7 +35,7 @@ fn benchmark_ggm(c: &mut Criterion) {
         let input = b"x";
         b.iter(|| {
             let mut ggm = GGM::setup();
-            ggm.puncture(input);
+            ggm.puncture(input).unwrap();
         });
     });
 
@@ -47,7 +47,7 @@ fn benchmark_ggm(c: &mut Criterion) {
         b.iter(|| {
             let mut ggm = GGM::setup();
             for x in &inputs {
-                ggm.puncture(x);
+                ggm.puncture(x).unwrap();
             }
         });
     });
@@ -55,7 +55,7 @@ fn benchmark_ggm(c: &mut Criterion) {
 
 fn benchmark_ppoprf(c: &mut Criterion) {
     let mds = [b"x".to_vec()];
-    let server = Server::new(&mds);
+    let server = Server::new(&mds).unwrap();
     let c_input = b"a_random_client_input";
     c.bench_function("PPOPRF end-to-end evaluation", |b| {
         b.iter(|| end_to_end_evaluation(&server, c_input, 0, false, &mut [0u8; 32]));
@@ -67,8 +67,8 @@ fn benchmark_ppoprf(c: &mut Criterion) {
 
     c.bench_function("PPOPRF setup & puncture 1 input", |b| {
         b.iter(|| {
-            let mut server = Server::new(&mds);
-            server.puncture(b"x");
+            let mut server = Server::new(&mds).unwrap();
+            server.puncture(b"x").unwrap();
         });
     });
 
@@ -78,9 +78,9 @@ fn benchmark_ppoprf(c: &mut Criterion) {
             inputs.push(vec![i as u8]);
         }
         b.iter(|| {
-            let mut server = Server::new(&inputs);
+            let mut server = Server::new(&inputs).unwrap();
             for md in &inputs {
-                server.puncture(md);
+                server.puncture(md).unwrap();
             }
         });
     });
@@ -94,30 +94,30 @@ fn benchmark_server(c: &mut Criterion) {
 
     c.bench_function("Server setup", |b| {
         b.iter(|| {
-            Server::new(&mds);
+            Server::new(&mds).unwrap();
         })
     });
 
     c.bench_function("Server puncture 1 input", |b| {
         b.iter(|| {
-            let mut server = Server::new(&mds);
-            server.puncture(&[0u8]);
+            let mut server = Server::new(&mds).unwrap();
+            server.puncture(&[0u8]).unwrap();
         })
     });
 
     c.bench_function("Server eval", |b| {
         b.iter(|| {
-            let server = Server::new(&mds);
+            let server = Server::new(&mds).unwrap();
             let point = Point(RistrettoPoint::random(&mut OsRng).compress());
-            server.eval(&point, 0, false);
+            server.eval(&point, 0, false).unwrap();
         })
     });
 
     c.bench_function("Server verifiable eval", |b| {
         b.iter(|| {
-            let server = Server::new(&mds);
+            let server = Server::new(&mds).unwrap();
             let point = Point(RistrettoPoint::random(&mut OsRng).compress());
-            server.eval(&point, 0, true);
+            server.eval(&point, 0, true).unwrap();
         })
     });
 }
@@ -128,7 +128,7 @@ fn benchmark_client(c: &mut Criterion) {
         mds.push(vec![i as u8]);
     }
     let input = digest::digest(&digest::SHA512, &Scalar::random(&mut OsRng).to_bytes());
-    let server = Server::new(&mds);
+    let server = Server::new(&mds).unwrap();
 
     c.bench_function("Client blind", |b| {
         b.iter(|| {
@@ -138,7 +138,7 @@ fn benchmark_client(c: &mut Criterion) {
 
     c.bench_function("Client verify", |b| {
         let (blinded_point, _) = Client::blind(input.as_ref());
-        let eval = server.eval(&blinded_point, 0, true);
+        let eval = server.eval(&blinded_point, 0, true).unwrap();
         b.iter(|| {
             Client::verify(
                 &server.get_public_key(),
