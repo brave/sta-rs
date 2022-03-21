@@ -194,7 +194,7 @@ impl PPRF for GGM {
                     }
                     iter_bv = rest.to_bitvec();
                 } else {
-                    panic!("Unexpected end of input");
+                    return Err(PPRFError::UnexpectedEndOfBv);
                 }
             }
         }

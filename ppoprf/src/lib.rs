@@ -35,6 +35,8 @@ pub enum PPRFError {
         expected
     )]
     BadInputLength { actual: usize, expected: usize },
+    #[display(fmt = "Unexpected end of bv")]
+    UnexpectedEndOfBv,
 }
 
 pub trait PPRF {
