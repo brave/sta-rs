@@ -56,7 +56,8 @@ struct EvalResponse {
 
 struct ServerState {
     prf_server: ppoprf::Server,
-    md_idx: usize,
+    active_md: u8,
+    future_mds: Vec<u8>,
 }
 type State = Arc<RwLock<ServerState>>;
 
@@ -105,7 +106,7 @@ async fn eval(
     let result: Result<Vec<ppoprf::Evaluation>, ppoprf::PPRFError> = data
         .points
         .iter()
-        .map(|p| state.prf_server.eval(p, state.md_idx, false))
+        .map(|p| state.prf_server.eval(p, state.active_md, false))
         .collect();
 
     // Return the results.
@@ -136,16 +137,11 @@ async fn main() -> std::io::Result<()> {
             DEFAULT_MDS.to_string()
         }
     };
-    let mds: Vec<Vec<u8>> = mds_str
+    let mds: Vec<u8> = mds_str
         .split(';')
         .map(|y| {
-            y.split(',')
-                .map(|x| {
-                    x.parse().expect(
-                        "Could not parse metadata tags. Must contain 8-bit unsigned values!",
-                    )
-                })
-                .collect()
+            y.parse()
+                .expect("Could not parse metadata tags. Must contain 8-bit unsigned values!")
         })
         .collect();
 
@@ -167,8 +163,9 @@ async fn main() -> std::io::Result<()> {
     // We use an RWLock to handle the infrequent puncture events.
     // Only read access is necessary to answer queries.
     let state = Arc::new(RwLock::new(ServerState {
-        prf_server: ppoprf::Server::new(&mds).unwrap(),
-        md_idx: 0,
+        prf_server: ppoprf::Server::new(mds.clone()).unwrap(),
+        active_md: mds[0],
+        future_mds: mds[1..].to_vec(),
     }));
     info!("PPOPRF initialized with epoch metadata tags {:?}", &mds);
 
@@ -180,7 +177,7 @@ async fn main() -> std::io::Result<()> {
             epoch.as_secs()
         );
         // Loop over the list of configured epoch metadata tags.
-        for md in &mds {
+        for &md in &mds {
             info!(
                 "Epoch tag now '{:?}'; next rotation in {} seconds",
                 md,
@@ -191,7 +188,9 @@ async fn main() -> std::io::Result<()> {
             if let Ok(mut state) = background_state.write() {
                 info!("Epoch rotation: puncturing '{:?}'", md);
                 state.prf_server.puncture(md).unwrap();
-                state.md_idx += 1;
+                let new_md = state.future_mds[0];
+                state.active_md = new_md;
+                state.future_mds = state.future_mds[1..].to_vec();
             }
         }
         warn!("All epoch tags punctured! No further evaluations possible.");

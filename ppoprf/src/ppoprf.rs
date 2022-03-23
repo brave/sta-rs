@@ -22,6 +22,8 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 
 use serde::{de, ser, Deserialize, Serialize};
+
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 use strobe_rng::StrobeRng;
@@ -83,7 +85,16 @@ impl ProofDLEQ {
 
 // Server public key structure for PPOPRF, contains all elements of the
 // form g^{sk_0},g^{t_i} for metadata tags t_i.
-pub type ServerPublicKey = Vec<RistrettoPoint>;
+#[derive(Clone, Debug)]
+pub struct ServerPublicKey {
+    base_pk: RistrettoPoint,
+    md_pks: HashMap<u8, RistrettoPoint>,
+}
+impl ServerPublicKey {
+    fn get_combined_pk_value(&self, md: u8) -> RistrettoPoint {
+        self.base_pk + self.md_pks.get(&md).unwrap()
+    }
+}
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
 #[derive(Deserialize, Serialize)]
@@ -125,53 +136,47 @@ where
 pub struct Server {
     oprf_key: Scalar,
     public_key: ServerPublicKey,
-    mds: Vec<Vec<u8>>,
+    mds: Vec<u8>,
     pprf: GGM,
 }
 impl Server {
-    pub fn new(mds: &[Vec<u8>]) -> Result<Self, PPRFError> {
+    pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
         let mut csprng = OsRng;
         let oprf_key = Scalar::random(&mut csprng);
-        let mut public_key = Vec::with_capacity(mds.len() + 1);
-        public_key.push(oprf_key * RISTRETTO_BASEPOINT_POINT);
+        let mut md_pks = HashMap::new();
         let pprf = GGM::setup();
-        for md in mds {
+        for &md in mds.iter() {
             let mut tag = [0u8; 32];
-            pprf.eval(md, &mut tag)?;
+            pprf.eval(&[md], &mut tag)?;
             let ts = Scalar::from_bytes_mod_order(tag);
-            public_key.push(ts * RISTRETTO_BASEPOINT_POINT);
+            md_pks.insert(md, ts * RISTRETTO_BASEPOINT_POINT);
         }
         Ok(Self {
             oprf_key,
-            public_key,
-            mds: mds.to_vec(),
+            public_key: ServerPublicKey {
+                base_pk: oprf_key * RISTRETTO_BASEPOINT_POINT,
+                md_pks,
+            },
+            mds,
             pprf,
         })
     }
 
-    pub fn eval(
-        &self,
-        p: &Point,
-        md_idx: usize,
-        verifiable: bool,
-    ) -> Result<Evaluation, PPRFError> {
+    pub fn eval(&self, p: &Point, md: u8, verifiable: bool) -> Result<Evaluation, PPRFError> {
         let p = p.0;
         let point = p.decompress().unwrap();
-        if md_idx >= self.mds.len() {
-            return Err(PPRFError::BadTagIndex {
-                index: md_idx,
-                tag_size: self.mds.len(),
-            });
+        if !self.mds.iter().any(|&md_stored| md_stored == md) {
+            return Err(PPRFError::BadTag { md });
         }
         let mut tag = [0u8; 32];
-        self.pprf.eval(&self.mds[md_idx], &mut tag)?;
+        self.pprf.eval(&[md], &mut tag)?;
         let ts = Scalar::from_bytes_mod_order(tag);
         let tagged_key = self.oprf_key + ts;
         let exponent = tagged_key.invert();
         let eval_point = exponent * point;
         let mut proof = None;
         if verifiable {
-            let public_value = self.public_key[0] + self.public_key[md_idx + 1];
+            let public_value = self.public_key.get_combined_pk_value(md);
             proof = Some(ProofDLEQ::new(
                 &tagged_key,
                 &public_value,
@@ -185,15 +190,15 @@ impl Server {
         })
     }
 
-    pub fn puncture(&mut self, md: &[u8]) -> Result<(), PPRFError> {
-        self.pprf.puncture(md)
+    pub fn puncture(&mut self, md: u8) -> Result<(), PPRFError> {
+        self.pprf.puncture(&[md])
     }
 
     pub fn get_public_key(&self) -> ServerPublicKey {
         self.public_key.clone()
     }
 
-    pub fn get_valid_metadata_tags(&self) -> Vec<Vec<u8>> {
+    pub fn get_valid_metadata_tags(&self) -> Vec<u8> {
         self.mds.clone()
     }
 }
@@ -212,13 +217,13 @@ impl Client {
     }
 
     pub fn verify(
-        public_key: &[RistrettoPoint],
+        public_key: &ServerPublicKey,
         input: &RistrettoPoint,
         eval: &Evaluation,
-        md_idx: usize,
+        md: u8,
     ) -> bool {
         let Evaluation { output, proof } = eval;
-        let public_value = public_key[0] + public_key[md_idx + 1];
+        let public_value = public_key.get_combined_pk_value(md);
         proof
             .as_ref()
             .unwrap()
@@ -231,14 +236,14 @@ impl Client {
         (r_inv * point).compress()
     }
 
-    pub fn finalize(input: &[u8], md: &[u8], unblinded: &CompressedRistretto, out: &mut [u8]) {
+    pub fn finalize(input: &[u8], md: u8, unblinded: &CompressedRistretto, out: &mut [u8]) {
         if out.len() != 32 {
             panic!("Wrong output length!!: {:?}", out.len());
         }
         let point_bytes = unblinded.to_bytes();
-        let mut hash_input = Vec::with_capacity(input.len() + md.len() + point_bytes.len());
+        let mut hash_input = Vec::with_capacity(input.len() + 1 + point_bytes.len());
         hash_input.extend(input);
-        hash_input.extend(md);
+        hash_input.extend(vec![md]);
         hash_input.extend(&point_bytes);
         let mut untruncated = vec![0u8; 64];
         strobe_hash(&hash_input, "ppoprf_finalize", &mut untruncated);
@@ -248,27 +253,21 @@ impl Client {
 
 // The `ènd_to_end_evaluation` helper function for performs a full
 // protocol evaluation for a given `Server`.
-pub fn end_to_end_evaluation(
-    server: &Server,
-    input: &[u8],
-    md_idx: usize,
-    verify: bool,
-    out: &mut [u8],
-) {
+pub fn end_to_end_evaluation(server: &Server, input: &[u8], md: u8, verify: bool, out: &mut [u8]) {
     let (blinded_point, r) = Client::blind(input);
-    let evaluated = server.eval(&blinded_point, md_idx, verify).unwrap();
+    let evaluated = server.eval(&blinded_point, md, verify).unwrap();
     if verify
         && !Client::verify(
             &server.public_key,
             &blinded_point.0.decompress().unwrap(),
             &evaluated,
-            md_idx,
+            md,
         )
     {
         panic!("Verification failed")
     }
     let unblinded = Client::unblind(&evaluated.output, &r);
-    Client::finalize(input, &server.mds[md_idx], &unblinded, out);
+    Client::finalize(input, md, &unblinded, out);
 }
 
 fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {
@@ -292,31 +291,31 @@ mod tests {
     fn end_to_end_eval_check_no_proof(
         server: &Server,
         c_input: &[u8],
-        md_idx: usize,
+        md: u8,
     ) -> (CompressedRistretto, CompressedRistretto) {
         let (blinded_point, r) = Client::blind(c_input);
-        let evaluated = server.eval(&blinded_point, md_idx, false).unwrap();
+        let evaluated = server.eval(&blinded_point, md, false).unwrap();
         let unblinded = Client::unblind(&evaluated.output, &r);
 
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
         let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
-        let chk_eval = server.eval(&p, md_idx, false).unwrap();
+        let chk_eval = server.eval(&p, md, false).unwrap();
         (unblinded, chk_eval.output)
     }
 
     fn end_to_end_eval_check(
         server: &Server,
         c_input: &[u8],
-        md_idx: usize,
+        md: u8,
     ) -> (CompressedRistretto, CompressedRistretto) {
         let (blinded_point, r) = Client::blind(c_input);
-        let evaluated = server.eval(&blinded_point, md_idx, true).unwrap();
+        let evaluated = server.eval(&blinded_point, md, true).unwrap();
         if !Client::verify(
             &server.public_key,
             &blinded_point.0.decompress().unwrap(),
             &evaluated,
-            md_idx,
+            md,
         ) {
             panic!("Failed to verify proof");
         }
@@ -325,57 +324,53 @@ mod tests {
         let mut chk_inp = [0u8; 64];
         strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
         let p = Point(RistrettoPoint::from_uniform_bytes(&chk_inp).compress());
-        let chk_eval = server.eval(&p, md_idx, false).unwrap();
+        let chk_eval = server.eval(&p, md, false).unwrap();
         (unblinded, chk_eval.output)
     }
 
-    fn end_to_end_no_verify(mds: &[Vec<u8>], md_idx: usize) {
-        let server = Server::new(mds).unwrap();
+    fn end_to_end_no_verify(mds: &[u8], md: u8) {
+        let server = Server::new(mds.to_vec()).unwrap();
         let input = b"some_test_input";
-        let (unblinded, chk_eval) = end_to_end_eval_check_no_proof(&server, input, md_idx);
+        let (unblinded, chk_eval) = end_to_end_eval_check_no_proof(&server, input, md);
         assert_eq!(chk_eval, unblinded);
         let mut eval_final = vec![0u8; 32];
-        Client::finalize(input, &mds[md_idx], &unblinded, &mut eval_final);
+        Client::finalize(input, md, &unblinded, &mut eval_final);
         let mut chk_final = vec![0u8; 32];
-        Client::finalize(input, &mds[md_idx], &chk_eval, &mut chk_final);
+        Client::finalize(input, md, &chk_eval, &mut chk_final);
         assert_eq!(chk_final, eval_final);
     }
 
-    fn end_to_end_verify(mds: &[Vec<u8>], md_idx: usize) {
-        let server = Server::new(mds).unwrap();
+    fn end_to_end_verify(mds: &[u8], md: u8) {
+        let server = Server::new(mds.to_vec()).unwrap();
         let input = b"some_test_input";
-        let (unblinded, chk_eval) = end_to_end_eval_check(&server, input, md_idx);
+        let (unblinded, chk_eval) = end_to_end_eval_check(&server, input, md);
         assert_eq!(chk_eval, unblinded);
         let mut eval_final = vec![0u8; 32];
-        Client::finalize(input, &mds[md_idx], &unblinded, &mut eval_final);
+        Client::finalize(input, md, &unblinded, &mut eval_final);
         let mut chk_final = vec![0u8; 32];
-        Client::finalize(input, &mds[md_idx], &chk_eval, &mut chk_final);
+        Client::finalize(input, md, &chk_eval, &mut chk_final);
         assert_eq!(chk_final, eval_final);
     }
 
     #[test]
     fn end_to_end_no_verify_single_tag() {
-        let mds = vec![b"t".to_vec()];
-        end_to_end_no_verify(&mds, 0);
+        end_to_end_no_verify(&[0u8], 0);
     }
 
     #[test]
     fn end_to_end_verify_single_tag() {
-        let mds = vec![b"t".to_vec()];
-        end_to_end_verify(&mds, 0);
+        end_to_end_verify(&[0u8], 0);
     }
 
     #[test]
     #[should_panic]
     fn bad_index() {
-        let mds = vec![b"t".to_vec()];
-        end_to_end_verify(&mds, 1);
+        end_to_end_verify(&[0u8], 1);
     }
 
     #[test]
     fn end_to_end_no_verify_multi_tag() {
-        let epochs = vec!["a", "e", "i", "o", "u"];
-        let mds: Vec<Vec<u8>> = epochs.iter().map(|t| t.as_bytes().to_vec()).collect();
+        let mds = vec![0u8, 1, 2, 3, 4];
         end_to_end_no_verify(&mds, 0);
         end_to_end_no_verify(&mds, 1);
         end_to_end_no_verify(&mds, 2);
@@ -385,8 +380,7 @@ mod tests {
 
     #[test]
     fn end_to_end_verify_multi_tag() {
-        let epochs = vec!["a", "e", "i", "o", "u"];
-        let mds: Vec<Vec<u8>> = epochs.iter().map(|t| t.as_bytes().to_vec()).collect();
+        let mds = vec![0u8, 1, 2, 3, 4];
         end_to_end_verify(&mds, 0);
         end_to_end_verify(&mds, 1);
         end_to_end_verify(&mds, 2);
@@ -397,11 +391,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "NoPrefixFound")]
     fn end_to_end_puncture() {
-        let mds = vec![b"a".to_vec(), b"t".to_vec()];
-        let mut server = Server::new(&mds).unwrap();
+        let mds = vec![0u8, 1];
+        let mut server = Server::new(mds).unwrap();
         let (unblinded, chk_eval) = end_to_end_eval_check_no_proof(&server, b"some_test_input", 1);
         assert_eq!(chk_eval, unblinded);
-        server.puncture(b"t").unwrap();
+        server.puncture(1).unwrap();
         let (unblinded1, chk_eval1) = end_to_end_eval_check_no_proof(&server, b"another_input", 0);
         assert_eq!(chk_eval1, unblinded1);
         end_to_end_eval_check_no_proof(&server, b"some_test_input", 1);

@@ -19,12 +19,8 @@ use derive_more::{Display, Error};
 
 #[derive(Debug, Error, Display, PartialEq)]
 pub enum PPRFError {
-    #[display(
-        fmt = "Tag index is out of bounds, indicated index {} is above length of {}",
-        index,
-        tag_size
-    )]
-    BadTagIndex { index: usize, tag_size: usize },
+    #[display(fmt = "Specified tag ({}) is not a valid metadata tag", md)]
+    BadTag { md: u8 },
     #[display(fmt = "No prefix found")]
     NoPrefixFound,
     #[display(fmt = "Tag already punctured")]
