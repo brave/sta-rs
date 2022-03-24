@@ -28,6 +28,8 @@ use actix_web::{error::ResponseError, get, http::StatusCode, post, web, HttpResp
 use dotenv::dotenv;
 use env_logger::Env;
 use log::{info, warn};
+
+use std::collections::VecDeque;
 use std::env;
 
 use std::sync::{Arc, RwLock};
@@ -57,7 +59,7 @@ struct EvalResponse {
 struct ServerState {
     prf_server: ppoprf::Server,
     active_md: u8,
-    future_mds: Vec<u8>,
+    future_mds: VecDeque<u8>,
 }
 type State = Arc<RwLock<ServerState>>;
 
@@ -165,7 +167,7 @@ async fn main() -> std::io::Result<()> {
     let state = Arc::new(RwLock::new(ServerState {
         prf_server: ppoprf::Server::new(mds.clone()).unwrap(),
         active_md: mds[0],
-        future_mds: mds[1..].to_vec(),
+        future_mds: VecDeque::from(mds[1..].to_vec()),
     }));
     info!("PPOPRF initialized with epoch metadata tags {:?}", &mds);
 
@@ -188,9 +190,8 @@ async fn main() -> std::io::Result<()> {
             if let Ok(mut state) = background_state.write() {
                 info!("Epoch rotation: puncturing '{:?}'", md);
                 state.prf_server.puncture(md).unwrap();
-                let new_md = state.future_mds[0];
+                let new_md = state.future_mds.pop_front().unwrap();
                 state.active_md = new_md;
-                state.future_mds = state.future_mds[1..].to_vec();
             }
         }
         warn!("All epoch tags punctured! No further evaluations possible.");

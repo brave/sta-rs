@@ -91,8 +91,14 @@ pub struct ServerPublicKey {
     md_pks: HashMap<u8, RistrettoPoint>,
 }
 impl ServerPublicKey {
-    fn get_combined_pk_value(&self, md: u8) -> RistrettoPoint {
-        self.base_pk + self.md_pks.get(&md).unwrap()
+    fn get(&self, md: u8) -> Option<&RistrettoPoint> {
+        self.md_pks.get(&md)
+    }
+
+    fn get_combined_pk_value(&self, md: u8) -> Result<RistrettoPoint, PPRFError> {
+        let res = self.get(md);
+        let md_pk = res.ok_or(PPRFError::BadTag { md })?;
+        Ok(self.base_pk + md_pk)
     }
 }
 
@@ -136,7 +142,6 @@ where
 pub struct Server {
     oprf_key: Scalar,
     public_key: ServerPublicKey,
-    mds: Vec<u8>,
     pprf: GGM,
 }
 impl Server {
@@ -157,7 +162,6 @@ impl Server {
                 base_pk: oprf_key * RISTRETTO_BASEPOINT_POINT,
                 md_pks,
             },
-            mds,
             pprf,
         })
     }
@@ -165,7 +169,7 @@ impl Server {
     pub fn eval(&self, p: &Point, md: u8, verifiable: bool) -> Result<Evaluation, PPRFError> {
         let p = p.0;
         let point = p.decompress().unwrap();
-        if !self.mds.iter().any(|&md_stored| md_stored == md) {
+        if self.public_key.get(md).is_none() {
             return Err(PPRFError::BadTag { md });
         }
         let mut tag = [0u8; 32];
@@ -176,7 +180,7 @@ impl Server {
         let eval_point = exponent * point;
         let mut proof = None;
         if verifiable {
-            let public_value = self.public_key.get_combined_pk_value(md);
+            let public_value = self.public_key.get_combined_pk_value(md)?;
             proof = Some(ProofDLEQ::new(
                 &tagged_key,
                 &public_value,
@@ -196,10 +200,6 @@ impl Server {
 
     pub fn get_public_key(&self) -> ServerPublicKey {
         self.public_key.clone()
-    }
-
-    pub fn get_valid_metadata_tags(&self) -> Vec<u8> {
-        self.mds.clone()
     }
 }
 
@@ -223,11 +223,14 @@ impl Client {
         md: u8,
     ) -> bool {
         let Evaluation { output, proof } = eval;
-        let public_value = public_key.get_combined_pk_value(md);
-        proof
-            .as_ref()
-            .unwrap()
-            .verify(&public_value, &output.decompress().unwrap(), input)
+        if let Ok(public_value) = public_key.get_combined_pk_value(md) {
+            return proof.as_ref().unwrap().verify(
+                &public_value,
+                &output.decompress().unwrap(),
+                input,
+            );
+        }
+        false
     }
 
     pub fn unblind(p: &CompressedRistretto, r: &Scalar) -> CompressedRistretto {
@@ -243,31 +246,12 @@ impl Client {
         let point_bytes = unblinded.to_bytes();
         let mut hash_input = Vec::with_capacity(input.len() + 1 + point_bytes.len());
         hash_input.extend(input);
-        hash_input.extend(vec![md]);
+        hash_input.push(md);
         hash_input.extend(&point_bytes);
         let mut untruncated = vec![0u8; 64];
         strobe_hash(&hash_input, "ppoprf_finalize", &mut untruncated);
         out.copy_from_slice(&untruncated[..32]);
     }
-}
-
-// The `ènd_to_end_evaluation` helper function for performs a full
-// protocol evaluation for a given `Server`.
-pub fn end_to_end_evaluation(server: &Server, input: &[u8], md: u8, verify: bool, out: &mut [u8]) {
-    let (blinded_point, r) = Client::blind(input);
-    let evaluated = server.eval(&blinded_point, md, verify).unwrap();
-    if verify
-        && !Client::verify(
-            &server.public_key,
-            &blinded_point.0.decompress().unwrap(),
-            &evaluated,
-            md,
-        )
-    {
-        panic!("Verification failed")
-    }
-    let unblinded = Client::unblind(&evaluated.output, &r);
-    Client::finalize(input, md, &unblinded, out);
 }
 
 fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {

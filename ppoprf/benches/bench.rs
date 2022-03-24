@@ -6,7 +6,6 @@ use rand_core_ristretto::OsRng;
 use ring::digest;
 
 use ppoprf::ggm::GGM;
-use ppoprf::ppoprf::end_to_end_evaluation;
 use ppoprf::ppoprf::{Client, Point, Server};
 use ppoprf::PPRF;
 
@@ -40,14 +39,11 @@ fn benchmark_ggm(c: &mut Criterion) {
     });
 
     c.bench_function("GGM setup & puncture all inputs", |b| {
-        let mut inputs = Vec::new();
-        for i in 0..255 {
-            inputs.push(vec![i as u8]);
-        }
+        let inputs: Vec<u8> = (0..=255).collect();
         b.iter(|| {
             let mut ggm = GGM::setup();
-            for x in &inputs {
-                ggm.puncture(x).unwrap();
+            for &x in &inputs {
+                ggm.puncture(&[x]).unwrap();
             }
         });
     });
@@ -73,10 +69,7 @@ fn benchmark_ppoprf(c: &mut Criterion) {
     });
 
     c.bench_function("PPOPRF setup & puncture all inputs", |b| {
-        let mut inputs = Vec::new();
-        for i in 0..255 {
-            inputs.push(i as u8);
-        }
+        let inputs: Vec<u8> = (0..=255).collect();
         b.iter(|| {
             let mut server = Server::new(inputs.clone()).unwrap();
             for &md in inputs.iter() {
@@ -87,11 +80,7 @@ fn benchmark_ppoprf(c: &mut Criterion) {
 }
 
 fn benchmark_server(c: &mut Criterion) {
-    let mut mds = Vec::new();
-    for i in 0..7 {
-        mds.push(i as u8);
-    }
-
+    let mds: Vec<u8> = (0..=7).collect();
     c.bench_function("Server setup", |b| {
         b.iter(|| {
             Server::new(mds.clone()).unwrap();
@@ -123,10 +112,7 @@ fn benchmark_server(c: &mut Criterion) {
 }
 
 fn benchmark_client(c: &mut Criterion) {
-    let mut mds = Vec::new();
-    for i in 0..7 {
-        mds.push(i as u8);
-    }
+    let mds: Vec<u8> = (0..=7).collect();
     let input = digest::digest(&digest::SHA512, &Scalar::random(&mut OsRng).to_bytes());
     let server = Server::new(mds.clone()).unwrap();
 
@@ -145,7 +131,7 @@ fn benchmark_client(c: &mut Criterion) {
                 &blinded_point.0.decompress().unwrap(),
                 &eval,
                 0,
-            );
+            )
         })
     });
 
@@ -167,6 +153,25 @@ fn benchmark_client(c: &mut Criterion) {
             );
         })
     });
+}
+
+// The `end_to_end_evaluation` helper function for performs a full
+// PPOPRF protocol evaluation.
+fn end_to_end_evaluation(server: &Server, input: &[u8], md: u8, verify: bool, out: &mut [u8]) {
+    let (blinded_point, r) = Client::blind(input);
+    let evaluated = server.eval(&blinded_point, md, verify).unwrap();
+    if verify
+        && !Client::verify(
+            &server.get_public_key(),
+            &blinded_point.0.decompress().unwrap(),
+            &evaluated,
+            md,
+        )
+    {
+        panic!("Verification failed")
+    }
+    let unblinded = Client::unblind(&evaluated.output, &r);
+    Client::finalize(input, md, &unblinded, out);
 }
 
 criterion_group!(benches, criterion_benchmark);
