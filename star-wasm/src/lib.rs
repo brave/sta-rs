@@ -6,7 +6,10 @@ use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};
 
-use sta_rs::{derive_ske_key, share_recover, Client, ClientSharingMaterial, Share};
+use sta_rs::{
+  derive_ske_key, share_recover, MessageGenerator, Share, SingleMeasurement,
+  WASMSharingMaterial,
+};
 
 // NOTE - this can be used for debugging. Disabled for the production build.
 // extern crate console_error_panic_hook;
@@ -30,20 +33,25 @@ use sta_rs::{derive_ske_key, share_recover, Client, ClientSharingMaterial, Share
 /// decryption key and decrypt `encrypted_metadata`.
 #[wasm_bindgen]
 pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
-    // NOTE - enable for debugging.
-    // panic::set_hook(Box::new(console_error_panic_hook::hook));
+  // NOTE - enable for debugging.
+  // panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-    let client = Client::new(measurement, threshold, epoch, None);
-    let ClientSharingMaterial { key, share, tag } = client.share_with_local_randomness();
+  let mg = MessageGenerator::new(
+    SingleMeasurement::new(measurement),
+    threshold,
+    epoch,
+  );
+  let WASMSharingMaterial { key, share, tag } =
+    mg.share_with_local_randomness();
 
-    let key_b64 = encode(&key);
-    let share_b64 = encode(&share.to_bytes());
-    let tag_b64 = encode(&tag);
+  let key_b64 = encode(&key);
+  let share_b64 = encode(&share.to_bytes());
+  let tag_b64 = encode(&tag);
 
-    format!(
-        r#"{{"key": "{}", "share": "{}", "tag": "{}"}}"#,
-        key_b64, share_b64, tag_b64,
-    )
+  format!(
+    r#"{{"key": "{}", "share": "{}", "tag": "{}"}}"#,
+    key_b64, share_b64, tag_b64,
+  )
 }
 
 /// This function takes as argument a (serialized) list of shares (type: Share). The assumption is
@@ -51,22 +59,22 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
 /// `group_shares` function if we have received more than `threshold` shares.
 #[wasm_bindgen]
 pub fn group_shares(serialized_shares: &str, epoch: &str) -> Option<String> {
-    // 1. deserialize shares into Vec<Share>
-    let shares: Vec<Share> = serialized_shares
-        .split('\n')
-        .map(|chunk| Share::from_bytes(&decode(chunk).unwrap()).unwrap())
-        .collect();
+  // 1. deserialize shares into Vec<Share>
+  let shares: Vec<Share> = serialized_shares
+    .split('\n')
+    .map(|chunk| Share::from_bytes(&decode(chunk).unwrap()).unwrap())
+    .collect();
 
-    // 2. call recover(shares)
-    let res = share_recover(&shares);
-    if res.is_err() {
-        return None;
-    }
-    let message = res.unwrap().get_message();
+  // 2. call recover(shares)
+  let res = share_recover(&shares);
+  if res.is_err() {
+    return None;
+  }
+  let message = res.unwrap().get_message();
 
-    // 3. call derive_ske_key
-    let mut enc_key = vec![0u8; 16];
-    derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
+  // 3. call derive_ske_key
+  let mut enc_key = vec![0u8; 16];
+  derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
 
-    Some(encode(&enc_key))
+  Some(encode(&enc_key))
 }
