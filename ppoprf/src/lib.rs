@@ -19,24 +19,24 @@ use derive_more::{Display, Error};
 
 #[derive(Debug, Error, Display, PartialEq)]
 pub enum PPRFError {
-    #[display(fmt = "Specified tag ({}) is not a valid metadata tag", md)]
-    BadTag { md: u8 },
-    #[display(fmt = "No prefix found")]
-    NoPrefixFound,
-    #[display(fmt = "Tag already punctured")]
-    AlreadyPunctured,
-    #[display(
-        fmt = "Input length ({}) does not match input param ({})",
-        actual,
-        expected
-    )]
-    BadInputLength { actual: usize, expected: usize },
-    #[display(fmt = "Unexpected end of bv")]
-    UnexpectedEndOfBv,
+  #[display(fmt = "Specified tag ({}) is not a valid metadata tag", md)]
+  BadTag { md: u8 },
+  #[display(fmt = "No prefix found")]
+  NoPrefixFound,
+  #[display(fmt = "Tag already punctured")]
+  AlreadyPunctured,
+  #[display(
+    fmt = "Input length ({}) does not match input param ({})",
+    actual,
+    expected
+  )]
+  BadInputLength { actual: usize, expected: usize },
+  #[display(fmt = "Unexpected end of bv")]
+  UnexpectedEndOfBv,
 }
 
 pub trait PPRF {
-    fn setup() -> Self;
-    fn eval(&self, input: &[u8], output: &mut [u8]) -> Result<(), PPRFError>;
-    fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError>;
+  fn setup() -> Self;
+  fn eval(&self, input: &[u8], output: &mut [u8]) -> Result<(), PPRFError>;
+  fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError>;
 }

@@ -14,39 +14,39 @@ pub const MAC_LENGTH: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessStructure {
-    threshold: u32,
+  threshold: u32,
 }
 
 pub fn store_u32(u: u32, out: &mut Vec<u8>) {
-    out.extend(u.to_le_bytes());
+  out.extend(u.to_le_bytes());
 }
 
 pub fn load_u32(bytes: &[u8]) -> Option<u32> {
-    if bytes.len() != 4 {
-        return None;
-    }
+  if bytes.len() != 4 {
+    return None;
+  }
 
-    let mut bits: [u8; 4] = [0u8; 4];
-    bits.copy_from_slice(bytes);
-    Some(u32::from_le_bytes(bits))
+  let mut bits: [u8; 4] = [0u8; 4];
+  bits.copy_from_slice(bytes);
+  Some(u32::from_le_bytes(bits))
 }
 
 pub fn store_bytes(s: &[u8], out: &mut Vec<u8>) {
-    store_u32(s.len() as u32, out);
-    out.extend(s);
+  store_u32(s.len() as u32, out);
+  out.extend(s);
 }
 
 pub fn load_bytes(bytes: &[u8]) -> Option<&[u8]> {
-    if bytes.len() < 4 {
-        return None;
-    }
+  if bytes.len() < 4 {
+    return None;
+  }
 
-    let len: u32 = load_u32(&bytes[..4])?;
-    if bytes.len() < (4 + len) as usize {
-        return None;
-    }
+  let len: u32 = load_u32(&bytes[..4])?;
+  if bytes.len() < (4 + len) as usize {
+    return None;
+  }
 
-    Some(&bytes[4..4 + len as usize])
+  Some(&bytes[4..4 + len as usize])
 }
 
 /// An `AccessStructure` defines how a message is to be split among multiple parties
@@ -54,22 +54,22 @@ pub fn load_bytes(bytes: &[u8]) -> Option<&[u8]> {
 /// In particular this determines how many shares will be issued and what threshold of the shares
 /// are needed to reconstruct the original `Commune`
 impl AccessStructure {
-    /// Convert this `AccessStructure` to a byte array.
-    pub fn to_bytes(&self) -> [u8; ACCESS_STRUCTURE_LENGTH] {
-        self.threshold.to_le_bytes()
-    }
+  /// Convert this `AccessStructure` to a byte array.
+  pub fn to_bytes(&self) -> [u8; ACCESS_STRUCTURE_LENGTH] {
+    self.threshold.to_le_bytes()
+  }
 
-    pub fn from_bytes(bytes: &[u8]) -> Option<AccessStructure> {
-        let threshold = load_u32(bytes)?;
-        Some(AccessStructure { threshold })
-    }
+  pub fn from_bytes(bytes: &[u8]) -> Option<AccessStructure> {
+    let threshold = load_u32(bytes)?;
+    Some(AccessStructure { threshold })
+  }
 }
 
 #[allow(non_snake_case)]
 impl From<AccessStructure> for Sharks {
-    fn from(A: AccessStructure) -> Sharks {
-        Sharks(A.threshold)
-    }
+  fn from(A: AccessStructure) -> Sharks {
+    Sharks(A.threshold)
+  }
 }
 
 /// A `Commune` is a unique instance of sharing across multiple parties
@@ -81,278 +81,279 @@ impl From<AccessStructure> for Sharks {
 #[allow(non_snake_case)]
 #[derive(Clone)]
 pub struct Commune {
-    /// `A` is an `AccessStructure` defining the sharing
-    A: AccessStructure,
-    /// `M` is the message to be shared
-    M: Vec<u8>,
-    /// `R` are the "random coins" which may not be uniform
-    R: Vec<u8>,
-    /// `T` is a `Strobe` transcript which forms optional tags to be authenticated
-    T: Option<Strobe>,
+  /// `A` is an `AccessStructure` defining the sharing
+  A: AccessStructure,
+  /// `M` is the message to be shared
+  M: Vec<u8>,
+  /// `R` are the "random coins" which may not be uniform
+  R: Vec<u8>,
+  /// `T` is a `Strobe` transcript which forms optional tags to be authenticated
+  T: Option<Strobe>,
 }
 
 #[allow(non_snake_case)]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Share {
-    A: AccessStructure,
-    S: sharks::Share,
-    /// C is the encrypted message
-    C: Vec<u8>,
-    /// D is the encrypted randomness
-    D: Vec<u8>,
-    /// J is a MAC showing knowledge of A, M, R, and T
-    J: [u8; MAC_LENGTH],
-    T: (),
+  A: AccessStructure,
+  S: sharks::Share,
+  /// C is the encrypted message
+  C: Vec<u8>,
+  /// D is the encrypted randomness
+  D: Vec<u8>,
+  /// J is a MAC showing knowledge of A, M, R, and T
+  J: [u8; MAC_LENGTH],
+  T: (),
 }
 
 impl fmt::Debug for Share {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Share").field("S", &self.S).finish()
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Share").field("S", &self.S).finish()
+  }
 }
 
 impl Share {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out: Vec<u8> = Vec::new();
+  pub fn to_bytes(&self) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
 
-        // A: AccessStructure
-        out.extend(self.A.to_bytes());
+    // A: AccessStructure
+    out.extend(self.A.to_bytes());
 
-        // S: sharks::Share
-        store_bytes(&Vec::from(&self.S), &mut out);
+    // S: sharks::Share
+    store_bytes(&Vec::from(&self.S), &mut out);
 
-        // C: Vec<u8>
-        store_bytes(&self.C, &mut out);
+    // C: Vec<u8>
+    store_bytes(&self.C, &mut out);
 
-        // D: Vec<u8>
-        store_bytes(&self.D, &mut out);
+    // D: Vec<u8>
+    store_bytes(&self.D, &mut out);
 
-        // J: [u8; 64]
-        out.extend(self.J);
+    // J: [u8; 64]
+    out.extend(self.J);
 
-        out
-    }
+    out
+  }
 
-    pub fn from_bytes(bytes: &[u8]) -> Option<Share> {
-        let mut slice = bytes;
+  pub fn from_bytes(bytes: &[u8]) -> Option<Share> {
+    let mut slice = bytes;
 
-        // A: AccessStructure
-        let a = AccessStructure::from_bytes(&slice[..ACCESS_STRUCTURE_LENGTH])?;
-        slice = &slice[ACCESS_STRUCTURE_LENGTH..];
+    // A: AccessStructure
+    let a = AccessStructure::from_bytes(&slice[..ACCESS_STRUCTURE_LENGTH])?;
+    slice = &slice[ACCESS_STRUCTURE_LENGTH..];
 
-        // S: sharks::Share
-        let sb = load_bytes(slice)?;
-        slice = &slice[4 + sb.len()..];
+    // S: sharks::Share
+    let sb = load_bytes(slice)?;
+    slice = &slice[4 + sb.len()..];
 
-        // C: Vec<u8>
-        let c = load_bytes(slice)?;
-        slice = &slice[4 + c.len()..];
+    // C: Vec<u8>
+    let c = load_bytes(slice)?;
+    slice = &slice[4 + c.len()..];
 
-        // D: Vec<u8>
-        let d = load_bytes(slice)?;
-        slice = &slice[4 + d.len()..];
+    // D: Vec<u8>
+    let d = load_bytes(slice)?;
+    slice = &slice[4 + d.len()..];
 
-        // J: [u8; 64]
-        let mut j: [u8; MAC_LENGTH] = [0u8; MAC_LENGTH];
-        j.copy_from_slice(slice);
+    // J: [u8; 64]
+    let mut j: [u8; MAC_LENGTH] = [0u8; MAC_LENGTH];
+    j.copy_from_slice(slice);
 
-        Some(Share {
-            A: a,
-            S: sharks::Share::try_from(sb).ok()?,
-            C: c.to_vec(),
-            D: d.to_vec(),
-            J: j,
-            T: (),
-        })
-    }
+    Some(Share {
+      A: a,
+      S: sharks::Share::try_from(sb).ok()?,
+      C: c.to_vec(),
+      D: d.to_vec(),
+      J: j,
+      T: (),
+    })
+  }
 }
 
 #[allow(non_snake_case)]
 impl Commune {
-    pub fn new(
-        threshold: u32,
-        message: Vec<u8>,
-        randomness: Vec<u8>,
-        transcript: Option<Strobe>,
-    ) -> Self {
-        Commune {
-            A: AccessStructure { threshold },
-            M: message,
-            R: randomness,
-            T: transcript,
-        }
+  pub fn new(
+    threshold: u32,
+    message: Vec<u8>,
+    randomness: Vec<u8>,
+    transcript: Option<Strobe>,
+  ) -> Self {
+    Commune {
+      A: AccessStructure { threshold },
+      M: message,
+      R: randomness,
+      T: transcript,
     }
+  }
 
-    pub fn share(self) -> Share {
-        // H4κ = (A, M, R, T)
-        let mut transcript = self
-            .T
-            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
-        transcript.ad(&self.A.to_bytes(), false);
-        transcript.ad(&self.M, false);
-        transcript.key(&self.R, false);
+  pub fn share(self) -> Share {
+    // H4κ = (A, M, R, T)
+    let mut transcript = self
+      .T
+      .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
+    transcript.ad(&self.A.to_bytes(), false);
+    transcript.ad(&self.M, false);
+    transcript.key(&self.R, false);
 
-        // J is a MAC which authenticates A, M, R, and T
-        let mut J = [0u8; 64];
-        transcript.send_mac(&mut J, false);
+    // J is a MAC which authenticates A, M, R, and T
+    let mut J = [0u8; 64];
+    transcript.send_mac(&mut J, false);
 
-        // K is the derived key used to encrypt the message and our "random coins"
-        let mut K = [0u8; 16];
-        transcript.prf(&mut K, false);
+    // K is the derived key used to encrypt the message and our "random coins"
+    let mut K = [0u8; 16];
+    transcript.prf(&mut K, false);
 
-        // L is the randomness to be fed to secret sharing polynomial generation
-        let mut L: StrobeRng = transcript.into();
+    // L is the randomness to be fed to secret sharing polynomial generation
+    let mut L: StrobeRng = transcript.into();
 
-        let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
-        key.key(&K, false);
+    let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
+    key.key(&K, false);
 
-        // C is the encrypted message
-        let mut C: Vec<u8> = vec![0; self.M.len()];
-        C.copy_from_slice(&self.M);
-        key.send_enc(&mut C, false);
+    // C is the encrypted message
+    let mut C: Vec<u8> = vec![0; self.M.len()];
+    C.copy_from_slice(&self.M);
+    key.send_enc(&mut C, false);
 
-        // D is the encrypted randomness
-        let mut D: Vec<u8> = vec![0; self.R.len()];
-        D.copy_from_slice(&self.R);
-        key.send_enc(&mut D, false);
+    // D is the encrypted randomness
+    let mut D: Vec<u8> = vec![0; self.R.len()];
+    D.copy_from_slice(&self.R);
+    key.send_enc(&mut D, false);
 
-        // Generate a random share
-        let mut K_vec: Vec<u8> = K.to_vec();
-        K_vec.extend(vec![0u8; 16]);
-        let polys = Sharks::from(self.A).dealer_rng(&K_vec, &mut L);
-        let S = polys.gen(&mut rand::thread_rng());
-        Share {
-            A: self.A,
-            S,
-            C,
-            D,
-            J,
-            T: (),
-        }
+    // Generate a random share
+    let mut K_vec: Vec<u8> = K.to_vec();
+    K_vec.extend(vec![0u8; 16]);
+    let polys = Sharks::from(self.A).dealer_rng(&K_vec, &mut L);
+    let S = polys.gen(&mut rand::thread_rng());
+    Share {
+      A: self.A,
+      S,
+      C,
+      D,
+      J,
+      T: (),
     }
+  }
 
-    pub fn get_message(&self) -> Vec<u8> {
-        self.M.clone()
-    }
+  pub fn get_message(&self) -> Vec<u8> {
+    self.M.clone()
+  }
 
-    fn verify(&self, J: &mut [u8]) -> Result<(), Box<dyn Error>> {
-        let mut transcript = self
-            .clone()
-            .T
-            .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
-        transcript.ad(&self.A.to_bytes(), false);
-        transcript.ad(&self.M, false);
-        transcript.key(&self.R, false);
+  fn verify(&self, J: &mut [u8]) -> Result<(), Box<dyn Error>> {
+    let mut transcript = self
+      .clone()
+      .T
+      .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
+    transcript.ad(&self.A.to_bytes(), false);
+    transcript.ad(&self.M, false);
+    transcript.key(&self.R, false);
 
-        transcript
-            .recv_mac(J)
-            .map_err(|_| "Mac validation failed".into())
-    }
+    transcript
+      .recv_mac(J)
+      .map_err(|_| "Mac validation failed".into())
+  }
 }
 
 #[allow(non_snake_case)]
 pub fn recover<'a, T>(shares: T) -> Result<Commune, Box<dyn Error>>
 where
-    T: IntoIterator<Item = &'a Share>,
-    T::IntoIter: Iterator<Item = &'a Share>,
+  T: IntoIterator<Item = &'a Share>,
+  T::IntoIter: Iterator<Item = &'a Share>,
 {
-    let mut shares = shares.into_iter().peekable();
-    let s = &(*shares.peek().ok_or("no shares passed")?).clone();
-    let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
-    let key = Sharks::from(s.A).recover(&shares)?;
-    let K = key[..16].to_vec();
+  let mut shares = shares.into_iter().peekable();
+  let s = &(*shares.peek().ok_or("no shares passed")?).clone();
+  let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
+  let key = Sharks::from(s.A).recover(&shares)?;
+  let K = key[..16].to_vec();
 
-    let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
-    key.key(&K, false);
+  let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
+  key.key(&K, false);
 
-    // M is the message
-    let mut M: Vec<u8> = vec![0; s.C.len()];
-    M.copy_from_slice(&s.C);
-    key.recv_enc(&mut M, false);
+  // M is the message
+  let mut M: Vec<u8> = vec![0; s.C.len()];
+  M.copy_from_slice(&s.C);
+  key.recv_enc(&mut M, false);
 
-    // R are the "random coins"
-    let mut R: Vec<u8> = vec![0; s.D.len()];
-    R.copy_from_slice(&s.D);
-    key.recv_enc(&mut R, false);
+  // R are the "random coins"
+  let mut R: Vec<u8> = vec![0; s.D.len()];
+  R.copy_from_slice(&s.D);
+  key.recv_enc(&mut R, false);
 
-    let c = Commune {
-        A: s.A,
-        M,
-        R,
-        T: None,
-    };
+  let c = Commune {
+    A: s.A,
+    M,
+    R,
+    T: None,
+  };
 
-    c.verify(&mut s.J.clone())?;
-    Ok(c)
+  c.verify(&mut s.J.clone())?;
+  Ok(c)
 }
 
 #[cfg(test)]
 mod tests {
-    use core::iter;
+  use core::iter;
 
-    use crate::*;
+  use crate::*;
 
-    #[test]
-    fn serialization_u32() {
-        for &i in &[0, 10, 100, u32::MAX] {
-            let mut out: Vec<u8> = Vec::new();
-            store_u32(i, &mut out);
-            assert_eq!(load_u32(out.as_slice()), Some(i));
-        }
+  #[test]
+  fn serialization_u32() {
+    for &i in &[0, 10, 100, u32::MAX] {
+      let mut out: Vec<u8> = Vec::new();
+      store_u32(i, &mut out);
+      assert_eq!(load_u32(out.as_slice()), Some(i));
     }
+  }
 
-    #[test]
-    fn serialization_empty_bytes() {
-        let mut out: Vec<u8> = Vec::new();
-        store_bytes(Vec::new().as_slice(), &mut out);
-        assert_eq!(load_bytes(out.as_slice()), Some(&[] as &[u8]));
+  #[test]
+  fn serialization_empty_bytes() {
+    let mut out: Vec<u8> = Vec::new();
+    store_bytes(Vec::new().as_slice(), &mut out);
+    assert_eq!(load_bytes(out.as_slice()), Some(&[] as &[u8]));
+  }
+
+  #[test]
+  fn serialization_bytes() {
+    let mut out: Vec<u8> = Vec::new();
+    let bytes: &[u8] = &[0, 1, 10, 100];
+    store_bytes(bytes, &mut out);
+    assert_eq!(load_bytes(out.as_slice()), Some(bytes));
+  }
+
+  #[test]
+  fn serialization_access_structure() {
+    for i in &[0, 10, 100, u32::MAX] {
+      let a = AccessStructure { threshold: *i };
+      let s: &[u8] = &a.to_bytes()[..];
+      assert_eq!(AccessStructure::from_bytes(s), Some(a));
     }
+  }
 
-    #[test]
-    fn serialization_bytes() {
-        let mut out: Vec<u8> = Vec::new();
-        let bytes: &[u8] = &[0, 1, 10, 100];
-        store_bytes(bytes, &mut out);
-        assert_eq!(load_bytes(out.as_slice()), Some(bytes));
+  #[test]
+  fn serialization_share() {
+    let c = Commune {
+      A: AccessStructure { threshold: 50 },
+      M: vec![1, 2, 3, 4],
+      R: vec![5, 6, 7, 8],
+      T: None,
+    };
+
+    for share in iter::repeat_with(|| c.clone().share()).take(150) {
+      let s = share.to_bytes();
+      assert_eq!(Share::from_bytes(s.as_slice()), Some(share));
     }
+  }
 
-    #[test]
-    fn serialization_access_structure() {
-        for i in &[0, 10, 100, u32::MAX] {
-            let a = AccessStructure { threshold: *i };
-            let s: &[u8] = &a.to_bytes()[..];
-            assert_eq!(AccessStructure::from_bytes(s), Some(a));
-        }
-    }
+  #[test]
+  fn it_works() {
+    let c = Commune {
+      A: AccessStructure { threshold: 50 },
+      M: vec![1, 2, 3, 4],
+      R: vec![5, 6, 7, 8],
+      T: None,
+    };
 
-    #[test]
-    fn serialization_share() {
-        let c = Commune {
-            A: AccessStructure { threshold: 50 },
-            M: vec![1, 2, 3, 4],
-            R: vec![5, 6, 7, 8],
-            T: None,
-        };
+    let shares: Vec<Share> =
+      iter::repeat_with(|| c.clone().share()).take(150).collect();
 
-        for share in iter::repeat_with(|| c.clone().share()).take(150) {
-            let s = share.to_bytes();
-            assert_eq!(Share::from_bytes(s.as_slice()), Some(share));
-        }
-    }
+    let recovered = recover(&shares).unwrap();
 
-    #[test]
-    fn it_works() {
-        let c = Commune {
-            A: AccessStructure { threshold: 50 },
-            M: vec![1, 2, 3, 4],
-            R: vec![5, 6, 7, 8],
-            T: None,
-        };
-
-        let shares: Vec<Share> = iter::repeat_with(|| c.clone().share()).take(150).collect();
-
-        let recovered = recover(&shares).unwrap();
-
-        assert_eq!(c.M, recovered.M);
-    }
+    assert_eq!(c.M, recovered.M);
+  }
 }
