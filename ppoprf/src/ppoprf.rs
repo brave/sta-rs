@@ -19,7 +19,7 @@ use rand_core_ristretto::OsRng;
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
-use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek::scalar::Scalar as RistrettoScalar;
 
 use serde::{de, ser, Deserialize, Serialize};
 
@@ -37,18 +37,18 @@ pub const DIGEST_LEN: usize = 64;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
-  c: Scalar,
-  s: Scalar,
+  c: RistrettoScalar,
+  s: RistrettoScalar,
 }
 impl ProofDLEQ {
   fn new(
-    key: &Scalar,
+    key: &RistrettoScalar,
     public_value: &RistrettoPoint,
     p: &RistrettoPoint,
     q: &RistrettoPoint,
   ) -> Self {
     let mut csprng = OsRng;
-    let t = Scalar::random(&mut csprng);
+    let t = RistrettoScalar::random(&mut csprng);
 
     let tg = t * RISTRETTO_BASEPOINT_POINT;
     let tp = t * p;
@@ -83,7 +83,7 @@ impl ProofDLEQ {
     c_prime == self.c
   }
 
-  fn hash(elements: &[&RistrettoPoint]) -> Scalar {
+  fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
     if elements.len() != 6 {
       panic!("Incorrect number of points sent: {}", elements.len());
     }
@@ -93,7 +93,7 @@ impl ProofDLEQ {
     }
     let mut out = [0u8; 64];
     strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
-    Scalar::from_bytes_mod_order_wide(&out)
+    RistrettoScalar::from_bytes_mod_order_wide(&out)
   }
 }
 
@@ -125,6 +125,8 @@ pub struct Evaluation {
   pub proof: Option<ProofDLEQ>,
 }
 
+// Public wrapper for points associated with the elliptic curve that
+// is used
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct Point(
   #[serde(deserialize_with = "ristretto_deserialize")]
@@ -139,6 +141,10 @@ impl Point {
   pub fn to_bytes(&self) -> [u8; 32] {
     self.0.to_bytes()
   }
+
+  pub fn as_bytes(&self) -> &[u8; 32] {
+    self.0.as_bytes()
+  }
 }
 impl From<RistrettoPoint> for Point {
   fn from(rp: RistrettoPoint) -> Self {
@@ -148,6 +154,25 @@ impl From<RistrettoPoint> for Point {
 impl From<Point> for RistrettoPoint {
   fn from(p: Point) -> RistrettoPoint {
     p.decompress().unwrap()
+  }
+}
+
+// Public wrapper for scalar values associated with the elliptic curve that
+// is used
+pub struct CurveScalar([u8; 32]);
+impl From<[u8; 32]> for CurveScalar {
+  fn from(v: [u8; 32]) -> Self {
+    CurveScalar(v)
+  }
+}
+impl From<RistrettoScalar> for CurveScalar {
+  fn from(rs: RistrettoScalar) -> Self {
+    CurveScalar(rs.to_bytes())
+  }
+}
+impl From<CurveScalar> for RistrettoScalar {
+  fn from(cs: CurveScalar) -> RistrettoScalar {
+    RistrettoScalar::from_bytes_mod_order(cs.0)
   }
 }
 
@@ -176,20 +201,20 @@ where
 // The `Server` runs the server-side component of the PPOPRF protocol.
 #[derive(Clone)]
 pub struct Server {
-  oprf_key: Scalar,
+  oprf_key: RistrettoScalar,
   public_key: ServerPublicKey,
   pprf: GGM,
 }
 impl Server {
   pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
     let mut csprng = OsRng;
-    let oprf_key = Scalar::random(&mut csprng);
+    let oprf_key = RistrettoScalar::random(&mut csprng);
     let mut md_pks = HashMap::new();
     let pprf = GGM::setup();
     for &md in mds.iter() {
       let mut tag = [0u8; 32];
       pprf.eval(&[md], &mut tag)?;
-      let ts = Scalar::from_bytes_mod_order(tag);
+      let ts = RistrettoScalar::from_bytes_mod_order(tag);
       md_pks.insert(md, Point::from(ts * RISTRETTO_BASEPOINT_POINT));
     }
     Ok(Self {
@@ -215,7 +240,7 @@ impl Server {
     }
     let mut tag = [0u8; 32];
     self.pprf.eval(&[md], &mut tag)?;
-    let ts = Scalar::from_bytes_mod_order(tag);
+    let ts = RistrettoScalar::from_bytes_mod_order(tag);
     let tagged_key = self.oprf_key + ts;
     let exponent = tagged_key.invert();
     let eval_point = exponent * point;
@@ -248,13 +273,13 @@ impl Server {
 // for computing client-side operations in the PPOPRF protocol.
 pub struct Client {}
 impl Client {
-  pub fn blind(input: &[u8]) -> (Point, [u8; 32]) {
+  pub fn blind(input: &[u8]) -> (Point, CurveScalar) {
     let mut hashed_input = [0u8; 64];
     strobe_hash(input, "ppoprf_derive_client_input", &mut hashed_input);
     let point = RistrettoPoint::from_uniform_bytes(&hashed_input);
     let mut csprng = OsRng;
-    let r = Scalar::random(&mut csprng);
-    (Point((r * point).compress()), *r.as_bytes())
+    let r = RistrettoScalar::random(&mut csprng);
+    (Point((r * point).compress()), CurveScalar::from(r))
   }
 
   pub fn verify(
@@ -274,10 +299,9 @@ impl Client {
     false
   }
 
-  pub fn unblind(p: &Point, r_ser: [u8; 32]) -> Point {
-    let r = Scalar::from_bytes_mod_order(r_ser);
+  pub fn unblind(p: &Point, r: &CurveScalar) -> Point {
     let point = p.decompress().unwrap();
-    let r_inv = r.invert();
+    let r_inv = RistrettoScalar::from_bytes_mod_order(r.0).invert();
     Point((r_inv * point).compress())
   }
 
@@ -285,12 +309,12 @@ impl Client {
     if out.len() != 32 {
       panic!("Wrong output length!!: {:?}", out.len());
     }
-    let point_bytes = unblinded.to_bytes();
+    let point_bytes = unblinded.as_bytes();
     let mut hash_input =
       Vec::with_capacity(input.len() + 1 + point_bytes.len());
     hash_input.extend(input);
     hash_input.push(md);
-    hash_input.extend(&point_bytes);
+    hash_input.extend(point_bytes);
     let mut untruncated = vec![0u8; 64];
     strobe_hash(&hash_input, "ppoprf_finalize", &mut untruncated);
     out.copy_from_slice(&untruncated[..32]);
@@ -322,7 +346,7 @@ mod tests {
   ) -> (Point, Point) {
     let (blinded_point, r) = Client::blind(c_input);
     let evaluated = server.eval(&blinded_point, md, false).unwrap();
-    let unblinded = Client::unblind(&evaluated.output, r);
+    let unblinded = Client::unblind(&evaluated.output, &r);
 
     let mut chk_inp = [0u8; 64];
     strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);
@@ -341,7 +365,7 @@ mod tests {
     if !Client::verify(&server.public_key, &blinded_point, &evaluated, md) {
       panic!("Failed to verify proof");
     }
-    let unblinded = Client::unblind(&evaluated.output, r);
+    let unblinded = Client::unblind(&evaluated.output, &r);
 
     let mut chk_inp = [0u8; 64];
     strobe_hash(c_input, "ppoprf_derive_client_input", &mut chk_inp);

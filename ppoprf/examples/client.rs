@@ -78,7 +78,7 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
   assert_eq!(results.len(), 1, "Expected one point!");
   if let Some(result) = results.first() {
     // Unblind the message hash.
-    let unblinded = ppoprf::Client::unblind(&result.output, r);
+    let unblinded = ppoprf::Client::unblind(&result.output, &r);
     // Next we would finalize the unblinded point to produce
     // value needed for the next step of the Star protocol.
     //
@@ -86,7 +86,7 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
     // used, which we don't currently coordinate, so skip this step.
     //let mut out = vec![0u8; ppoprf::COMPRESSED_POINT_LEN];
     //ppoprf::Client::finalize(message.as_bytes(), &md, &unblinded, &mut out);
-    let point = base64::encode(&unblinded.to_bytes());
+    let point = base64::encode(unblinded.as_bytes());
     let proof = result.proof.is_some();
     let meta = if proof { " proof" } else { "" };
     info!("  {}{}", &point, &meta);

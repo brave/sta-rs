@@ -136,7 +136,7 @@ fn benchmark_client(c: &mut Criterion) {
   c.bench_function("Client unblind", |b| {
     let (blinded_point, r) = Client::blind(input.as_ref());
     b.iter(|| {
-      Client::unblind(&blinded_point, r);
+      Client::unblind(&blinded_point, &r);
     })
   });
 
@@ -169,7 +169,7 @@ fn end_to_end_evaluation(
   {
     panic!("Verification failed")
   }
-  let unblinded = Client::unblind(&evaluated.output, r);
+  let unblinded = Client::unblind(&evaluated.output, &r);
   Client::finalize(input, md, &unblinded, out);
 }
 
