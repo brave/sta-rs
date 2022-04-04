@@ -138,10 +138,6 @@ impl Point {
     self.0.decompress()
   }
 
-  pub fn to_bytes(&self) -> [u8; 32] {
-    self.0.to_bytes()
-  }
-
   pub fn as_bytes(&self) -> &[u8; 32] {
     self.0.as_bytes()
   }
@@ -157,22 +153,23 @@ impl From<Point> for RistrettoPoint {
   }
 }
 
-// Public wrapper for scalar values associated with the elliptic curve that
-// is used
-pub struct CurveScalar([u8; 32]);
+// Public wrapper for scalar values associated with the elliptic curve
+// that is used. Currently only supports ristretto. Will need to be
+// rewritten to include generic types if we want to support more curves
+pub struct CurveScalar(RistrettoScalar);
 impl From<[u8; 32]> for CurveScalar {
-  fn from(v: [u8; 32]) -> Self {
-    CurveScalar(v)
+  fn from(bytes: [u8; 32]) -> Self {
+    CurveScalar(RistrettoScalar::from_bytes_mod_order(bytes))
   }
 }
 impl From<RistrettoScalar> for CurveScalar {
   fn from(rs: RistrettoScalar) -> Self {
-    CurveScalar(rs.to_bytes())
+    CurveScalar(rs)
   }
 }
 impl From<CurveScalar> for RistrettoScalar {
   fn from(cs: CurveScalar) -> RistrettoScalar {
-    RistrettoScalar::from_bytes_mod_order(cs.0)
+    cs.0
   }
 }
 
@@ -301,7 +298,7 @@ impl Client {
 
   pub fn unblind(p: &Point, r: &CurveScalar) -> Point {
     let point = p.decompress().unwrap();
-    let r_inv = RistrettoScalar::from_bytes_mod_order(r.0).invert();
+    let r_inv = r.0.invert();
     Point((r_inv * point).compress())
   }
 
