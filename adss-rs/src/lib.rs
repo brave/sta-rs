@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use strobe_rs::{SecParam, Strobe};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use strobe_rng::StrobeRng;
 
@@ -21,7 +22,7 @@ pub const MAC_LENGTH: usize = 64;
 /// The `AccessStructure` struct defines the policy under which shares
 /// can be recovered. Currently, this policy is simply whether there are
 /// `threshold` number of independent shares.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct AccessStructure {
   threshold: u32,
 }
@@ -88,7 +89,7 @@ impl From<AccessStructure> for Sharks {
 /// and an optional STROBE transcript which can include extra data which will be authenticated.
 #[cfg_attr(not(feature = "cbindgen"), repr(C))]
 #[allow(non_snake_case)]
-#[derive(Clone)]
+#[derive(Clone, ZeroizeOnDrop)]
 pub struct Commune {
   /// `A` is an `AccessStructure` defining the sharing
   A: AccessStructure,
@@ -105,7 +106,7 @@ pub struct Commune {
 /// encoded secret data until it is grouped with a set of shares that
 /// satisfy the policy in the associated `AccessStructure`.
 #[allow(non_snake_case)]
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Zeroize)]
 pub struct Share {
   A: AccessStructure,
   S: sharks::Share,
@@ -202,6 +203,7 @@ impl Commune {
     // H4κ = (A, M, R, T)
     let mut transcript = self
       .T
+      .clone()
       .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
     transcript.ad(&self.A.to_bytes(), false);
     transcript.ad(&self.M, false);
@@ -234,10 +236,10 @@ impl Commune {
     // Generate a random share
     let mut K_vec: Vec<u8> = K.to_vec();
     K_vec.extend(vec![0u8; 16]);
-    let polys = Sharks::from(self.A).dealer_rng(&K_vec, &mut L);
+    let polys = Sharks::from(self.A.clone()).dealer_rng(&K_vec, &mut L);
     let S = polys.gen(&mut rand::thread_rng());
     Share {
-      A: self.A,
+      A: self.A.clone(),
       S,
       C,
       D,
@@ -254,6 +256,7 @@ impl Commune {
     let mut transcript = self
       .clone()
       .T
+      .clone()
       .unwrap_or_else(|| Strobe::new(b"adss", SecParam::B128));
     transcript.ad(&self.A.to_bytes(), false);
     transcript.ad(&self.M, false);
@@ -276,7 +279,7 @@ where
   let mut shares = shares.into_iter().peekable();
   let s = &(*shares.peek().ok_or("no shares passed")?).clone();
   let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
-  let key = Sharks::from(s.A).recover(&shares)?;
+  let key = Sharks::from(s.A.clone()).recover(&shares)?;
   let K = key[..16].to_vec();
 
   let mut key = Strobe::new(b"adss encrypt", SecParam::B128);
@@ -293,7 +296,7 @@ where
   key.recv_enc(&mut R, false);
 
   let c = Commune {
-    A: s.A,
+    A: s.A.clone(),
     M,
     R,
     T: None,

@@ -7,11 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strobe-rs = "0.6.2"
+strobe-rs = "0.7.1"
 strobe-rng = { path = "../strobe-rng" }
 rand = "0.8.4"
+zeroize = "1.5.4"
 
 [dependencies.sharks]
-default-features = false
+default-features = true
 version = "0.5.0"
 path = "../sharks"

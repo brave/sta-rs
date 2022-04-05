@@ -4,11 +4,15 @@ use core::convert::TryInto;
 #[cfg(feature = "fuzzing")]
 use arbitrary::Arbitrary;
 
+#[cfg(feature = "zeroize_memory")]
+use zeroize::Zeroize;
+
 use crate::ff::*;
 
 pub const FIELD_ELEMENT_LEN: usize = 32;
 
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
+#[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "52435875175126190479447740508185965837690552500527637822603658699938581184513"]
 #[PrimeFieldGenerator = "7"]
@@ -116,6 +120,7 @@ impl Iterator for Evaluator {
 /// A share used to reconstruct the secret. Can be serialized to and from a byte array.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
+#[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 pub struct Share {
   pub x: Fp,
   pub y: Vec<Fp>,
