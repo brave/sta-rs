@@ -190,7 +190,7 @@ async fn main() -> std::io::Result<()> {
         epoch.as_secs()
       );
       // Wait for the end of an epoch.
-      actix_web::rt::time::delay_for(epoch).await;
+      actix_web::rt::time::sleep(epoch).await;
       if let Ok(mut state) = background_state.write() {
         info!("Epoch rotation: puncturing '{:?}'", md);
         state.prf_server.puncture(md).unwrap();
@@ -202,10 +202,11 @@ async fn main() -> std::io::Result<()> {
   });
 
   // Pass a factory closure to configure the server.
+  let server_state = web::Data::new(state.clone());
   actix_web::HttpServer::new(move || {
     actix_web::App::new()
       // Register app state.
-      .data(state.clone())
+      .app_data(server_state.clone())
       // Register routes.
       .service(index)
       .service(eval)
