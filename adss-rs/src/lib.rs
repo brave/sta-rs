@@ -1,3 +1,9 @@
+//! The `adss-rs` crate defines functionality for performing secret
+//! sharing with established security guarantees. We use this framework
+//! as it allows for specifying the random coins that are used for
+//! establishing the lagrange polynomial coefficients explicitly. A
+//! description of the framework is provided in the paper by [Bellare et
+//! al.](https://eprint.iacr.org/2020/800).
 use sharks::Sharks;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -12,6 +18,9 @@ pub const ACCESS_STRUCTURE_LENGTH: usize = 4;
 // The length of a `Share::J`, in bytes.
 pub const MAC_LENGTH: usize = 64;
 
+/// The `AccessStructure` struct defines the policy under which shares
+/// can be recovered. Currently, this policy is simple whether there are
+/// `threshold` number of independent shares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessStructure {
   threshold: u32,
@@ -91,6 +100,10 @@ pub struct Commune {
   T: Option<Strobe>,
 }
 
+/// The `Share` struct holds the necessary data that is encoded in a
+/// single secret share. A share itself reveals nothing about the
+/// encoded secret data until it is paired with a threshold number of
+/// other shares.
 #[allow(non_snake_case)]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Share {
@@ -183,6 +196,8 @@ impl Commune {
     }
   }
 
+  /// The `share` function samples a single secret share for the
+  /// specified `message`.
   pub fn share(self) -> Share {
     // H4κ = (A, M, R, T)
     let mut transcript = self
@@ -251,6 +266,8 @@ impl Commune {
 }
 
 #[allow(non_snake_case)]
+/// The `recover` function attempts to recover a secret shared value
+/// from a set of shares that meet the threshold requirements.
 pub fn recover<'a, T>(shares: T) -> Result<Commune, Box<dyn Error>>
 where
   T: IntoIterator<Item = &'a Share>,
