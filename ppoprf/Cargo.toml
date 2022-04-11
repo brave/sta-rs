@@ -18,7 +18,7 @@ strobe-rs = "0.6.2"
 strobe-rng = { path = "../strobe-rng" }
 base64 = "0.13"
 derive_more = "0.99"
-zeroize = "1.5.4"
+zeroize = { version = "1.5.4", features = [ "alloc", "derive" ]}
 
 [dev-dependencies]
 actix-web = "4.0.1"
