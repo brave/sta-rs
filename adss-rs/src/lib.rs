@@ -19,7 +19,7 @@ pub const ACCESS_STRUCTURE_LENGTH: usize = 4;
 pub const MAC_LENGTH: usize = 64;
 
 /// The `AccessStructure` struct defines the policy under which shares
-/// can be recovered. Currently, this policy is simple whether there are
+/// can be recovered. Currently, this policy is simply whether there are
 /// `threshold` number of independent shares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessStructure {
@@ -102,8 +102,8 @@ pub struct Commune {
 
 /// The `Share` struct holds the necessary data that is encoded in a
 /// single secret share. A share itself reveals nothing about the
-/// encoded secret data until it is paired with a threshold number of
-/// other shares.
+/// encoded secret data until it is grouped with a set of shares that
+/// satisfy the policy in the associated `AccessStructure`.
 #[allow(non_snake_case)]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Share {
