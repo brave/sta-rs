@@ -7,11 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = { version = "0.7", default-features = false }
+rand = { version = "0.8.4", default-features = false }
 rand_core = "0.6.2"
 rand_core_ristretto = { version="0.5.1", package="rand_core" }
 bitvec = "0.22.3"
-ring = "0.16.20"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
 criterion = "0.3.1"
 serde = "1.0.136"
@@ -19,6 +18,7 @@ strobe-rs = "0.6.2"
 strobe-rng = { path = "../strobe-rng" }
 base64 = "0.13"
 derive_more = "0.99"
+zeroize = "1.5.4"
 
 [dev-dependencies]
 actix-web = "4.0.1"

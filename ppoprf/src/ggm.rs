@@ -7,10 +7,11 @@ use std::fmt;
 
 use super::{PPRFError, PPRF};
 use bitvec::prelude::*;
-use ring::{
-  hmac,
-  rand::{SecureRandom, SystemRandom},
-};
+use rand_core::{OsRng, RngCore};
+use strobe_rng::StrobeRng;
+use strobe_rs::{SecParam, Strobe};
+
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Eq, PartialEq)]
 struct Prefix {
@@ -33,28 +34,36 @@ impl fmt::Debug for Prefix {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 struct GGMPseudorandomGenerator {
-  key: ring::hmac::Key,
+  key: [u8; 32],
 }
 
 impl GGMPseudorandomGenerator {
   fn setup() -> Self {
-    let secret = sample_secret();
-    let s_key = hmac::Key::new(hmac::HMAC_SHA256, secret.as_ref());
+    let mut t = Strobe::new(b"ggm key gen (ppoprf)", SecParam::B128);
+    t.key(&sample_secret(), false);
+    let mut rng: StrobeRng = t.into();
+    let mut s_key = [0u8; 32];
+    rng.fill_bytes(&mut s_key);
     GGMPseudorandomGenerator { key: s_key }
   }
 
   fn eval(&self, input: &[u8], output: &mut [u8]) {
-    let tag = hmac::sign(&self.key, input);
-    output.copy_from_slice(tag.as_ref());
+    let mut t = Strobe::new(b"ggm eval (ppoprf)", SecParam::B128);
+    t.key(&self.key, false);
+    t.ad(input, false);
+    let mut rng: StrobeRng = t.into();
+    rng.fill_bytes(output);
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 struct GGMPuncturableKey {
   prgs: Vec<GGMPseudorandomGenerator>,
+  #[zeroize(skip)]
   prefixes: Vec<(Prefix, Vec<u8>)>,
+  #[zeroize(skip)]
   punctured: Vec<Prefix>,
 }
 
@@ -112,7 +121,7 @@ impl GGMPuncturableKey {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct GGM {
   inp_len: usize,
   key: GGMPuncturableKey,
@@ -210,11 +219,8 @@ impl PPRF for GGM {
 }
 
 fn sample_secret() -> Vec<u8> {
-  let rng = SystemRandom::new();
   let mut out = vec![0u8; 32];
-  if let Err(e) = rng.fill(&mut out) {
-    panic!("{}", e);
-  }
+  OsRng.fill_bytes(&mut out);
   out
 }
 
