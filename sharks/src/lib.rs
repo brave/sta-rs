@@ -92,12 +92,12 @@ impl Sharks {
   /// # let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
   /// # let mut shares: Vec<Share> = sharks.dealer_rng(&[1], &mut rng).take(3).collect();
   /// // Recover original secret from shares
-  /// let mut secret = sharks.recover(&shares);
+  /// let secret = sharks.recover(&shares);
   /// // Secret correctly recovered
   /// assert!(secret.is_ok());
   /// // Remove shares for demonstration purposes
   /// shares.clear();
-  /// secret = sharks.recover(&shares);
+  /// let secret = sharks.recover(&shares);
   /// // Not enough shares to recover secret
   /// assert!(secret.is_err());
   pub fn recover<'a, T>(&self, shares: T) -> Result<Vec<u8>, &str>
