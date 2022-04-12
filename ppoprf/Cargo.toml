@@ -15,7 +15,7 @@ ring = "0.16.20"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
 criterion = "0.3.1"
 serde = "1.0.136"
-strobe-rs = "0.6.2"
+strobe-rs = "0.7.1"
 strobe-rng = { path = "../strobe-rng" }
 base64 = "0.13"
 derive_more = "0.99"

@@ -104,16 +104,18 @@
 //! let mut enc_key = vec![0u8; 16];
 //! derive_ske_key(&value, epoch.as_bytes(), &mut enc_key);
 //! ```
-
 use std::error::Error;
 use std::str;
 
 use rand_core::RngCore;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use adss_rs::{recover, Commune};
-pub use {adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share};
+pub use {
+  adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share as InternalShare,
+};
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
@@ -127,7 +129,7 @@ pub const DEBUG: bool = false;
 // server-side. Measurements are only revealed on the server-side if the
 // `threshold` is met, in terms of clients that send the same
 // `Measurement` value.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SingleMeasurement(Vec<u8>);
 impl SingleMeasurement {
   pub fn new(x: &[u8]) -> Self {
@@ -183,6 +185,24 @@ impl From<&str> for AssociatedData {
 impl From<&[u8]> for AssociatedData {
   fn from(buf: &[u8]) -> Self {
     AssociatedData::new(buf)
+  }
+}
+
+// Wrapper type for `adss_rs::Share` to implement `ZeroizeOnDrop`properly.
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
+pub struct Share(InternalShare);
+impl Share {
+  pub fn to_bytes(&self) -> Vec<u8> {
+    self.0.to_bytes()
+  }
+
+  pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+    Some(Self(InternalShare::from_bytes(bytes)?))
+  }
+}
+impl Drop for Share {
+  fn drop(&mut self) {
+    self.0.zeroize();
   }
 }
 
@@ -242,7 +262,6 @@ pub struct Message {
   pub share: Share,
   pub tag: Vec<u8>,
 }
-
 impl Message {
   fn new(c: Ciphertext, share: Share, tag: &[u8]) -> Self {
     Self {
@@ -266,7 +285,7 @@ impl Message {
     // data
     let key = mg.derive_key(&r[0]);
     let share = mg.share(&r[0], &r[1]);
-    let tag = r[2].clone();
+    let tag = r[2];
 
     let mut data: Vec<u8> = Vec::new();
     store_bytes(mg.x.as_slice(), &mut data);
@@ -321,13 +340,14 @@ impl Message {
 // higher-level applications using the star-wasm API. This allows
 // encrypting and sending the client measurements in higher-level
 // implementations of the STAR protocol.
+#[derive(Zeroize)]
 pub struct WASMSharingMaterial {
   /// 16-byte AES encryption key
-  pub key: Vec<u8>,
+  pub key: [u8; 16],
   /// Secret share of key derivation randomness
   pub share: Share,
   /// 32-byte random tag associated with client measurement
-  pub tag: Vec<u8>,
+  pub tag: [u8; 32],
 }
 
 // In the STAR protocol, the `MessageGenerator` is the entity which
@@ -343,6 +363,7 @@ pub struct WASMSharingMaterial {
 // locally: derived straight from the `Measurement` itself. In the STAR
 // protocol, the `MessageGenerator` derives its randomness from an
 // exchange with a specifically-defined server that runs a POPRF.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct MessageGenerator {
   pub x: SingleMeasurement,
   threshold: u32,
@@ -367,7 +388,7 @@ impl MessageGenerator {
     // data
     let key = self.derive_key(&r[0]);
     let share = self.share(&r[0], &r[1]);
-    let tag = r[2].clone();
+    let tag = r[2];
     WASMSharingMaterial { key, share, tag }
   }
 
@@ -389,10 +410,10 @@ impl MessageGenerator {
     WASMSharingMaterial { key, share, tag }
   }
 
-  fn derive_random_values(&self, randomness: &[u8]) -> Vec<Vec<u8>> {
+  fn derive_random_values(&self, randomness: &[u8]) -> Vec<[u8; 32]> {
     let mut output = Vec::new();
     for i in 0..3 {
-      let mut to_fill = vec![0u8; 32];
+      let mut to_fill = [0u8; 32];
       strobe_digest(
         randomness,
         &[&[i as u8]],
@@ -404,15 +425,15 @@ impl MessageGenerator {
     output
   }
 
-  fn derive_key(&self, r1: &[u8]) -> Vec<u8> {
-    let mut enc_key = vec![0u8; 16];
+  fn derive_key(&self, r1: &[u8]) -> [u8; 16] {
+    let mut enc_key = [0u8; 16];
     derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
     enc_key
   }
 
   fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
     let c = Commune::new(self.threshold, r1.to_vec(), r2.to_vec(), None);
-    c.share()
+    Share(c.share())
   }
 
   pub fn sample_local_randomness(&self, out: &mut [u8]) {
@@ -445,7 +466,12 @@ impl MessageGenerator {
 
 // FIXME can we implement collect trait?
 pub fn share_recover(shares: &[Share]) -> Result<Commune, Box<dyn Error>> {
-  recover(shares)
+  recover(
+    &shares
+      .iter()
+      .map(|share| share.0.clone())
+      .collect::<Vec<InternalShare>>(),
+  )
 }
 
 // The `derive_ske_key` helper function derives symmetric encryption
