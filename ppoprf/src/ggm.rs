@@ -189,7 +189,7 @@ impl PPRF for GGM {
     let pfx = self.key.find_prefix(&bv)?;
     let pfx_len = pfx.0.len();
 
-    // If the prfix is smaller than the current input, then we
+    // If the prefix is smaller than the current input, then we
     // need to recompute some parts of the tree. Otherwise we
     // just remove the prefix entirely.
     let mut new_pfxs: Vec<(Prefix, Vec<u8>)> = Vec::new();
