@@ -29,6 +29,8 @@ use std::convert::TryInto;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 pub use crate::PPRFError;
 use crate::{ggm::GGM, PPRF};
 
@@ -196,9 +198,10 @@ where
 }
 
 // The `Server` runs the server-side component of the PPOPRF protocol.
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct Server {
   oprf_key: RistrettoScalar,
+  #[zeroize(skip)]
   public_key: ServerPublicKey,
   pprf: GGM,
 }
