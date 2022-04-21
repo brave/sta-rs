@@ -6,4 +6,4 @@ The code in this repository is still being actively developed, and is thus regar
 
 ## Reporting a Vulnerability
 
-Please report any observed issues to the [GitHub repository](https://github.com/brave-experiments/sta-rs/). 
+Please report any observed issues to the [GitHub repository](https://github.com/brave-experiments/sta-rs/).
