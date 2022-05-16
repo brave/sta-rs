@@ -11,7 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.3"
-arbitrary = { version = "0.4.2", features = ["derive"] }
+arbitrary = { version = "0.4.7", features = ["derive"] }
 
 [dependencies.sharks]
 path = ".."
