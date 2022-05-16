@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = { version = "0.8.4", default-features = false }
-rand_core = { version = "0.6.2", features = [ "getrandom" ] }
+rand_core = { version = "0.6.3", features = [ "getrandom" ] }
 rand_core_ristretto = { version="0.5.1", package="rand_core" }
 bitvec = "0.22.3"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
