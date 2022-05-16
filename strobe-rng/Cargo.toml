@@ -6,4 +6,4 @@ edition = "2018"
 
 [dependencies]
 strobe-rs = "0.7.1"
-rand_core = "0.6.2"
+rand_core = "0.6.3"

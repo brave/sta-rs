@@ -10,7 +10,7 @@ strobe-rs = "0.6.2"
 strobe-rng = { path = "../../strobe-rng" }
 sta-rs = { path = "../" }
 rand = { version = "0.7", default-features = false }
-rand_core = "0.6.2"
+rand_core = "0.6.3"
 rayon = "1.5"
 zipf = "6.1.0"
 ring = "0.16.20"
