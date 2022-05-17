@@ -11,6 +11,6 @@ struct Parameters {
 }
 
 fuzz_target!(|params: Parameters| {
-    let sharks = Sharks(params.threshold);
+    let sharks = Sharks(params.threshold.into());
     let _secret = sharks.recover(&params.shares);
 });
