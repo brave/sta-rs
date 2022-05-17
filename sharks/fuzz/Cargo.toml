@@ -10,8 +10,8 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
-arbitrary = { version = "0.4.7", features = ["derive"] }
+libfuzzer-sys = "0.4.3"
+arbitrary = { version = "1.1.0", features = ["derive"] }
 
 [dependencies.sharks]
 path = ".."
