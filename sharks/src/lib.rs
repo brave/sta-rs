@@ -135,6 +135,7 @@ mod tests {
   use super::{Fp, Share, Sharks};
   use crate::ff::{Field, PrimeField};
   use alloc::{vec, vec::Vec};
+  use core::convert::TryFrom;
 
   impl Sharks {
     #[cfg(not(feature = "std"))]
@@ -240,5 +241,13 @@ mod tests {
     bytes.extend(vec![4u8; 1]);
     bytes.extend(suffix); // y coord #3
     bytes
+  }
+
+  #[test]
+  #[should_panic]
+  fn zero_threshold() {
+    let sharks = Sharks(0);
+    let testcase = Share::try_from(get_test_bytes().as_slice()).unwrap();
+    let _secret = sharks.recover(&vec![testcase]);
   }
 }
