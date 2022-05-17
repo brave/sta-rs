@@ -9,7 +9,7 @@
   "author": "remi@brave.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/brave-experiments/sta-rs.git"
+    "url": "git+https://github.com/brave/sta-rs.git"
   },
   "keywords": [
     "webassembly",
@@ -19,9 +19,9 @@
     "star"
   ],
   "bugs": {
-    "url": "https://github.com/brave-experiments/sta-rs/issues"
+    "url": "https://github.com/brave/sta-rs/issues"
   },
-  "homepage": "https://github.com/brave-experiments/sta-rs#readme",
+  "homepage": "https://github.com/brave/sta-rs#readme",
   "dependencies": {
     "koa": "2.13.1",
     "koa-static": "5.0.0",
