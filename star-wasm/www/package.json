@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "copy-webpack-plugin": "9.1.0",
-    "eslint": "8.15.0",
+    "eslint": "8.16.0",
     "webpack": "5.72.1",
     "webpack-cli": "4.8.0"
   }
