@@ -61,11 +61,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mut rnd = [0u8; 32];
     mg.sample_local_randomness(&mut rnd);
     b.iter(|| {
-      Message::generate(
-        &mg,
-        &rnd,
-        Some(AssociatedData::new(&random_bytes.to_vec())),
-      );
+      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)));
     });
   });
 
@@ -77,11 +73,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mut rnd = [0u8; 32];
     mg.sample_oprf_randomness(ppoprf_server, &mut rnd);
     b.iter(|| {
-      Message::generate(
-        &mg,
-        &rnd,
-        Some(AssociatedData::new(&random_bytes.to_vec())),
-      );
+      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)));
     });
   });
 }
@@ -163,9 +155,7 @@ fn get_messages(params: &Params, epoch: &str) -> Vec<Message> {
 
 fn get_aux_data(do_it: bool) -> Option<AssociatedData> {
   if do_it {
-    return Some(AssociatedData::new(
-      &rand::thread_rng().gen::<[u8; 8]>().to_vec(),
-    ));
+    return Some(AssociatedData::new(&rand::thread_rng().gen::<[u8; 8]>()));
   }
   None
 }
