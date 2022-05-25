@@ -134,32 +134,31 @@ fn benchmark_end_to_end(c: &mut Criterion) {
 }
 
 fn get_messages(params: &Params, epoch: &str) -> Vec<Message> {
-  let messages: Vec<Message>;
   let mg = client_zipf(params.n, params.s, params.threshold, epoch);
   let mut rnd = [0u8; 32];
-  if !params.local {
+  if params.local {
+    iter::repeat_with(|| {
+      Message::generate(&mg, &rnd, get_aux_data(params.aux_data))
+    })
+    .take(params.clients)
+    .collect()
+  } else {
     mg.sample_local_randomness(&mut rnd);
     #[cfg(not(feature = "star2"))]
     unimplemented!();
     #[cfg(feature = "star2")]
     {
       let mut ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
-      messages = iter::repeat_with(|| {
+      let messages = iter::repeat_with(|| {
         sample_oprf_randomness(&ppoprf_server, &mut rnd);
         Message::generate(&mg, &rnd, get_aux_data(params.aux_data))
       })
       .take(params.clients)
       .collect();
       ppoprf_server.puncture(epoch.as_bytes());
+      messages
     }
-  } else {
-    messages = iter::repeat_with(|| {
-      Message::generate(&mg, &rnd, get_aux_data(params.aux_data))
-    })
-    .take(params.clients)
-    .collect();
   }
-  messages
 }
 
 fn get_aux_data(do_it: bool) -> Option<AssociatedData> {
