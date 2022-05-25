@@ -28,7 +28,6 @@ impl Sharks {
   /// see the `dealer` method.
   ///
   /// Given a `secret` byte slice, returns an `Iterator` along new shares.
-  /// The maximum number of shares that can be generated is 256.
   /// A random number generator has to be provided.
   ///
   /// Example:
@@ -64,7 +63,6 @@ impl Sharks {
   }
 
   /// Given a `secret` byte slice, returns an `Iterator` along new shares.
-  /// The maximum number of shares that can be generated is 256.
   ///
   /// Example:
   /// ```
