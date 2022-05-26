@@ -131,12 +131,11 @@ impl GGM {
   fn bit_eval(&self, bits: &BitVec, prg_inp: &[u8], output: &mut [u8]) {
     let mut eval = prg_inp.to_vec();
     for bit in bits {
-      let prg: &GGMPseudorandomGenerator;
-      if *bit {
-        prg = &self.key.prgs[1];
+      let prg: &GGMPseudorandomGenerator = if *bit {
+        &self.key.prgs[1]
       } else {
-        prg = &self.key.prgs[0];
-      }
+        &self.key.prgs[0]
+      };
       prg.eval(&eval.clone(), &mut eval);
     }
     output.copy_from_slice(&eval);
