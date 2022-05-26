@@ -15,11 +15,11 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Eq, PartialEq)]
 struct Prefix {
-  bits: BitVec<bitvec::order::Lsb0, usize>,
+  bits: BitVec<usize, bitvec::order::Lsb0>,
 }
 
 impl Prefix {
-  fn new(bits: BitVec<bitvec::order::Lsb0, usize>) -> Self {
+  fn new(bits: BitVec<usize, bitvec::order::Lsb0>) -> Self {
     Prefix { bits }
   }
 
@@ -173,7 +173,7 @@ impl PPRF for GGM {
       });
     }
     let mut input_bits =
-      bvcast_u8_to_usize(&BitVec::<Lsb0, _>::from_slice(input).unwrap());
+      bvcast_u8_to_usize(&BitVec::<_, Lsb0>::from_slice(input));
     self.partial_eval(&mut input_bits, output)
   }
 
@@ -184,7 +184,7 @@ impl PPRF for GGM {
         expected: self.inp_len,
       });
     }
-    let bv = bvcast_u8_to_usize(&BitVec::<Lsb0, _>::from_slice(input).unwrap());
+    let bv = bvcast_u8_to_usize(&BitVec::<_, Lsb0>::from_slice(input));
     let pfx = self.key.find_prefix(&bv)?;
     let pfx_len = pfx.0.len();
 
@@ -224,8 +224,8 @@ fn sample_secret() -> Vec<u8> {
 }
 
 fn bvcast_u8_to_usize(
-  bv_u8: &BitVec<bitvec::order::Lsb0, u8>,
-) -> BitVec<bitvec::order::Lsb0, usize> {
+  bv_u8: &BitVec<u8, bitvec::order::Lsb0>,
+) -> BitVec<usize, bitvec::order::Lsb0> {
   let mut bv_us = BitVec::with_capacity(bv_u8.len());
   for i in 0..bv_u8.len() {
     bv_us.push(bv_u8[i]);
@@ -346,8 +346,7 @@ mod tests {
   #[test]
   fn casting() {
     let bv_0 = bits![0].to_bitvec();
-    let bv_1 =
-      bvcast_u8_to_usize(&BitVec::<Lsb0, _>::from_slice(&[4]).unwrap());
+    let bv_1 = bvcast_u8_to_usize(&BitVec::<_, Lsb0>::from_slice(&[4]));
     assert_eq!(bv_0.len(), 1);
     assert_eq!(bv_1.len(), 8);
     assert!(bv_1.starts_with(&bv_0));
