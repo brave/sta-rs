@@ -11,7 +11,7 @@ mod share_ff;
 
 use alloc::vec::Vec;
 use core::convert::TryInto;
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 use crate::ff::PrimeField;
 pub use share_ff::Evaluator;
