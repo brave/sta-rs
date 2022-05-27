@@ -118,6 +118,14 @@ impl ServerPublicKey {
     let md = md_pk.decompress().unwrap();
     Ok(Point::from(b + md))
   }
+
+  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, bincode::Error> {
+    bincode::serialize(self)
+  }
+
+  pub fn load_from_bincode(data: &[u8]) -> Result<Self, bincode::Error> {
+    bincode::deserialize(data)
+  }
 }
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
