@@ -131,6 +131,8 @@ impl ServerPublicKey {
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
 #[derive(Deserialize, Serialize)]
 pub struct Evaluation {
+  #[serde(deserialize_with = "point_deserialize")]
+  #[serde(serialize_with = "point_serialize")]
   pub output: Point,
   pub proof: Option<ProofDLEQ>,
 }
@@ -138,11 +140,7 @@ pub struct Evaluation {
 // Public wrapper for points associated with the elliptic curve that
 // is used
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct Point(
-  #[serde(deserialize_with = "ristretto_deserialize")]
-  #[serde(serialize_with = "ristretto_serialize")]
-  CompressedRistretto,
-);
+pub struct Point(CompressedRistretto);
 impl Point {
   fn decompress(&self) -> Option<RistrettoPoint> {
     self.0.decompress()
@@ -183,17 +181,14 @@ impl From<CurveScalar> for RistrettoScalar {
   }
 }
 
-fn ristretto_serialize<S>(
-  o: &CompressedRistretto,
-  s: S,
-) -> Result<S::Ok, S::Error>
+fn point_serialize<S>(p: &Point, s: S) -> Result<S::Ok, S::Error>
 where
   S: ser::Serializer,
 {
-  s.serialize_str(&base64::encode(o.0))
+  s.serialize_str(&base64::encode(p.0 .0))
 }
 
-fn ristretto_deserialize<'de, D>(d: D) -> Result<CompressedRistretto, D::Error>
+fn point_deserialize<'de, D>(d: D) -> Result<Point, D::Error>
 where
   D: de::Deserializer<'de>,
 {
@@ -202,7 +197,7 @@ where
   let fixed_data: [u8; 32] = data
     .try_into()
     .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
-  Ok(CompressedRistretto(fixed_data))
+  Ok(Point(CompressedRistretto(fixed_data)))
 }
 
 // The `Server` runs the server-side component of the PPOPRF protocol.
