@@ -36,6 +36,7 @@ use crate::{ggm::GGM, PPRF};
 
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
+pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
@@ -119,12 +120,15 @@ impl ServerPublicKey {
     Ok(Point::from(b + md))
   }
 
-  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, bincode::Error> {
-    bincode::serialize(self)
+  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
+    bincode::serialize(self).map_err(PPRFError::Bincode)
   }
 
-  pub fn load_from_bincode(data: &[u8]) -> Result<Self, bincode::Error> {
-    bincode::deserialize(data)
+  pub fn load_from_bincode(data: &[u8]) -> Result<Self, PPRFError> {
+    if data.len() > MAX_SERIALIZED_PK_SIZE {
+      return Err(PPRFError::SerializedDataTooBig);
+    }
+    bincode::deserialize(data).map_err(PPRFError::Bincode)
   }
 }
 
