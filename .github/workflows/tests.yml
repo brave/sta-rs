@@ -59,8 +59,13 @@ jobs:
           command: test
           args: --release
 
-      - name: WASM
+      - name: WASM pkg
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           cd ./star-wasm
           make build
+
+      - name: WASM www
+        run: |
+          cd ./star-wasm/www
+          make
