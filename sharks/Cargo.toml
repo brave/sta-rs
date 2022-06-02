@@ -23,7 +23,7 @@ fuzzing = ["std", "arbitrary"]
 zeroize_memory = ["zeroize"]
 
 [dependencies]
-rand = { version = "0.8.4", default-features = false }
+rand = { version = "0.8.5", default-features = false }
 arbitrary = { version = "1.1.0", features = ["derive"], optional = true }
 zeroize = { version = "1.5.5", features = ["zeroize_derive"], optional = true }
 ff = { version = "0.12", features = ["derive"] }
