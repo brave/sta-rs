@@ -23,7 +23,7 @@ use curve25519_dalek::scalar::Scalar as RistrettoScalar;
 
 use serde::{de, ser, Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 
 use strobe_rng::StrobeRng;
@@ -36,6 +36,7 @@ use crate::{ggm::GGM, PPRF};
 
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
+pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
@@ -104,7 +105,7 @@ impl ProofDLEQ {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerPublicKey {
   base_pk: Point,
-  md_pks: HashMap<u8, Point>,
+  md_pks: BTreeMap<u8, Point>,
 }
 impl ServerPublicKey {
   fn get(&self, md: u8) -> Option<&Point> {
@@ -118,11 +119,24 @@ impl ServerPublicKey {
     let md = md_pk.decompress().unwrap();
     Ok(Point::from(b + md))
   }
+
+  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
+    bincode::serialize(self).map_err(PPRFError::Bincode)
+  }
+
+  pub fn load_from_bincode(data: &[u8]) -> Result<Self, PPRFError> {
+    if data.len() > MAX_SERIALIZED_PK_SIZE {
+      return Err(PPRFError::SerializedDataTooBig);
+    }
+    bincode::deserialize(data).map_err(PPRFError::Bincode)
+  }
 }
 
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
 #[derive(Deserialize, Serialize)]
 pub struct Evaluation {
+  #[serde(deserialize_with = "point_deserialize")]
+  #[serde(serialize_with = "point_serialize")]
   pub output: Point,
   pub proof: Option<ProofDLEQ>,
 }
@@ -130,11 +144,7 @@ pub struct Evaluation {
 // Public wrapper for points associated with the elliptic curve that
 // is used
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct Point(
-  #[serde(deserialize_with = "ristretto_deserialize")]
-  #[serde(serialize_with = "ristretto_serialize")]
-  CompressedRistretto,
-);
+pub struct Point(CompressedRistretto);
 impl Point {
   fn decompress(&self) -> Option<RistrettoPoint> {
     self.0.decompress()
@@ -175,17 +185,14 @@ impl From<CurveScalar> for RistrettoScalar {
   }
 }
 
-fn ristretto_serialize<S>(
-  o: &CompressedRistretto,
-  s: S,
-) -> Result<S::Ok, S::Error>
+fn point_serialize<S>(p: &Point, s: S) -> Result<S::Ok, S::Error>
 where
   S: ser::Serializer,
 {
-  s.serialize_str(&base64::encode(o.0))
+  s.serialize_str(&base64::encode(p.0 .0))
 }
 
-fn ristretto_deserialize<'de, D>(d: D) -> Result<CompressedRistretto, D::Error>
+fn point_deserialize<'de, D>(d: D) -> Result<Point, D::Error>
 where
   D: de::Deserializer<'de>,
 {
@@ -194,7 +201,7 @@ where
   let fixed_data: [u8; 32] = data
     .try_into()
     .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
-  Ok(CompressedRistretto(fixed_data))
+  Ok(Point(CompressedRistretto(fixed_data)))
 }
 
 // The `Server` runs the server-side component of the PPOPRF protocol.
@@ -209,7 +216,7 @@ impl Server {
   pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
     let mut csprng = OsRng;
     let oprf_key = RistrettoScalar::random(&mut csprng);
-    let mut md_pks = HashMap::new();
+    let mut md_pks = BTreeMap::new();
     let pprf = GGM::setup();
     for &md in mds.iter() {
       let mut tag = [0u8; 32];
@@ -339,6 +346,8 @@ fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {
 mod tests {
   use super::*;
 
+  use insta::assert_snapshot;
+
   fn end_to_end_eval_check_no_proof(
     server: &Server,
     c_input: &[u8],
@@ -448,5 +457,36 @@ mod tests {
       end_to_end_eval_check_no_proof(&server, b"another_input", 0);
     assert_eq!(chk_eval1, unblinded1);
     end_to_end_eval_check_no_proof(&server, b"some_test_input", 1);
+  }
+
+  #[test]
+  fn pk_serialization() {
+    let oprf_key = RistrettoScalar::from_bytes_mod_order([7u8; 32]);
+    let mut md_pks = BTreeMap::new();
+
+    for i in 0..8u8 {
+      let ts = RistrettoScalar::from_bytes_mod_order([i * 2; 32]);
+      md_pks.insert(i, Point::from(ts * RISTRETTO_BASEPOINT_POINT));
+    }
+
+    let pk = ServerPublicKey {
+      base_pk: Point::from(oprf_key * RISTRETTO_BASEPOINT_POINT),
+      md_pks,
+    };
+
+    let pk_bincode = pk
+      .serialize_to_bincode()
+      .expect("Should serialize to bincode");
+
+    assert_snapshot!(base64::encode(&pk_bincode));
+
+    ServerPublicKey::load_from_bincode(&pk_bincode)
+      .expect("Should load bincode");
+  }
+
+  #[test]
+  fn pk_bad_data_load() {
+    assert!(ServerPublicKey::load_from_bincode(&[8u8; 40]).is_err());
+    assert!(ServerPublicKey::load_from_bincode(&[98u8; 10000]).is_err());
   }
 }

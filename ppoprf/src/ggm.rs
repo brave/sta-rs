@@ -236,6 +236,7 @@ fn bvcast_u8_to_usize(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use matches::assert_matches;
 
   #[test]
   fn eval() -> Result<(), PPRFError> {
@@ -256,7 +257,7 @@ mod tests {
     ggm.eval(&x0, &mut out)?;
     ggm.puncture(&x0)?;
     // next step should error out
-    assert_eq!(ggm.eval(&x0, &mut out), Err(PPRFError::NoPrefixFound));
+    assert_matches!(ggm.eval(&x0, &mut out), Err(PPRFError::NoPrefixFound));
     Ok(())
   }
 
@@ -268,7 +269,10 @@ mod tests {
     ggm.puncture(&x0)?;
     ggm.puncture(&x1)?;
     // next step should error out
-    assert_eq!(ggm.eval(&x0, &mut [0u8; 32]), Err(PPRFError::NoPrefixFound));
+    assert_matches!(
+      ggm.eval(&x0, &mut [0u8; 32]),
+      Err(PPRFError::NoPrefixFound)
+    );
     Ok(())
   }
 

@@ -17,7 +17,7 @@ pub mod ppoprf;
 
 use derive_more::{Display, Error};
 
-#[derive(Debug, Error, Display, PartialEq)]
+#[derive(Debug, Error, Display)]
 pub enum PPRFError {
   #[display(fmt = "Specified tag ({}) is not a valid metadata tag", md)]
   BadTag { md: u8 },
@@ -33,6 +33,10 @@ pub enum PPRFError {
   BadInputLength { actual: usize, expected: usize },
   #[display(fmt = "Unexpected end of bv")]
   UnexpectedEndOfBv,
+  #[display(fmt = "Bincode serialization error: {}", _0)]
+  Bincode(bincode::Error),
+  #[display(fmt = "Serialized data exceeds size limit")]
+  SerializedDataTooBig,
 }
 
 pub trait PPRF {
