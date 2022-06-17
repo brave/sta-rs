@@ -37,6 +37,7 @@ use crate::{ggm::GGM, PPRF};
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
 pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
+pub const MAX_SERIALIZED_PROOF_SIZE: usize = 64;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
@@ -98,6 +99,17 @@ impl ProofDLEQ {
     strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
     RistrettoScalar::from_bytes_mod_order_wide(&out)
   }
+
+  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
+    bincode::serialize(self).map_err(PPRFError::Bincode)
+  }
+
+  pub fn load_from_bincode(data: &[u8]) -> Result<Self, PPRFError> {
+    if data.len() > MAX_SERIALIZED_PROOF_SIZE {
+      return Err(PPRFError::SerializedDataTooBig);
+    }
+    bincode::deserialize(data).map_err(PPRFError::Bincode)
+  }
 }
 
 // Server public key structure for PPOPRF, contains all elements of the
@@ -157,6 +169,11 @@ impl Point {
 impl From<RistrettoPoint> for Point {
   fn from(rp: RistrettoPoint) -> Self {
     Self(rp.compress())
+  }
+}
+impl From<&[u8]> for Point {
+  fn from(bytes: &[u8]) -> Self {
+    Self(CompressedRistretto::from_slice(bytes))
   }
 }
 impl From<Point> for RistrettoPoint {
@@ -487,6 +504,36 @@ mod tests {
   #[test]
   fn pk_bad_data_load() {
     assert!(ServerPublicKey::load_from_bincode(&[8u8; 40]).is_err());
+    assert!(
+      ProofDLEQ::load_from_bincode(&[98u8; MAX_SERIALIZED_PK_SIZE + 1])
+        .is_err()
+    );
     assert!(ServerPublicKey::load_from_bincode(&[98u8; 10000]).is_err());
+  }
+
+  #[test]
+  fn proof_serialization() {
+    let proof = ProofDLEQ {
+      c: RistrettoScalar::from_bytes_mod_order([7u8; 32]),
+      s: RistrettoScalar::from_bytes_mod_order([15u8; 32]),
+    };
+
+    let proof_bincode = proof
+      .serialize_to_bincode()
+      .expect("Should serialize to bincode");
+
+    assert_snapshot!(base64::encode(&proof_bincode));
+
+    ProofDLEQ::load_from_bincode(&proof_bincode).expect("Should load bincode");
+  }
+
+  #[test]
+  fn proof_bad_data_load() {
+    assert!(ProofDLEQ::load_from_bincode(&[8u8; 40]).is_err());
+    assert!(ProofDLEQ::load_from_bincode(
+      &[98u8; MAX_SERIALIZED_PROOF_SIZE + 1]
+    )
+    .is_err());
+    assert!(ProofDLEQ::load_from_bincode(&[98u8; 10000]).is_err());
   }
 }
