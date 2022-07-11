@@ -16,7 +16,7 @@ rand_core = "0.6.3"
 zeroize = "1.5.6"
 
 [dev-dependencies]
-criterion = "0.3.5"
+criterion = "0.3.6"
 sta-rs-test-utils = { path = "./test-utils" }
 rand = { version = "0.8.5", features = [ "std" ] }
 
