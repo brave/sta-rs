@@ -13,7 +13,7 @@ rand_core_ristretto = { version="0.5.1", package="rand_core" }
 bitvec = "1.0.0"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
 criterion = "0.3.6"
-serde = "1.0.137"
+serde = "1.0.139"
 strobe-rs = "0.7.1"
 strobe-rng = { path = "../strobe-rng" }
 base64 = "0.13"
