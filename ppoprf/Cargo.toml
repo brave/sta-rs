@@ -12,7 +12,6 @@ rand_core = { version = "0.6.3", features = [ "getrandom" ] }
 rand_core_ristretto = { version="0.5.1", package="rand_core" }
 bitvec = "1.0.1"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
-criterion = "0.3.6"
 serde = "1.0.139"
 strobe-rs = "0.7.1"
 strobe-rng = { path = "../strobe-rng" }
@@ -24,6 +23,7 @@ zeroize = { version = "1.5.6", features = [ "derive" ] }
 [dev-dependencies]
 actix-web = "4.1.0"
 base64 = "0.13.0"
+criterion = "0.3.6"
 env_logger = "0.9.0"
 log = "0.4.17"
 reqwest = { version = "0.11.11", features = [ "blocking", "json" ] }
