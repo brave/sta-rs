@@ -13,7 +13,6 @@ rand = { version = "0.8.5", features = [ "std" ] }
 rand_core = "0.6.3"
 rayon = "1.5"
 zipf = "7.0.0"
-ring = "0.16.20"
 ppoprf = { path = "../../ppoprf" }
 
 [features]
