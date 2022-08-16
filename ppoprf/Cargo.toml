@@ -28,7 +28,7 @@ env_logger = "0.9.0"
 log = "0.4.17"
 reqwest = { version = "0.11.11", features = [ "blocking", "json" ] }
 dotenv = "0.15"
-insta = "1.18.1"
+insta = "1.18.2"
 matches = "0.1.9"
 
 [[bench]]
