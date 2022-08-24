@@ -178,7 +178,7 @@ impl core::convert::TryFrom<&[u8]> for Share {
 #[cfg(test)]
 mod tests {
   use super::{get_evaluator, interpolate, random_polynomial};
-  use super::{Fp, Share,FIELD_ELEMENT_LEN};
+  use super::{Fp, Share, FIELD_ELEMENT_LEN};
   use crate::ff::Field;
   use alloc::{vec, vec::Vec};
   use core::convert::TryFrom;
@@ -228,22 +228,8 @@ mod tests {
     assert_eq!(
       values,
       vec![
-        (
-          fp_one(),
-          vec![Fp([
-            0u64,
-            6825,
-            0,
-          ])]
-        ),
-        (
-          fp_two(),
-          vec![Fp([
-            9223372036854775808u64,
-            14332,
-            0,
-          ])]
-        )
+        (fp_one(), vec![Fp([0u64, 6825, 0,])]),
+        (fp_two(), vec![Fp([9223372036854775808u64, 14332, 0,])])
       ]
     );
   }
@@ -279,7 +265,7 @@ mod tests {
   }
 
   fn get_test_bytes() -> Vec<u8> {
-    let suffix = vec![0u8; FIELD_ELEMENT_LEN-1];
+    let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
     bytes.extend(vec![2u8; 1]);
