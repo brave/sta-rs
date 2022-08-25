@@ -129,7 +129,7 @@ pub const DEBUG: bool = false;
 // server-side. Measurements are only revealed on the server-side if the
 // `threshold` is met, in terms of clients that send the same
 // `Measurement` value.
-#[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct SingleMeasurement(Vec<u8>);
 impl SingleMeasurement {
   pub fn new(x: &[u8]) -> Self {

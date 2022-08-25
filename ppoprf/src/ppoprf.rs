@@ -155,7 +155,7 @@ pub struct Evaluation {
 
 // Public wrapper for points associated with the elliptic curve that
 // is used
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct Point(CompressedRistretto);
 impl Point {
   fn decompress(&self) -> Option<RistrettoPoint> {
