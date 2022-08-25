@@ -21,7 +21,7 @@ derive_more = "0.99"
 zeroize = { version = "1.5.7", features = [ "derive" ] }
 
 [dev-dependencies]
-actix-web = "4.1.0"
+actix-web = { version = "4.1.0", default-features = false, features = [ "macros" ] }
 base64 = "0.13.0"
 criterion = "0.3.6"
 env_logger = "0.9.0"
