@@ -27,7 +27,7 @@ use actix_web::middleware::Logger;
 use actix_web::{
   error::ResponseError, get, http::StatusCode, post, web, HttpResponse,
 };
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use env_logger::Env;
 use log::{info, warn};
 
