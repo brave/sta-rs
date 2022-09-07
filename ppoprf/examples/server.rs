@@ -26,14 +26,14 @@
 use dotenvy::dotenv;
 use env_logger::Env;
 use log::{info, warn};
-use warp::Filter;
 use warp::http::StatusCode;
+use warp::Filter;
 
 use std::collections::VecDeque;
 use std::env;
 
-use std::sync::{Arc, RwLock};
 use std::convert::Infallible;
+use std::sync::{Arc, RwLock};
 
 use ppoprf::ppoprf;
 
@@ -57,8 +57,10 @@ struct ServerState {
 type State = Arc<RwLock<ServerState>>;
 
 /// Decorator to clone state into a warp::Filter.
-fn with_state(state: State) -> impl Filter<Extract = (State,), Error = Infallible> + Clone {
-    warp::any().map(move || Arc::clone(&state))
+fn with_state(
+  state: State,
+) -> impl Filter<Extract = (State,), Error = Infallible> + Clone {
+  warp::any().map(move || Arc::clone(&state))
 }
 
 /// PPOPRF evaluation request from the client
@@ -89,11 +91,12 @@ struct ServerErrorResponse {
 impl warp::Reply for ServerError {
   fn into_response(self) -> warp::reply::Response {
     warp::reply::with_status(
-        warp::reply::json(&ServerErrorResponse {
-          error: format!("{}", self),
-        }),
-        StatusCode::INTERNAL_SERVER_ERROR
-    ).into_response()
+      warp::reply::json(&ServerErrorResponse {
+        error: format!("{}", self),
+      }),
+      StatusCode::INTERNAL_SERVER_ERROR,
+    )
+    .into_response()
   }
 }
 
@@ -121,19 +124,19 @@ async fn eval(
 
   // Format the results.
   match result {
-      Ok(results) => Ok(warp::reply::with_status(
-          warp::reply::json(&EvalResponse {
-              name: data.name.clone(),
-              results,
-          }),
-          StatusCode::OK
-      )),
-      Err(error) => Ok(warp::reply::with_status(
-          warp::reply::json(&ServerErrorResponse {
-              error: format!("{}", error),
-          }),
-          StatusCode::INTERNAL_SERVER_ERROR
-      )),
+    Ok(results) => Ok(warp::reply::with_status(
+      warp::reply::json(&EvalResponse {
+        name: data.name.clone(),
+        results,
+      }),
+      StatusCode::OK,
+    )),
+    Err(error) => Ok(warp::reply::with_status(
+      warp::reply::json(&ServerErrorResponse {
+        error: format!("{}", error),
+      }),
+      StatusCode::INTERNAL_SERVER_ERROR,
+    )),
   }
 }
 
@@ -217,15 +220,13 @@ async fn main() {
   });
 
   // Warp web server framework routes.
-  let info = warp::get()
-      .map(help);
+  let info = warp::get().map(help);
   let rand = warp::post()
-      .and(warp::body::content_length_limit(8 * 1024))
-      .and(warp::body::json())
-      .and(with_state(state))
-      .and_then(eval);
-  let routes = rand
-      .or(info);
+    .and(warp::body::content_length_limit(8 * 1024))
+    .and(warp::body::json())
+    .and(with_state(state))
+    .and_then(eval);
+  let routes = rand.or(info);
 
   // Run server until exit.
   warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
