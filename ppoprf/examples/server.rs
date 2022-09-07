@@ -19,8 +19,11 @@
 //! curl --silent localhost:8080 \
 //!     --header 'Content-Type: application/json' \
 //!     --data '{"name":"STAR", "points": [
-//!         "4vKuCmq8TnGohKlhxQBRX1jjC2qlgt2NtqZZReCNLXY="
-//!         ]}'
+//!         [ 226, 242, 174, 10, 106, 188, 78, 113,
+//!           168, 132, 169, 97, 197, 0, 81, 95,
+//!           88, 227, 11, 106, 165, 130, 221, 141,
+//!           182, 166, 89, 69, 224, 141, 45, 118 ]
+//!       ]}'
 //! ```
 
 use dotenvy::dotenv;
