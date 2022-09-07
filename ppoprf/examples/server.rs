@@ -129,7 +129,7 @@ async fn eval(
   match result {
     Ok(results) => Ok(warp::reply::with_status(
       warp::reply::json(&EvalResponse {
-        name: data.name.clone(),
+        name: data.name,
         results,
       }),
       StatusCode::OK,
