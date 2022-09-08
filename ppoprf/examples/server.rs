@@ -29,19 +29,16 @@
 use dotenvy::dotenv;
 use env_logger::Env;
 use log::{info, warn};
+use serde::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::Filter;
 
 use std::collections::VecDeque;
-use std::env;
-
 use std::convert::Infallible;
+use std::env;
 use std::sync::{Arc, RwLock};
 
 use ppoprf::ppoprf;
-
-use derive_more::{Display, Error, From};
-use serde::{Deserialize, Serialize};
 
 const DEFAULT_EPOCH_DURATION: u64 = 5;
 const DEFAULT_MDS: &str = "116;117;118;119;120";
@@ -80,27 +77,9 @@ struct EvalResponse {
   results: Vec<ppoprf::Evaluation>,
 }
 
-#[derive(Debug, Error, From, Display)]
-enum ServerError {
-  #[display(fmt = "PPRF error: {}", _0)]
-  Pprf(ppoprf::PPRFError),
-}
-
 #[derive(Serialize)]
 struct ServerErrorResponse {
   error: String,
-}
-
-impl warp::Reply for ServerError {
-  fn into_response(self) -> warp::reply::Response {
-    warp::reply::with_status(
-      warp::reply::json(&ServerErrorResponse {
-        error: format!("{}", self),
-      }),
-      StatusCode::INTERNAL_SERVER_ERROR,
-    )
-    .into_response()
-  }
 }
 
 /// Simple string to identify the server.
