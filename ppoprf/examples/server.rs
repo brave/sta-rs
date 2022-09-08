@@ -19,56 +19,62 @@
 //! curl --silent localhost:8080 \
 //!     --header 'Content-Type: application/json' \
 //!     --data '{"name":"STAR", "points": [
-//!         "4vKuCmq8TnGohKlhxQBRX1jjC2qlgt2NtqZZReCNLXY="
-//!         ]}'
+//!         [ 226, 242, 174, 10, 106, 188, 78, 113,
+//!           168, 132, 169, 97, 197, 0, 81, 95,
+//!           88, 227, 11, 106, 165, 130, 221, 141,
+//!           182, 166, 89, 69, 224, 141, 45, 118 ]
+//!       ]}'
 //! ```
 
-use actix_web::middleware::Logger;
-use actix_web::{
-  error::ResponseError, get, http::StatusCode, post, web, HttpResponse,
-};
 use dotenvy::dotenv;
 use env_logger::Env;
 use log::{info, warn};
+use serde::{Deserialize, Serialize};
+use warp::http::StatusCode;
+use warp::Filter;
 
 use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::env;
-
 use std::sync::{Arc, RwLock};
 
 use ppoprf::ppoprf;
-
-use derive_more::{Display, Error, From};
-use serde::{Deserialize, Serialize};
 
 const DEFAULT_EPOCH_DURATION: u64 = 5;
 const DEFAULT_MDS: &str = "116;117;118;119;120";
 const EPOCH_DURATION_ENV_KEY: &str = "EPOCH_DURATION";
 const MDS_ENV_KEY: &str = "METADATA_TAGS";
 
+/// Shared randomness server state
+struct ServerState {
+  prf_server: ppoprf::Server,
+  active_md: u8,
+  future_mds: VecDeque<u8>,
+}
+/// Wrapped state for access within service tasks
+/// We use an RWLock to handle the infrequent puncture events.
+/// Only read access is necessary to answer queries.
+type State = Arc<RwLock<ServerState>>;
+
+/// Decorator to clone state into a warp::Filter.
+fn with_state(
+  state: State,
+) -> impl Filter<Extract = (State,), Error = Infallible> + Clone {
+  warp::any().map(move || Arc::clone(&state))
+}
+
+/// PPOPRF evaluation request from the client
 #[derive(Deserialize)]
 struct EvalRequest {
   name: String,
   points: Vec<ppoprf::Point>,
 }
 
+/// PPOPRF evaluation result returned by the server
 #[derive(Serialize)]
 struct EvalResponse {
   name: String,
   results: Vec<ppoprf::Evaluation>,
-}
-
-struct ServerState {
-  prf_server: ppoprf::Server,
-  active_md: u8,
-  future_mds: VecDeque<u8>,
-}
-type State = Arc<RwLock<ServerState>>;
-
-#[derive(Debug, Error, From, Display)]
-enum ServerError {
-  #[display(fmt = "PPRF error: {}", _0)]
-  Pprf(ppoprf::PPRFError),
 }
 
 #[derive(Serialize)]
@@ -76,34 +82,19 @@ struct ServerErrorResponse {
   error: String,
 }
 
-impl ResponseError for ServerError {
-  fn error_response(&self) -> HttpResponse {
-    HttpResponse::build(self.status_code()).json(ServerErrorResponse {
-      error: format!("{}", self),
-    })
-  }
-
-  fn status_code(&self) -> StatusCode {
-    match *self {
-      ServerError::Pprf(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    }
-  }
-}
-
-#[get("/")]
-async fn index() -> &'static str {
-  // Simple string to identify the server.
+/// Simple string to identify the server.
+fn help() -> &'static str {
   concat!(
     "STAR protocol randomness server.\n",
     "See https://arxiv.org/abs/2109.10074 for more information.\n"
   )
 }
 
-#[post("/")]
+/// Process a PPOPRF evaluation request from the client.
 async fn eval(
-  state: web::Data<State>,
-  data: web::Json<EvalRequest>,
-) -> Result<web::Json<EvalResponse>, ServerError> {
+  data: EvalRequest,
+  state: State,
+) -> Result<impl warp::Reply, Infallible> {
   let state = state.read().unwrap();
 
   // Pass each point from the client through the ppoprf.
@@ -113,15 +104,26 @@ async fn eval(
     .map(|p| state.prf_server.eval(p, state.active_md, false))
     .collect();
 
-  // Return the results.
-  Ok(web::Json(EvalResponse {
-    name: data.name.clone(),
-    results: result?,
-  }))
+  // Format the results.
+  match result {
+    Ok(results) => Ok(warp::reply::with_status(
+      warp::reply::json(&EvalResponse {
+        name: data.name,
+        results,
+      }),
+      StatusCode::OK,
+    )),
+    Err(error) => Ok(warp::reply::with_status(
+      warp::reply::json(&ServerErrorResponse {
+        error: format!("{}", error),
+      }),
+      StatusCode::INTERNAL_SERVER_ERROR,
+    )),
+  }
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() {
   dotenv().ok();
 
   let host = "localhost";
@@ -165,9 +167,7 @@ async fn main() -> std::io::Result<()> {
       }
     });
 
-  // Shared actix webapp state cloned into each server thread.
-  // We use an RWLock to handle the infrequent puncture events.
-  // Only read access is necessary to answer queries.
+  // Initialize shared server state.
   let state = Arc::new(RwLock::new(ServerState {
     prf_server: ppoprf::Server::new(mds.clone()).unwrap(),
     active_md: mds[0],
@@ -177,7 +177,7 @@ async fn main() -> std::io::Result<()> {
 
   // Spawn a background task.
   let background_state = state.clone();
-  actix_web::rt::spawn(async move {
+  tokio::spawn(async move {
     info!(
       "Background task will rotate epoch every {} seconds",
       epoch.as_secs()
@@ -190,7 +190,7 @@ async fn main() -> std::io::Result<()> {
         epoch.as_secs()
       );
       // Wait for the end of an epoch.
-      actix_web::rt::time::sleep(epoch).await;
+      tokio::time::sleep(epoch).await;
       if let Ok(mut state) = background_state.write() {
         info!("Epoch rotation: puncturing '{:?}'", md);
         state.prf_server.puncture(md).unwrap();
@@ -201,20 +201,15 @@ async fn main() -> std::io::Result<()> {
     warn!("All epoch tags punctured! No further evaluations possible.");
   });
 
-  // Pass a factory closure to configure the server.
-  let server_state = web::Data::new(state.clone());
-  actix_web::HttpServer::new(move || {
-    actix_web::App::new()
-      // Register app state.
-      .app_data(server_state.clone())
-      // Register routes.
-      .service(index)
-      .service(eval)
-      // Add logging and other middleware.
-      .wrap(Logger::default())
-  })
-  // Bind and start handling the requested address and port.
-  .bind((host, port as u16))?
-  .run()
-  .await
+  // Warp web server framework routes.
+  let info = warp::get().map(help);
+  let rand = warp::post()
+    .and(warp::body::content_length_limit(8 * 1024))
+    .and(warp::body::json())
+    .and(with_state(state))
+    .and_then(eval);
+  let routes = rand.or(info);
+
+  // Run server until exit.
+  warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 }

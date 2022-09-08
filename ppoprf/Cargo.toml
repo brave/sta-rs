@@ -21,7 +21,6 @@ derive_more = "0.99"
 zeroize = { version = "1.5.7", features = [ "derive" ] }
 
 [dev-dependencies]
-actix-web = "4.1.0"
 base64 = "0.13.0"
 criterion = "0.3.6"
 env_logger = "0.9.0"
@@ -30,6 +29,8 @@ reqwest = { version = "0.11.11", features = [ "blocking", "json" ] }
 dotenvy = "0.15.3"
 insta = "1.18.2"
 matches = "0.1.9"
+tokio = { version = "1.21.0", features = ["macros", "rt-multi-thread", "time"] }
+warp = "0.3.2"
 
 [[bench]]
 name = "bench"
