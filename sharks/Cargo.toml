@@ -33,7 +33,7 @@ rand_core = { version = "0.6", default-features = false }
 subtle = { version = "2.4.1", default-features = false, features = ["i128"] }
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4"
 rand_chacha = "0.3"
 
 [[bench]]
