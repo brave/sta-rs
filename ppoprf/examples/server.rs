@@ -26,7 +26,6 @@
 //!       ]}'
 //! ```
 
-use dotenvy::dotenv;
 use env_logger::Env;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
@@ -124,8 +123,6 @@ async fn eval(
 
 #[tokio::main]
 async fn main() {
-  dotenv().ok();
-
   let host = "localhost";
   let port = 8080;
 
