@@ -9,15 +9,15 @@ use zeroize::Zeroize;
 
 use crate::ff::*;
 
-pub const FIELD_ELEMENT_LEN: usize = 32;
+pub const FIELD_ELEMENT_LEN: usize = 24;
 
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 #[derive(PrimeField)]
-#[PrimeFieldModulus = "52435875175126190479447740508185965837690552500527637822603658699938581184513"]
-#[PrimeFieldGenerator = "7"]
+#[PrimeFieldModulus = "680564733841876926926749214863536421547"] // 2^129 - 1365
+#[PrimeFieldGenerator = "3"]
 #[PrimeFieldReprEndianness = "little"]
-pub struct Fp([u64; 4]);
+pub struct Fp([u64; 3]);
 
 impl From<Fp> for Vec<u8> {
   fn from(s: Fp) -> Vec<u8> {
@@ -178,7 +178,7 @@ impl core::convert::TryFrom<&[u8]> for Share {
 #[cfg(test)]
 mod tests {
   use super::{get_evaluator, interpolate, random_polynomial};
-  use super::{Fp, Share};
+  use super::{Fp, Share, FIELD_ELEMENT_LEN};
   use crate::ff::Field;
   use alloc::{vec, vec::Vec};
   use core::convert::TryFrom;
@@ -228,24 +228,8 @@ mod tests {
     assert_eq!(
       values,
       vec![
-        (
-          fp_one(),
-          vec![Fp([
-            94489280490u64,
-            14822445601838602262,
-            11026904598472781706,
-            690069828877630411
-          ])]
-        ),
-        (
-          fp_two(),
-          vec![Fp([
-            197568495570u64,
-            17576572386601039918,
-            14671371399666020106,
-            3119850012535913734
-          ])]
-        )
+        (fp_one(), vec![Fp([0u64, 6825, 0,])]),
+        (fp_two(), vec![Fp([9223372036854775808u64, 14332, 0,])])
       ]
     );
   }
@@ -257,7 +241,7 @@ mod tests {
     let iter = get_evaluator(vec![poly]);
     let shares: Vec<Share> = iter.take(5).collect();
     let root = interpolate(&shares);
-    let mut chk = vec![0u8; 32];
+    let mut chk = vec![0u8; FIELD_ELEMENT_LEN];
     chk[0] = 1u8;
     assert_eq!(root, chk);
   }
@@ -281,7 +265,7 @@ mod tests {
   }
 
   fn get_test_bytes() -> Vec<u8> {
-    let suffix = vec![0u8; 31];
+    let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
     bytes.extend(vec![2u8; 1]);
