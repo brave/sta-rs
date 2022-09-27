@@ -91,10 +91,7 @@ impl AggregationServer {
     messages: &[Message],
   ) -> Result<Output, AggServerError> {
     let mut enc_key_buf = vec![0u8; 16];
-    let res = self.key_recover(messages, &mut enc_key_buf);
-    if let Err(e) = res {
-      return Err(e);
-    }
+    self.key_recover(messages, &mut enc_key_buf)?;
 
     let ciphertexts = messages.iter().map(|t| t.ciphertext.clone());
     let plaintexts =
