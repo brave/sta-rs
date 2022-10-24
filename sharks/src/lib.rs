@@ -123,7 +123,7 @@ impl Sharks {
       Err("Not enough shares to recover original secret")
     } else {
       // We only need the threshold number of shares to recover
-      Ok(interpolate(&values[0..self.0 as usize]))
+      interpolate(&values[0..self.0 as usize])
     }
   }
 }
@@ -243,10 +243,10 @@ mod tests {
   }
 
   #[test]
-  #[should_panic]
   fn zero_threshold() {
     let sharks = Sharks(0);
     let testcase = Share::try_from(get_test_bytes().as_slice()).unwrap();
-    let _secret = sharks.recover(&vec![testcase]);
+    let secret = sharks.recover(&vec![testcase]);
+    assert!(secret.is_err());
   }
 }

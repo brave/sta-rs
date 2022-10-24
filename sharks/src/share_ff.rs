@@ -35,7 +35,10 @@ impl From<Fp> for Vec<u64> {
 // The expected `shares` argument format is the same as the output by the `get_evaluator´ function.
 // Where each (key, value) pair corresponds to one share, where the key is the `x` and the value is a vector of `y`,
 // where each element corresponds to one of the secret's byte chunks.
-pub fn interpolate(shares: &[Share]) -> Vec<u8> {
+pub fn interpolate(shares: &[Share]) -> Result<Vec<u8>, &'static str> {
+  if shares.len() < 1 {
+    return Err("Need at least one share to interpolate");
+  }
   let res: Vec<Vec<u8>> = (0..shares[0].y.len())
     .map(|s| {
       let e: Fp = shares
@@ -52,9 +55,9 @@ pub fn interpolate(shares: &[Share]) -> Vec<u8> {
       Vec::from(e) // turn into byte vector
     })
     .collect();
-  res
+  Ok(res
     .iter()
-    .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat())
+    .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat()))
 }
 
 // Generates `k` polynomial coefficients, being the last one `s` and the
@@ -240,7 +243,7 @@ mod tests {
     let poly = random_polynomial(fp_one(), 5, &mut rng);
     let iter = get_evaluator(vec![poly]);
     let shares: Vec<Share> = iter.take(5).collect();
-    let root = interpolate(&shares);
+    let root = interpolate(&shares).unwrap();
     let mut chk = vec![0u8; FIELD_ELEMENT_LEN];
     chk[0] = 1u8;
     assert_eq!(root, chk);
