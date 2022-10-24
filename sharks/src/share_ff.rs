@@ -151,8 +151,8 @@ impl core::convert::TryFrom<&[u8]> for Share {
   type Error = &'static str;
 
   fn try_from(s: &[u8]) -> Result<Share, Self::Error> {
-    if s.len() < 2 {
-      Err("A Share must be at least 2 bytes long")
+    if s.len() < FIELD_ELEMENT_LEN {
+      Err("A Share must have enough bytes to represent a field element")
     } else {
       let x = Fp::from_repr(FpRepr(
         s[..FIELD_ELEMENT_LEN]
@@ -265,6 +265,13 @@ mod tests {
     let share = Share::try_from(&get_test_bytes()[..]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two(), fp_three()]);
+  }
+
+  #[test]
+  fn share_from_short_u8_slice_fails() {
+    let bytes = get_test_bytes();
+    assert!(Share::try_from(&bytes[0..FIELD_ELEMENT_LEN - 1]).is_err());
+    assert!(Share::try_from(&bytes[0..1]).is_err());
   }
 
   fn get_test_bytes() -> Vec<u8> {
