@@ -158,20 +158,24 @@ impl core::convert::TryFrom<&[u8]> for Share {
         s[..FIELD_ELEMENT_LEN]
           .try_into()
           .expect("Failed to parse bytes for x coordinate"),
-      ))
-      .unwrap();
+      ));
+      if x.is_none().into() {
+          return Err("Failed to create field element from x representation");
+      }
+      let x = x.unwrap();
       let y_coords_bytes = s[FIELD_ELEMENT_LEN..].to_vec();
       let total_y_coords_len = y_coords_bytes.len();
       let mut y = Vec::with_capacity(total_y_coords_len / FIELD_ELEMENT_LEN);
       for i in 0..total_y_coords_len / FIELD_ELEMENT_LEN {
-        y.push(
-          Fp::from_repr(FpRepr(
+        let f = Fp::from_repr(FpRepr(
             y_coords_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
               .try_into()
               .expect("Failed to parse bytes for y coordinates"),
-          ))
-          .unwrap(),
-        )
+        ));
+        if f.is_none().into() {
+          return Err("Failed to create field element from y representation");
+        }
+        y.push(f.unwrap());
       }
       Ok(Share { x, y })
     }
@@ -283,5 +287,11 @@ mod tests {
     bytes.extend(vec![3u8; 1]);
     bytes.extend(suffix); // y coord #2
     bytes
+  }
+
+  #[test]
+  fn bad_share_bytes() {
+      let bytes: Vec<u8> = vec![10u8, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 10, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0];
+      let _ = Share::try_from(bytes.as_slice());
   }
 }
