@@ -55,9 +55,11 @@ pub fn interpolate(shares: &[Share]) -> Result<Vec<u8>, &'static str> {
       Vec::from(e) // turn into byte vector
     })
     .collect();
-  Ok(res
-    .iter()
-    .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat()))
+  Ok(
+    res
+      .iter()
+      .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat()),
+  )
 }
 
 // Generates `k` polynomial coefficients, being the last one `s` and the
@@ -160,7 +162,7 @@ impl core::convert::TryFrom<&[u8]> for Share {
           .expect("Failed to parse bytes for x coordinate"),
       ));
       if x.is_none().into() {
-          return Err("Failed to create field element from x representation");
+        return Err("Failed to create field element from x representation");
       }
       let x = x.unwrap();
       let y_coords_bytes = s[FIELD_ELEMENT_LEN..].to_vec();
@@ -168,9 +170,9 @@ impl core::convert::TryFrom<&[u8]> for Share {
       let mut y = Vec::with_capacity(total_y_coords_len / FIELD_ELEMENT_LEN);
       for i in 0..total_y_coords_len / FIELD_ELEMENT_LEN {
         let f = Fp::from_repr(FpRepr(
-            y_coords_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
-              .try_into()
-              .expect("Failed to parse bytes for y coordinates"),
+          y_coords_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
+            .try_into()
+            .expect("Failed to parse bytes for y coordinates"),
         ));
         if f.is_none().into() {
           return Err("Failed to create field element from y representation");
@@ -291,7 +293,10 @@ mod tests {
 
   #[test]
   fn bad_share_bytes() {
-      let bytes: Vec<u8> = vec![10u8, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 10, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0];
-      let _ = Share::try_from(bytes.as_slice());
+    let bytes: Vec<u8> = vec![
+      10u8, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 10, 0, 0, 0, 0, 0, 0,
+      10, 0, 0, 0, 0, 0,
+    ];
+    let _ = Share::try_from(bytes.as_slice());
   }
 }
