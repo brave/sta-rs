@@ -36,7 +36,7 @@ impl From<Fp> for Vec<u64> {
 // Where each (key, value) pair corresponds to one share, where the key is the `x` and the value is a vector of `y`,
 // where each element corresponds to one of the secret's byte chunks.
 pub fn interpolate(shares: &[Share]) -> Result<Vec<u8>, &'static str> {
-  if shares.len() < 1 {
+  if shares.is_empty() {
     return Err("Need at least one share to interpolate");
   }
   let res: Vec<Vec<u8>> = (0..shares[0].y.len())
