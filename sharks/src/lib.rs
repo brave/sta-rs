@@ -56,7 +56,7 @@ impl Sharks {
           .expect("bad chunk"),
       ));
       if element.is_none().into() {
-          return Err("Failed to create field element from secret");
+        return Err("Failed to create field element from secret");
       }
       let element = element.unwrap();
       polys.push(random_polynomial(element, self.0, rng));
@@ -150,7 +150,10 @@ mod tests {
     }
 
     #[cfg(feature = "std")]
-    fn make_shares(&self, secret: &[u8]) -> Result<impl Iterator<Item = Share>, &str> {
+    fn make_shares(
+      &self,
+      secret: &[u8],
+    ) -> Result<impl Iterator<Item = Share>, &str> {
       self.dealer(secret)
     }
   }
@@ -182,8 +185,11 @@ mod tests {
   #[test]
   fn test_insufficient_shares_err() {
     let sharks = Sharks(500);
-    let shares: Vec<Share> =
-      sharks.make_shares(&fp_one_repr()).unwrap().take(499).collect();
+    let shares: Vec<Share> = sharks
+      .make_shares(&fp_one_repr())
+      .unwrap()
+      .take(499)
+      .collect();
     let secret = sharks.recover(&shares);
     assert!(secret.is_err());
   }
@@ -191,8 +197,11 @@ mod tests {
   #[test]
   fn test_duplicate_shares_err() {
     let sharks = Sharks(500);
-    let mut shares: Vec<Share> =
-      sharks.make_shares(&fp_one_repr()).unwrap().take(500).collect();
+    let mut shares: Vec<Share> = sharks
+      .make_shares(&fp_one_repr())
+      .unwrap()
+      .take(500)
+      .collect();
     shares[1] = Share {
       x: shares[0].x,
       y: shares[0].y.clone(),
@@ -209,7 +218,8 @@ mod tests {
     input.extend(fp_two_repr());
     input.extend(fp_three_repr());
     input.extend(fp_four_repr());
-    let shares: Vec<Share> = sharks.make_shares(&input).unwrap().take(500).collect();
+    let shares: Vec<Share> =
+      sharks.make_shares(&input).unwrap().take(500).collect();
     let secret = sharks.recover(&shares).unwrap();
     assert_eq!(secret, get_test_bytes());
   }
@@ -256,14 +266,14 @@ mod tests {
 
   #[test]
   fn dealer_short_secret() {
-      let sharks = Sharks(2);
+    let sharks = Sharks(2);
 
-      // one less byte than needed
-      let secret = [0u8; FIELD_ELEMENT_LEN - 1];
-      let _dealer = sharks.dealer(&secret);
+    // one less byte than needed
+    let secret = [0u8; FIELD_ELEMENT_LEN - 1];
+    let _dealer = sharks.dealer(&secret);
 
-      // one more for a short second element
-      let secret = [1u8; FIELD_ELEMENT_LEN + 1];
-      let _dealer = sharks.dealer(&secret);
+    // one more for a short second element
+    let secret = [1u8; FIELD_ELEMENT_LEN + 1];
+    let _dealer = sharks.dealer(&secret);
   }
 }
