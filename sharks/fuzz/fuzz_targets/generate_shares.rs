@@ -14,7 +14,7 @@ struct Parameters {
 
 fuzz_target!(|params: Parameters| {
     let sharks = Sharks(params.threshold.into());
-    let dealer = sharks.dealer(&params.secret);
-
-    let _shares: Vec<Share> = dealer.take(params.n_shares.into()).collect();
+    if let Ok(dealer) = sharks.dealer(&params.secret) {
+        let _shares: Vec<Share> = dealer.take(params.n_shares.into()).collect();
+    }
 });
