@@ -14,7 +14,8 @@ pub const FIELD_ELEMENT_LEN: usize = 24;
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 #[derive(PrimeField)]
-#[PrimeFieldModulus = "680564733841876926926749214863536421547"] // 2^129 - 1365
+// 2^128 + 12451 (https://eprint.iacr.org/2011/326)
+#[PrimeFieldModulus = "340282366920938463463374607431768223907"]
 #[PrimeFieldGenerator = "3"]
 #[PrimeFieldReprEndianness = "little"]
 pub struct Fp([u64; 3]);
@@ -228,8 +229,8 @@ mod tests {
     assert_eq!(
       values,
       vec![
-        (fp_one(), vec![Fp([0u64, 6825, 0,])]),
-        (fp_two(), vec![Fp([9223372036854775808u64, 14332, 0,])])
+        (fp_one(), vec![Fp([12451u64, 18446744073709427106, 0])]),
+        (fp_two(), vec![Fp([12451u64, 18446744073709290145, 0])])
       ]
     );
   }
