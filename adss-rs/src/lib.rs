@@ -199,7 +199,7 @@ impl Commune {
 
   /// The `share` function samples a single secret share for the
   /// specified `message`.
-  pub fn share(self) -> Share {
+  pub fn share(self) -> Result<Share, Box<dyn Error>> {
     // H4κ = (A, M, R, T)
     let mut transcript = self
       .T
@@ -236,16 +236,16 @@ impl Commune {
     // Generate a random share
     let mut K_vec: Vec<u8> = K.to_vec();
     K_vec.extend(vec![0u8; 16]);
-    let polys = Sharks::from(self.A.clone()).dealer_rng(&K_vec, &mut L);
+    let polys = Sharks::from(self.A.clone()).dealer_rng(&K_vec, &mut L)?;
     let S = polys.gen(&mut rand::thread_rng());
-    Share {
+    Ok(Share {
       A: self.A.clone(),
       S,
       C,
       D,
       J,
       T: (),
-    }
+    })
   }
 
   pub fn get_message(&self) -> Vec<u8> {
@@ -355,6 +355,7 @@ mod tests {
     };
 
     for share in iter::repeat_with(|| c.clone().share()).take(150) {
+      let share = share.unwrap();
       let s = share.to_bytes();
       assert_eq!(Share::from_bytes(s.as_slice()), Some(share));
     }
@@ -369,8 +370,9 @@ mod tests {
       T: None,
     };
 
-    let shares: Vec<Share> =
-      iter::repeat_with(|| c.clone().share()).take(150).collect();
+    let shares: Vec<Share> = iter::repeat_with(|| c.clone().share().unwrap())
+      .take(150)
+      .collect();
 
     let recovered = recover(&shares).unwrap();
 

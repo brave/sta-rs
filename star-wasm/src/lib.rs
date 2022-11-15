@@ -41,8 +41,11 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
     threshold,
     epoch,
   );
-  let WASMSharingMaterial { key, share, tag } =
-    mg.share_with_local_randomness();
+  let share_result = mg.share_with_local_randomness();
+  if share_result.is_err() {
+    return "".to_owned();
+  }
+  let WASMSharingMaterial { key, share, tag } = share_result.unwrap();
 
   let key_b64 = encode(&key);
   let share_b64 = encode(&share.to_bytes());

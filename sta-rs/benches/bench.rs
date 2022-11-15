@@ -39,9 +39,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mg = client_zipf(10000, 1.03, 2, "t");
     let mut rnd = [0u8; 32];
     mg.sample_local_randomness(&mut rnd);
-    b.iter(|| {
-      Message::generate(&mg, &rnd, None);
-    });
+    b.iter(|| Message::generate(&mg, &rnd, None).unwrap());
   });
 
   #[cfg(feature = "star2")]
@@ -51,7 +49,7 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mut rnd = [0u8; 32];
     mg.sample_oprf_randomness(ppoprf_server, &mut rnd);
     b.iter(|| {
-      Message::generate(&mg, &rnd, None);
+      Message::generate(&mg, &rnd, None).unwrap();
     });
   });
 
@@ -61,7 +59,8 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mut rnd = [0u8; 32];
     mg.sample_local_randomness(&mut rnd);
     b.iter(|| {
-      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)));
+      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)))
+        .unwrap();
     });
   });
 
@@ -73,7 +72,8 @@ fn benchmark_client_triple_generation(c: &mut Criterion) {
     let mut rnd = [0u8; 32];
     mg.sample_oprf_randomness(ppoprf_server, &mut rnd);
     b.iter(|| {
-      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)));
+      Message::generate(&mg, &rnd, Some(AssociatedData::new(&random_bytes)))
+        .unwrap();
     });
   });
 }
@@ -83,7 +83,7 @@ fn benchmark_server_retrieval(c: &mut Criterion) {
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
   let messages: Vec<Message> =
-    iter::repeat_with(|| Message::generate(&mg, &rnd, None))
+    iter::repeat_with(|| Message::generate(&mg, &rnd, None).unwrap())
       .take(1000)
       .collect();
   c.bench_function("Server retrieve outputs", |b| {
@@ -130,7 +130,7 @@ fn get_messages(params: &Params, epoch: &str) -> Vec<Message> {
   let mut rnd = [0u8; 32];
   if params.local {
     iter::repeat_with(|| {
-      Message::generate(&mg, &rnd, get_aux_data(params.aux_data))
+      Message::generate(&mg, &rnd, get_aux_data(params.aux_data)).unwrap()
     })
     .take(params.clients)
     .collect()
@@ -143,7 +143,7 @@ fn get_messages(params: &Params, epoch: &str) -> Vec<Message> {
       let mut ppoprf_server = PPOPRFServer::new(&[b"t".to_vec()]);
       let messages = iter::repeat_with(|| {
         sample_oprf_randomness(&ppoprf_server, &mut rnd);
-        Message::generate(&mg, &rnd, get_aux_data(params.aux_data))
+        Message::generate(&mg, &rnd, get_aux_data(params.aux_data)).unwrap()
       })
       .take(params.clients)
       .collect();
