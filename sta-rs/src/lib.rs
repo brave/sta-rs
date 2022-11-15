@@ -47,7 +47,8 @@
 //!   ciphertext,
 //!   share,
 //!   tag,
-//! } = Message::generate(&mg, &mut rnd, None);
+//! } = Message::generate(&mg, &mut rnd, None)
+//!     .expect("Could not generate message triplet");
 //! ```
 //! # Example (WASM client)
 //!
@@ -75,7 +76,7 @@
 //!   key,
 //!   share,
 //!   tag,
-//! } = mg.share_with_local_randomness();
+//! } = mg.share_with_local_randomness().unwrap();
 //! ```
 //!
 //! # Example (server)
@@ -95,7 +96,7 @@
 //! # for i in 0..3 {
 //! #     let mut rnd = [0u8; 32];
 //! #     mg.sample_local_randomness(&mut rnd);
-//! #     messages.push(Message::generate(&mg, &mut rnd, None));
+//! #     messages.push(Message::generate(&mg, &mut rnd, None).unwrap());
 //! # }
 //! # let shares: Vec<Share> = messages.iter().map(|triple| triple.share.clone()).collect();
 //! let value = share_recover(&shares).unwrap().get_message();
@@ -276,7 +277,7 @@ impl Message {
     mg: &MessageGenerator,
     rnd: &[u8; 32],
     aux: Option<AssociatedData>,
-  ) -> Self {
+  ) -> Result<Self, Box<dyn Error>> {
     // Adding '_' in as prefix of 'oprf' because when star2 is
     // disabled then Clippy complains.
     let r = mg.derive_random_values(rnd);
@@ -284,7 +285,7 @@ impl Message {
     // key is then used for encrypting measurement and associated
     // data
     let key = mg.derive_key(&r[0]);
-    let share = mg.share(&r[0], &r[1]);
+    let share = mg.share(&r[0], &r[1])?;
     let tag = r[2];
 
     let mut data: Vec<u8> = Vec::new();
@@ -294,7 +295,7 @@ impl Message {
     }
     let ciphertext = Ciphertext::new(&key, &data, "star_encrypt");
 
-    Message::new(ciphertext, share, &tag)
+    Ok(Message::new(ciphertext, share, &tag))
   }
 
   pub fn to_bytes(&self) -> Vec<u8> {
@@ -379,7 +380,9 @@ impl MessageGenerator {
   }
 
   // Share with OPRF randomness (STARLite)
-  pub fn share_with_local_randomness(&self) -> WASMSharingMaterial {
+  pub fn share_with_local_randomness(
+    &self,
+  ) -> Result<WASMSharingMaterial, Box<dyn Error>> {
     let mut rnd = vec![0u8; 32];
     self.sample_local_randomness(&mut rnd);
     let r = self.derive_random_values(&rnd);
@@ -387,9 +390,9 @@ impl MessageGenerator {
     // key is then used for encrypting measurement and associated
     // data
     let key = self.derive_key(&r[0]);
-    let share = self.share(&r[0], &r[1]);
+    let share = self.share(&r[0], &r[1])?;
     let tag = r[2];
-    WASMSharingMaterial { key, share, tag }
+    Ok(WASMSharingMaterial { key, share, tag })
   }
 
   #[cfg(feature = "star2")]
@@ -431,9 +434,9 @@ impl MessageGenerator {
     enc_key
   }
 
-  fn share(&self, r1: &[u8], r2: &[u8]) -> Share {
+  fn share(&self, r1: &[u8], r2: &[u8]) -> Result<Share, Box<dyn Error>> {
     let c = Commune::new(self.threshold, r1.to_vec(), r2.to_vec(), None);
-    Share(c.share())
+    Ok(Share(c.share()?))
   }
 
   pub fn sample_local_randomness(&self, out: &mut [u8]) {

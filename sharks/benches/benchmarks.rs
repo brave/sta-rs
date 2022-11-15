@@ -5,17 +5,18 @@ use sharks::{Share, Sharks};
 
 fn dealer(c: &mut Criterion) {
   let sharks = Sharks(255);
-  let mut dealer = sharks.dealer(&[1]);
+  let mut dealer = sharks.dealer(&[1]).unwrap();
 
   c.bench_function("obtain_shares_dealer", |b| {
-    b.iter(|| sharks.dealer(black_box(&[1])))
+    b.iter(|| sharks.dealer(black_box(&[1])).unwrap())
   });
   c.bench_function("step_shares_dealer", |b| b.iter(|| dealer.next()));
 }
 
 fn recover(c: &mut Criterion) {
   let sharks = Sharks(255);
-  let shares: Vec<Share> = sharks.dealer(&[1]).take(255).collect();
+  let dealer = sharks.dealer(&[1]).unwrap();
+  let shares: Vec<Share> = dealer.take(255).collect();
 
   c.bench_function("recover_secret", |b| {
     b.iter(|| sharks.recover(black_box(shares.as_slice())))

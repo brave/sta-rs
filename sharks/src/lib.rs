@@ -37,7 +37,7 @@ impl Sharks {
   /// # let sharks = Sharks(3);
   /// // Obtain an iterator over the shares for secret [1, 2]
   /// let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-  /// let dealer = sharks.dealer_rng(&[1, 2], &mut rng);
+  /// let dealer = sharks.dealer_rng(&[1, 2], &mut rng).unwrap();
   /// // Get 3 shares
   /// let shares: Vec<Share> = dealer.take(3).collect();
   pub fn dealer_rng<R: rand::Rng>(
@@ -45,7 +45,7 @@ impl Sharks {
     secret: &[u8],
     rng: &mut R,
     //) -> impl Iterator<Item = Share> {
-  ) -> Evaluator {
+  ) -> Result<Evaluator, &str> {
     let mut polys = Vec::with_capacity(secret.len());
 
     let secret_fp_len = secret.len() / FIELD_ELEMENT_LEN;
@@ -54,12 +54,15 @@ impl Sharks {
         secret[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
           .try_into()
           .expect("bad chunk"),
-      ))
-      .unwrap();
+      ));
+      if element.is_none().into() {
+        return Err("Failed to create field element from secret");
+      }
+      let element = element.unwrap();
       polys.push(random_polynomial(element, self.0, rng));
     }
 
-    get_evaluator(polys)
+    Ok(get_evaluator(polys))
   }
 
   /// Given a `secret` byte slice, returns an `Iterator` along new shares.
@@ -69,11 +72,11 @@ impl Sharks {
   /// # use sharks::{ Sharks, Share };
   /// # let sharks = Sharks(3);
   /// // Obtain an iterator over the shares for secret [1, 2]
-  /// let dealer = sharks.dealer(&[1, 2]);
+  /// let dealer = sharks.dealer(&[1, 2]).unwrap();
   /// // Get 3 shares
   /// let shares: Vec<Share> = dealer.take(3).collect();
   #[cfg(feature = "std")]
-  pub fn dealer(&self, secret: &[u8]) -> Evaluator {
+  pub fn dealer(&self, secret: &[u8]) -> Result<Evaluator, &str> {
     let mut rng = rand::thread_rng();
     self.dealer_rng(secret, &mut rng)
   }
@@ -88,7 +91,8 @@ impl Sharks {
   /// # use rand_chacha::rand_core::SeedableRng;
   /// # let sharks = Sharks(3);
   /// # let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-  /// # let mut shares: Vec<Share> = sharks.dealer_rng(&[1], &mut rng).take(3).collect();
+  /// # let dealer = sharks.dealer_rng(&[1], &mut rng).unwrap();
+  /// # let mut shares: Vec<Share> = dealer.take(3).collect();
   /// // Recover original secret from shares
   /// let secret = sharks.recover(&shares);
   /// // Secret correctly recovered
@@ -123,7 +127,7 @@ impl Sharks {
       Err("Not enough shares to recover original secret")
     } else {
       // We only need the threshold number of shares to recover
-      Ok(interpolate(&values[0..self.0 as usize]))
+      interpolate(&values[0..self.0 as usize])
     }
   }
 }
@@ -146,7 +150,10 @@ mod tests {
     }
 
     #[cfg(feature = "std")]
-    fn make_shares(&self, secret: &[u8]) -> impl Iterator<Item = Share> {
+    fn make_shares(
+      &self,
+      secret: &[u8],
+    ) -> Result<impl Iterator<Item = Share>, &str> {
       self.dealer(secret)
     }
   }
@@ -178,8 +185,11 @@ mod tests {
   #[test]
   fn test_insufficient_shares_err() {
     let sharks = Sharks(500);
-    let shares: Vec<Share> =
-      sharks.make_shares(&fp_one_repr()).take(499).collect();
+    let shares: Vec<Share> = sharks
+      .make_shares(&fp_one_repr())
+      .unwrap()
+      .take(499)
+      .collect();
     let secret = sharks.recover(&shares);
     assert!(secret.is_err());
   }
@@ -187,8 +197,11 @@ mod tests {
   #[test]
   fn test_duplicate_shares_err() {
     let sharks = Sharks(500);
-    let mut shares: Vec<Share> =
-      sharks.make_shares(&fp_one_repr()).take(500).collect();
+    let mut shares: Vec<Share> = sharks
+      .make_shares(&fp_one_repr())
+      .unwrap()
+      .take(500)
+      .collect();
     shares[1] = Share {
       x: shares[0].x,
       y: shares[0].y.clone(),
@@ -205,7 +218,8 @@ mod tests {
     input.extend(fp_two_repr());
     input.extend(fp_three_repr());
     input.extend(fp_four_repr());
-    let shares: Vec<Share> = sharks.make_shares(&input).take(500).collect();
+    let shares: Vec<Share> =
+      sharks.make_shares(&input).unwrap().take(500).collect();
     let secret = sharks.recover(&shares).unwrap();
     assert_eq!(secret, get_test_bytes());
   }
@@ -220,11 +234,11 @@ mod tests {
     input.extend(fp_two_repr());
     input.extend(fp_three_repr());
     input.extend(fp_four_repr());
-    let evaluator = sharks.dealer(&input);
+    let evaluator = sharks.dealer(&input).unwrap();
     let shares: Vec<Share> = iter::repeat_with(|| evaluator.gen(&mut rng))
       .take(55)
       .collect();
-    //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).take(255).collect();
+    //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).unwrap().take(255).collect();
     let secret = sharks.recover(&shares).unwrap();
     assert_eq!(secret, get_test_bytes());
   }
@@ -243,10 +257,23 @@ mod tests {
   }
 
   #[test]
-  #[should_panic]
   fn zero_threshold() {
     let sharks = Sharks(0);
     let testcase = Share::try_from(get_test_bytes().as_slice()).unwrap();
-    let _secret = sharks.recover(&vec![testcase]);
+    let secret = sharks.recover(&vec![testcase]);
+    assert!(secret.is_err());
+  }
+
+  #[test]
+  fn dealer_short_secret() {
+    let sharks = Sharks(2);
+
+    // one less byte than needed
+    let secret = [0u8; FIELD_ELEMENT_LEN - 1];
+    let _dealer = sharks.dealer(&secret);
+
+    // one more for a short second element
+    let secret = [1u8; FIELD_ELEMENT_LEN + 1];
+    let _dealer = sharks.dealer(&secret);
   }
 }

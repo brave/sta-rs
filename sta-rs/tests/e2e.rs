@@ -13,7 +13,8 @@ fn serialize_ciphertext() {
   let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 0, "epoch");
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
-  let triple = Message::generate(&mg, &rnd, None);
+  let triple = Message::generate(&mg, &rnd, None)
+    .expect("Failed to generate message triplet");
   let bytes = triple.ciphertext.to_bytes();
   assert_eq!(Ciphertext::from_bytes(&bytes), triple.ciphertext);
 }
@@ -23,7 +24,8 @@ fn serialize_triple() {
   let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 0, "epoch");
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
-  let triple = Message::generate(&mg, &rnd, None);
+  let triple = Message::generate(&mg, &rnd, None)
+    .expect("Failed to generate message triplet");
   let bytes = triple.to_bytes();
   assert_eq!(Message::from_bytes(&bytes), Some(triple));
 }
@@ -33,7 +35,8 @@ fn roundtrip() {
   let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 1, "epoch");
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
-  let triple = Message::generate(&mg, &rnd, None);
+  let triple = Message::generate(&mg, &rnd, None)
+    .expect("Failed to generate message triplet");
 
   let commune = share_recover(&[triple.share]).unwrap();
   let message = commune.get_message();
@@ -141,7 +144,7 @@ fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         #[cfg(feature = "star2")]
         mg.sample_oprf_randomness(oprf_server, &mut rnd);
       }
-      Message::generate(&mg, &rnd, None)
+      Message::generate(&mg, &rnd, None).unwrap()
     })
     .collect();
   let outputs = agg_server.retrieve_outputs(&messages[..]);
@@ -203,6 +206,7 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
         mg.sample_oprf_randomness(oprf_server, &mut rnd);
       }
       Message::generate(&mg, &rnd, None)
+        .expect("Failed to generate message triplet")
     })
     .collect();
   let outputs = agg_server.retrieve_outputs(&messages);
@@ -266,6 +270,7 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       }
       counter += 1;
       Message::generate(&mg, &rnd, Some(AssociatedData::new(&[counter; 1])))
+        .unwrap()
     })
     .collect();
   let outputs = agg_server.retrieve_outputs(&messages[..]);
@@ -325,6 +330,7 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       }
       counter += 1;
       Message::generate(&mg, &rnd, Some(AssociatedData::new(&[counter; 4])))
+        .unwrap()
     })
     .collect();
   let outputs = agg_server.retrieve_outputs(&messages[..]);
