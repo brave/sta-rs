@@ -102,7 +102,7 @@ impl AggregationServer {
         let mut slice = &p[..];
 
         let measurement_bytes = load_bytes(slice).unwrap();
-        slice = &slice[4 + measurement_bytes.len() as usize..];
+        slice = &slice[4 + measurement_bytes.len()..];
         if !slice.is_empty() {
           let aux_bytes = load_bytes(slice).unwrap();
           if !aux_bytes.is_empty() {

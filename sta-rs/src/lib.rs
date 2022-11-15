@@ -319,12 +319,12 @@ impl Message {
     // ciphertext: Ciphertext
     let cb = load_bytes(slice)?;
     let ciphertext = Ciphertext::from_bytes(cb);
-    slice = &slice[4 + cb.len() as usize..];
+    slice = &slice[4 + cb.len()..];
 
     // share: Share
     let sb = load_bytes(slice)?;
     let share = Share::from_bytes(sb)?;
-    slice = &slice[4 + sb.len() as usize..];
+    slice = &slice[4 + sb.len()..];
 
     // tag: Vec<u8>
     let tag = load_bytes(slice)?;

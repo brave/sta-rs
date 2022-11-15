@@ -47,7 +47,7 @@ fn roundtrip() {
   let mut slice = &plaintext[..];
 
   let measurement_bytes = load_bytes(slice).unwrap();
-  slice = &slice[4 + measurement_bytes.len() as usize..];
+  slice = &slice[4 + measurement_bytes.len()..];
 
   if !slice.is_empty() {
     let aux_bytes = load_bytes(slice).unwrap();
