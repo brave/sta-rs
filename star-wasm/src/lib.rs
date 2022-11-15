@@ -48,7 +48,7 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
   let WASMSharingMaterial { key, share, tag } = share_result.unwrap();
 
   let key_b64 = encode(key);
-  let share_b64 = encode(&share.to_bytes());
+  let share_b64 = encode(share.to_bytes());
   let tag_b64 = encode(tag);
 
   format!(
