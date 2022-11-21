@@ -11,7 +11,7 @@ strobe-rng = { path = "../../strobe-rng" }
 sta-rs = { path = "../" }
 rand = { version = "0.8.5", features = [ "std" ] }
 rand_core = "0.6.4"
-rayon = "1.5"
+rayon = "1.6"
 zipf = "7.0.0"
 ppoprf = { path = "../../ppoprf" }
 
