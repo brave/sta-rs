@@ -1,16 +1,38 @@
 name: Security audit
+
 on:
   push:
-    paths: 
+    paths:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+  pull-request:
+    braches:
+      main
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
   schedule:
-    - cron: '19 20 1 * *'
+    - cron: '18 18 1 * *'
+
 jobs:
-  audit:
+  cargo-audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: install dependencies
+        run: npm ci
+      - name: npm audit package
+        run: cd star-wasm && npm audit
+      - name: npm audit example
+        run: cd star-wasm/www && npm audit
