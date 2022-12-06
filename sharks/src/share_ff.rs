@@ -82,10 +82,7 @@ pub fn random_polynomial<R: rand::Rng>(s: Fp, k: u32, rng: &mut R) -> Vec<Fp> {
 // Each item of the iterator is a tuple `(x, [f_1(x), f_2(x)..])` where eaxh `f_i` is the result for the ith polynomial.
 // Each polynomial corresponds to one byte chunk of the original secret.
 pub fn get_evaluator(polys: Vec<Vec<Fp>>) -> Evaluator {
-  Evaluator {
-    polys,
-    x: Fp::ZERO,
-  }
+  Evaluator { polys, x: Fp::ZERO }
 }
 
 #[derive(Debug)]
