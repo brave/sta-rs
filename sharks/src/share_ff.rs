@@ -49,10 +49,10 @@ pub fn interpolate(shares: &[Share]) -> Result<Vec<u8>, &'static str> {
             .iter()
             .filter(|s_j| s_j.x != s_i.x)
             .map(|s_j| s_j.x * (s_j.x - s_i.x).invert().unwrap())
-            .fold(Fp::one(), |acc, x| acc * x); // take product of all fractions
+            .fold(Fp::ONE, |acc, x| acc * x); // take product of all fractions
           f * s_i.y[s]
         })
-        .fold(Fp::zero(), |acc, x| acc + x); // take sum of all field elements
+        .fold(Fp::ZERO, |acc, x| acc + x); // take sum of all field elements
       Vec::from(e) // turn into byte vector
     })
     .collect();
@@ -82,10 +82,7 @@ pub fn random_polynomial<R: rand::Rng>(s: Fp, k: u32, rng: &mut R) -> Vec<Fp> {
 // Each item of the iterator is a tuple `(x, [f_1(x), f_2(x)..])` where eaxh `f_i` is the result for the ith polynomial.
 // Each polynomial corresponds to one byte chunk of the original secret.
 pub fn get_evaluator(polys: Vec<Vec<Fp>>) -> Evaluator {
-  Evaluator {
-    polys,
-    x: Fp::zero(),
-  }
+  Evaluator { polys, x: Fp::ZERO }
 }
 
 #[derive(Debug)]
@@ -101,7 +98,7 @@ impl Evaluator {
       y: self
         .polys
         .iter()
-        .map(|p| p.iter().fold(Fp::zero(), |acc, c| acc * x + c))
+        .map(|p| p.iter().fold(Fp::ZERO, |acc, c| acc * x + c))
         .collect(),
     }
   }
@@ -118,7 +115,7 @@ impl Iterator for Evaluator {
   type Item = Share;
 
   fn next(&mut self) -> Option<Share> {
-    self.x += Fp::one();
+    self.x += Fp::ONE;
     Some(self.evaluate(self.x))
   }
 }
@@ -195,7 +192,7 @@ mod tests {
   use rand_chacha::rand_core::SeedableRng;
 
   fn fp_one() -> Fp {
-    Fp::one()
+    Fp::ONE
   }
 
   fn fp_two() -> Fp {

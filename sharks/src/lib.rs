@@ -159,7 +159,7 @@ mod tests {
   }
 
   fn fp_one() -> Fp {
-    Fp::one()
+    Fp::ONE
   }
 
   fn fp_two() -> Fp {
@@ -167,7 +167,7 @@ mod tests {
   }
 
   fn fp_one_repr() -> Vec<u8> {
-    (Fp::one()).to_repr().as_ref().to_vec()
+    fp_one().to_repr().as_ref().to_vec()
   }
 
   fn fp_two_repr() -> Vec<u8> {
