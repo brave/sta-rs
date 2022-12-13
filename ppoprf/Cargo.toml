@@ -26,7 +26,7 @@ env_logger = "0.9.3"
 log = "0.4.17"
 reqwest = { version = "0.11.13", features = [ "blocking", "json" ] }
 dotenvy = "0.15.6"
-insta = "1.22.0"
+insta = "1.23.0"
 matches = "0.1.9"
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread", "time"] }
 warp = "0.3.3"
