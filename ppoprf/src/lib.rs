@@ -19,21 +19,19 @@ use derive_more::{Display, Error};
 
 #[derive(Debug, Error, Display)]
 pub enum PPRFError {
-  #[display(fmt = "Specified tag ({}) is not a valid metadata tag", md)]
+  #[display(fmt = "Specified tag ({md}) is not a valid metadata tag")]
   BadTag { md: u8 },
   #[display(fmt = "No prefix found")]
   NoPrefixFound,
   #[display(fmt = "Tag already punctured")]
   AlreadyPunctured,
   #[display(
-    fmt = "Input length ({}) does not match input param ({})",
-    actual,
-    expected
+    fmt = "Input length ({actual}) does not match input param ({expected})"
   )]
   BadInputLength { actual: usize, expected: usize },
   #[display(fmt = "Unexpected end of bv")]
   UnexpectedEndOfBv,
-  #[display(fmt = "Bincode serialization error: {}", _0)]
+  #[display(fmt = "Bincode serialization error: {_0}")]
   Bincode(bincode::Error),
   #[display(fmt = "Serialized data exceeds size limit")]
   SerializedDataTooBig,

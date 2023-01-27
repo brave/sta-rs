@@ -115,7 +115,7 @@ async fn eval(
     )),
     Err(error) => Ok(warp::reply::with_status(
       warp::reply::json(&ServerErrorResponse {
-        error: format!("{}", error),
+        error: format!("{error}"),
       }),
       StatusCode::INTERNAL_SERVER_ERROR,
     )),
@@ -130,7 +130,7 @@ async fn main() {
   let port = 8080;
 
   env_logger::init_from_env(Env::default().default_filter_or("info"));
-  info!("Server configured on {} port {}", host, port);
+  info!("Server configured on {host} port {port}");
 
   // Metadata tags marking each randomness epoch.
   let mds_str = match env::var(MDS_ENV_KEY) {

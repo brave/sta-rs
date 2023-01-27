@@ -52,8 +52,7 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
   let tag_b64 = encode(tag);
 
   format!(
-    r#"{{"key": "{}", "share": "{}", "tag": "{}"}}"#,
-    key_b64, share_b64, tag_b64,
+    r#"{{"key": "{key_b64}", "share": "{share_b64}", "tag": "{tag_b64}"}}"#
   )
 }
 
