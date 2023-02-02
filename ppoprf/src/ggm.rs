@@ -256,7 +256,10 @@ mod tests {
     ggm.eval(&x0, &mut out)?;
     ggm.puncture(&x0)?;
     // next step should error out
-    assert!(matches!(ggm.eval(&x0, &mut out), Err(PPRFError::NoPrefixFound)));
+    assert!(matches!(
+      ggm.eval(&x0, &mut out),
+      Err(PPRFError::NoPrefixFound)
+    ));
     Ok(())
   }
 
