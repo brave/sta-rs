@@ -2,6 +2,7 @@
 name = "strobe-rng"
 version = "0.1.0"
 authors = ["eV <ev@7pr.xyz>"]
+license = "MPL-2.0"
 edition = "2018"
 
 [dependencies]
