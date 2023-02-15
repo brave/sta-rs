@@ -34,6 +34,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use crate::PPRFError;
 use crate::{ggm::GGM, PPRF};
 
+use std::str;
+
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
 pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
@@ -68,6 +70,71 @@ impl ProofDLEQ {
     Self { c: chl, s }
   }
 
+  fn new_batch(
+    key: &RistrettoScalar,          //k
+    public_value: &RistrettoPoint,  //Y -> B
+    p: &[RistrettoPoint],           //C
+    q: &[RistrettoPoint],           //D
+  ) -> Self {
+    //(M, Z) = ComputeCompositesFast(k, B, C, D)
+    let (M, Z) = ProofDLEQ::computeComposites(
+      Some(*key),
+      public_value,
+      p, 
+      q,
+    );
+    //r = G.RandomScalar()
+    let mut csprng = OsRng;
+    let r = RistrettoScalar::random(&mut csprng);
+    //t2 = r * A
+    let t2 = r * RISTRETTO_BASEPOINT_POINT;
+    //t3 = r * M
+    let t3 = r * M;
+
+    //Bm = G.SerializeElement(B)
+    let bm_string = ProofDLEQ::serialize_element(*public_value);
+
+    /*a0 = G.SerializeElement(M)
+    a1 = G.SerializeElement(Z)
+    a2 = G.SerializeElement(t2)
+    a3 = G.SerializeElement(t3) */
+    let a0_string = ProofDLEQ::serialize_element(M);
+    let a1_string = ProofDLEQ::serialize_element(Z);
+    let a2_string = ProofDLEQ::serialize_element(t2);
+    let a3_string = ProofDLEQ::serialize_element(t3);
+
+    /*challengeTranscript =
+    I2OSP(len(Bm), 2) || Bm ||
+    I2OSP(len(a0), 2) || a0 ||
+    I2OSP(len(a1), 2) || a1 ||
+    I2OSP(len(a2), 2) || a2 ||
+    I2OSP(len(a3), 2) || a3 ||
+    "Challenge"*/
+    let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}{}",
+                                             bm_string.len(), 
+                                             bm_string, 
+                                             a0_string.len(),
+                                             a0_string,
+                                             a1_string.len(),
+                                             a1_string,
+                                             a2_string.len(),
+                                             a2_string,
+                                             a3_string.len(),
+                                             a3_string,
+                                             "Challenge"); 
+
+  //c = G.HashToScalar(challengeTranscript)
+  let mut out = [0u8; 64];
+  // TODO label?
+  strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
+  let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+  //s = r - c * k
+  let s = r - c * key;
+
+  //return [c, s]
+  Self { c: c, s }
+  }
+
   fn verify(
     &self,
     public_value: &RistrettoPoint,
@@ -87,6 +154,151 @@ impl ProofDLEQ {
     c_prime == self.c
   }
 
+  fn verifyBatch(
+    &self, 
+    public_value: &RistrettoPoint,
+    p: &[RistrettoPoint],           //P
+    q: &[RistrettoPoint],           //Q
+  ) -> bool {
+    //(M, Z) = ComputeComposites(B, C, D)
+    let (M, Z) = ProofDLEQ::computeComposites(
+      None,
+      public_value, 
+      p, 
+      q,
+    );
+
+    //t2 = ((s * A) + (c * B))
+    let t2 = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
+    //t3 = ((s * M) + (c * Z))
+    let t3 = (self.s * M) + (self.c * Z);
+
+    //Bm = G.SerializeElement(B)
+    let bm_string = ProofDLEQ::serialize_element(*public_value);
+
+    /*a0 = G.SerializeElement(M)
+    a1 = G.SerializeElement(Z)
+    a2 = G.SerializeElement(t2)
+    a3 = G.SerializeElement(t3) */
+    let a0_string = ProofDLEQ::serialize_element(M);
+    let a1_string = ProofDLEQ::serialize_element(Z);
+    let a2_string = ProofDLEQ::serialize_element(t2);
+    let a3_string = ProofDLEQ::serialize_element(t3);
+
+    /*challengeTranscript =
+      I2OSP(len(Bm), 2) || Bm ||
+      I2OSP(len(a0), 2) || a0 ||
+      I2OSP(len(a1), 2) || a1 ||
+      I2OSP(len(a2), 2) || a2 ||
+      I2OSP(len(a3), 2) || a3 ||
+      "Challenge"*/
+      let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}{}",
+                                               bm_string.len(), 
+                                               bm_string, 
+                                               a0_string.len(),
+                                               a0_string,
+                                               a1_string.len(),
+                                               a1_string,
+                                               a2_string.len(),
+                                               a2_string,
+                                               a3_string.len(),
+                                               a3_string,
+                                               "Challenge"); 
+
+    //c = G.HashToScalar(challengeTranscript)
+    let mut out = [0u8; 64];
+    // TODO label?
+    strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
+    let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+  
+    //verified = (expectedC == c)
+    return expected_c == self.c
+  }
+
+  fn computeComposites(
+    key: Option<RistrettoScalar>,
+    b: &RistrettoPoint,
+    c: &[RistrettoPoint],
+    d: &[RistrettoPoint],
+  ) -> (RistrettoPoint, RistrettoPoint){
+    //Bm = G.SerializeElement(B)
+    let bm_string = ProofDLEQ::serialize_element(*b);
+
+    // TODO check if the context string is correct
+    let context_string = format!("{}{}{}{}", 
+                                        "OPRFV1-", 
+                                        0x01.to_string(), 
+                                        "-", 
+                                        "ristretto255-SHA512");
+    //seedDST = "Seed-" || contextString
+    let seed_dst = format!("{}{}", "Seed-", context_string);
+
+    // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
+    let seed_transcript = format!("{}{}{}{}", 
+                                         bm_string.len(), 
+                                         bm_string, 
+                                         seed_dst.len(), 
+                                         seed_dst);
+
+    // TODO what is the correct label? what's the digest length?
+    let mut seed = [0u8; 64];
+    strobe_hash(&seed_transcript.as_bytes(), "Seed", &mut seed);
+
+    //M = G.Identity()
+    let mut M = RISTRETTO_BASEPOINT_POINT;
+    //Z = G.Identity()
+    let mut Z = RISTRETTO_BASEPOINT_POINT;
+
+    let seed_string = match str::from_utf8(&seed) {
+      Ok(v) => v,
+      Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+
+    // for i in range(m):
+    for i in 0..5 {
+      //Ci = G.SerializeElement(C[i])
+      let ci_string = ProofDLEQ::serialize_element(c[i]);
+      //Di = G.SerializeElement(D[i])
+      let di_string = ProofDLEQ::serialize_element(d[i]);
+
+      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) || 
+      //                      I2OSP(len(Ci), 2) || Ci || I2OSP(len(Di), 2) || Di || "Composite"
+      let composite_transcript = format!("{}{}{}{}{}{}{}{}",
+                                                seed.len().to_string(), 
+                                                seed_string, 
+                                                i.to_string(),
+                                                ci_string.len(),
+                                                ci_string,
+                                                di_string.len(),
+                                                di_string,
+                                                "Composite"); 
+
+      //di = G.HashToScalar(compositeTranscript)
+      let mut out = [0u8; 64];
+      // TODO label?
+      strobe_hash(&composite_transcript.as_bytes(), "Composite", &mut out);
+      let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
+
+      //M = di * C[i] + M
+      M = di * c[i] + M;
+
+      // If we know the key (server), we don't need to calculate Z here
+      if key.is_none() {
+        //Z = di * D[i] + Z
+        Z = di * d[i] + Z;
+      }
+    }
+
+    // If we know the key (server), we can calulate Z from key and M
+    if let Some(k) = key { 
+      Z = k * M;
+    }
+  
+    // return (M, Z)
+    (M, Z)
+  }
+
+  // H3
   fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
     if elements.len() != 6 {
       panic!("Incorrect number of points sent: {}", elements.len());
@@ -98,6 +310,15 @@ impl ProofDLEQ {
     let mut out = [0u8; 64];
     strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
     RistrettoScalar::from_bytes_mod_order_wide(&out)
+  }
+
+  fn serialize_element(element: RistrettoPoint) -> String {
+    let byte_array = element.compress().to_bytes();
+    let string = match str::from_utf8(&byte_array) {
+      Ok(v) => v.to_string(),
+      Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+    return string;
   }
 
   pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
