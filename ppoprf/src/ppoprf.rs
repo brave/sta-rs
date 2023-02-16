@@ -224,12 +224,12 @@ impl ProofDLEQ {
     //Bm = G.SerializeElement(B)
     let bm_string = ProofDLEQ::serialize_element(*b);
 
-    // TODO check if the context string is correct
+    // We use the Partially-punctureable Oblivious Pseudo-Random Function
     let context_string = format!("{}{}{}{}", 
-                                        "OPRFV1-", 
-                                        0x01.to_string(), 
+                                        "PPOPRFv1-", 
+                                        0x03.to_string(), 
                                         "-", 
-                                        "ristretto255-SHA512");
+                                        "ristretto255-strobe");
     //seedDST = "Seed-" || contextString
     let seed_dst = format!("{}{}", "Seed-", context_string);
 
