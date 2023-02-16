@@ -77,7 +77,7 @@ impl ProofDLEQ {
     q: &[RistrettoPoint],           //D
   ) -> Self {
     //(M, Z) = ComputeCompositesFast(k, B, C, D)
-    let (M, Z) = ProofDLEQ::computeComposites(
+    let (m, z) = ProofDLEQ::compute_composites(
       Some(*key),
       public_value,
       p, 
@@ -89,7 +89,7 @@ impl ProofDLEQ {
     //t2 = r * A
     let t2 = r * RISTRETTO_BASEPOINT_POINT;
     //t3 = r * M
-    let t3 = r * M;
+    let t3 = r * m;
 
     //Bm = G.SerializeElement(B)
     let bm_string = ProofDLEQ::serialize_element(*public_value);
@@ -98,8 +98,8 @@ impl ProofDLEQ {
     a1 = G.SerializeElement(Z)
     a2 = G.SerializeElement(t2)
     a3 = G.SerializeElement(t3) */
-    let a0_string = ProofDLEQ::serialize_element(M);
-    let a1_string = ProofDLEQ::serialize_element(Z);
+    let a0_string = ProofDLEQ::serialize_element(m);
+    let a1_string = ProofDLEQ::serialize_element(z);
     let a2_string = ProofDLEQ::serialize_element(t2);
     let a3_string = ProofDLEQ::serialize_element(t3);
 
@@ -152,14 +152,14 @@ impl ProofDLEQ {
     c_prime == self.c
   }
 
-  fn verifyBatch(
+  fn verify_batch(
     &self, 
     public_value: &RistrettoPoint,
     p: &[RistrettoPoint],           //P
     q: &[RistrettoPoint],           //Q
   ) -> bool {
     //(M, Z) = ComputeComposites(B, C, D)
-    let (M, Z) = ProofDLEQ::computeComposites(
+    let (m, z) = ProofDLEQ::compute_composites(
       None,
       public_value, 
       p, 
@@ -169,7 +169,7 @@ impl ProofDLEQ {
     //t2 = ((s * A) + (c * B))
     let t2 = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
     //t3 = ((s * M) + (c * Z))
-    let t3 = (self.s * M) + (self.c * Z);
+    let t3 = (self.s * m) + (self.c * z);
 
     //Bm = G.SerializeElement(B)
     let bm_string = ProofDLEQ::serialize_element(*public_value);
@@ -178,8 +178,8 @@ impl ProofDLEQ {
     a1 = G.SerializeElement(Z)
     a2 = G.SerializeElement(t2)
     a3 = G.SerializeElement(t3) */
-    let a0_string = ProofDLEQ::serialize_element(M);
-    let a1_string = ProofDLEQ::serialize_element(Z);
+    let a0_string = ProofDLEQ::serialize_element(m);
+    let a1_string = ProofDLEQ::serialize_element(z);
     let a2_string = ProofDLEQ::serialize_element(t2);
     let a3_string = ProofDLEQ::serialize_element(t3);
 
@@ -211,7 +211,7 @@ impl ProofDLEQ {
     return expected_c == self.c
   }
 
-  fn computeComposites(
+  fn compute_composites(
     key: Option<RistrettoScalar>,
     b: &RistrettoPoint,
     c: &[RistrettoPoint],
@@ -244,9 +244,9 @@ impl ProofDLEQ {
     strobe_hash(&seed_transcript.as_bytes(), "Seed", &mut seed);
 
     //M = G.Identity()
-    let mut M = RISTRETTO_BASEPOINT_POINT;
+    let mut m = RISTRETTO_BASEPOINT_POINT;
     //Z = G.Identity()
-    let mut Z = RISTRETTO_BASEPOINT_POINT;
+    let mut z = RISTRETTO_BASEPOINT_POINT;
 
     let seed_string = match str::from_utf8(&seed) {
       Ok(v) => v,
@@ -277,22 +277,22 @@ impl ProofDLEQ {
       let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
       //M = di * C[i] + M
-      M = di * c[i] + M;
+      m = di * c[i] + m;
 
       // If we know the key (server), we don't need to calculate Z here
       if key.is_none() {
         //Z = di * D[i] + Z
-        Z = di * d[i] + Z;
+        z = di * d[i] + z;
       }
     }
 
     // If we know the key (server), we can calulate Z from key and M
     if let Some(k) = key { 
-      Z = k * M;
+      z = k * m;
     }
   
     // return (M, Z)
-    (M, Z)
+    (m, z)
   }
 
   fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
