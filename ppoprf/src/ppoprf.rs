@@ -221,6 +221,10 @@ impl ProofDLEQ {
     c: &[RistrettoPoint],
     d: &[RistrettoPoint],
   ) -> (RistrettoPoint, RistrettoPoint){
+    if c.len() != d.len() {
+      panic!("C and D have a different number of elements!");
+    }
+
     //Bm = G.SerializeElement(B)
     let bm_string = ProofDLEQ::serialize_element(*b);
 
@@ -255,7 +259,7 @@ impl ProofDLEQ {
     };
 
     // for i in range(m):
-    for i in 0..5 {
+    for i in 0..c.len() {
       //Ci = G.SerializeElement(C[i])
       let ci_string = ProofDLEQ::serialize_element(c[i]);
       //Di = G.SerializeElement(D[i])
