@@ -110,7 +110,7 @@ impl ProofDLEQ {
     I2OSP(len(a2), 2) || a2 ||
     I2OSP(len(a3), 2) || a3 ||
     "Challenge"*/
-    let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}{}",
+    let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}",
                                              bm_string.len(), 
                                              bm_string, 
                                              a0_string.len(),
@@ -120,12 +120,10 @@ impl ProofDLEQ {
                                              a2_string.len(),
                                              a2_string,
                                              a3_string.len(),
-                                             a3_string,
-                                             "Challenge"); 
+                                             a3_string); 
 
   //c = G.HashToScalar(challengeTranscript)
   let mut out = [0u8; 64];
-  // TODO label?
   strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
   let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
   //s = r - c * k
@@ -192,7 +190,7 @@ impl ProofDLEQ {
       I2OSP(len(a2), 2) || a2 ||
       I2OSP(len(a3), 2) || a3 ||
       "Challenge"*/
-      let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}{}",
+      let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}",
                                                bm_string.len(), 
                                                bm_string, 
                                                a0_string.len(),
@@ -202,12 +200,10 @@ impl ProofDLEQ {
                                                a2_string.len(),
                                                a2_string,
                                                a3_string.len(),
-                                               a3_string,
-                                               "Challenge"); 
+                                               a3_string); 
 
     //c = G.HashToScalar(challengeTranscript)
     let mut out = [0u8; 64];
-    // TODO label?
     strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
     let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
   
@@ -244,7 +240,6 @@ impl ProofDLEQ {
                                          seed_dst.len(), 
                                          seed_dst);
 
-    // TODO what is the correct label? what's the digest length?
     let mut seed = [0u8; 64];
     strobe_hash(&seed_transcript.as_bytes(), "Seed", &mut seed);
 
@@ -267,19 +262,17 @@ impl ProofDLEQ {
 
       //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) || 
       //                      I2OSP(len(Ci), 2) || Ci || I2OSP(len(Di), 2) || Di || "Composite"
-      let composite_transcript = format!("{}{}{}{}{}{}{}{}",
+      let composite_transcript = format!("{}{}{}{}{}{}{}",
                                                 seed.len().to_string(), 
                                                 seed_string, 
                                                 i.to_string(),
                                                 ci_string.len(),
                                                 ci_string,
                                                 di_string.len(),
-                                                di_string,
-                                                "Composite"); 
+                                                di_string); 
 
       //di = G.HashToScalar(compositeTranscript)
       let mut out = [0u8; 64];
-      // TODO label?
       strobe_hash(&composite_transcript.as_bytes(), "Composite", &mut out);
       let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
@@ -302,7 +295,6 @@ impl ProofDLEQ {
     (M, Z)
   }
 
-  // H3
   fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
     if elements.len() != 6 {
       panic!("Incorrect number of points sent: {}", elements.len());
