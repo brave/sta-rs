@@ -71,18 +71,13 @@ impl ProofDLEQ {
   }
 
   fn new_batch(
-    key: &RistrettoScalar,          //k
-    public_value: &RistrettoPoint,  //Y -> B
-    p: &[RistrettoPoint],           //C
-    q: &[RistrettoPoint],           //D
+    key: &RistrettoScalar,         //k
+    public_value: &RistrettoPoint, //Y -> B
+    p: &[RistrettoPoint],          //C
+    q: &[RistrettoPoint],          //D
   ) -> Self {
     //(M, Z) = ComputeCompositesFast(k, B, C, D)
-    let (m, z) = ProofDLEQ::compute_composites(
-      Some(*key),
-      public_value,
-      p, 
-      q,
-    );
+    let (m, z) = ProofDLEQ::compute_composites(Some(*key), public_value, p, q);
     //r = G.RandomScalar()
     let mut csprng = OsRng;
     let r = RistrettoScalar::random(&mut csprng);
@@ -110,27 +105,29 @@ impl ProofDLEQ {
     I2OSP(len(a2), 2) || a2 ||
     I2OSP(len(a3), 2) || a3 ||
     "Challenge"*/
-    let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}",
-                                             bm_string.len(), 
-                                             bm_string, 
-                                             a0_string.len(),
-                                             a0_string,
-                                             a1_string.len(),
-                                             a1_string,
-                                             a2_string.len(),
-                                             a2_string,
-                                             a3_string.len(),
-                                             a3_string); 
+    let challenge_transcript = format!(
+      "{}{}{}{}{}{}{}{}{}{}",
+      bm_string.len(),
+      bm_string,
+      a0_string.len(),
+      a0_string,
+      a1_string.len(),
+      a1_string,
+      a2_string.len(),
+      a2_string,
+      a3_string.len(),
+      a3_string
+    );
 
-  //c = G.HashToScalar(challengeTranscript)
-  let mut out = [0u8; 64];
-  strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
-  let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
-  //s = r - c * k
-  let s = r - c * key;
+    //c = G.HashToScalar(challengeTranscript)
+    let mut out = [0u8; 64];
+    strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
+    let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+    //s = r - c * k
+    let s = r - c * key;
 
-  //return [c, s]
-  Self { c: c, s }
+    //return [c, s]
+    Self { c: c, s }
   }
 
   fn verify(
@@ -153,18 +150,13 @@ impl ProofDLEQ {
   }
 
   fn verify_batch(
-    &self, 
+    &self,
     public_value: &RistrettoPoint,
-    p: &[RistrettoPoint],           //P
-    q: &[RistrettoPoint],           //Q
+    p: &[RistrettoPoint], //P
+    q: &[RistrettoPoint], //Q
   ) -> bool {
     //(M, Z) = ComputeComposites(B, C, D)
-    let (m, z) = ProofDLEQ::compute_composites(
-      None,
-      public_value, 
-      p, 
-      q,
-    );
+    let (m, z) = ProofDLEQ::compute_composites(None, public_value, p, q);
 
     //t2 = ((s * A) + (c * B))
     let t2 = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
@@ -184,31 +176,33 @@ impl ProofDLEQ {
     let a3_string = ProofDLEQ::serialize_element(t3);
 
     /*challengeTranscript =
-      I2OSP(len(Bm), 2) || Bm ||
-      I2OSP(len(a0), 2) || a0 ||
-      I2OSP(len(a1), 2) || a1 ||
-      I2OSP(len(a2), 2) || a2 ||
-      I2OSP(len(a3), 2) || a3 ||
-      "Challenge"*/
-      let challenge_transcript = format!("{}{}{}{}{}{}{}{}{}{}",
-                                               bm_string.len(), 
-                                               bm_string, 
-                                               a0_string.len(),
-                                               a0_string,
-                                               a1_string.len(),
-                                               a1_string,
-                                               a2_string.len(),
-                                               a2_string,
-                                               a3_string.len(),
-                                               a3_string); 
+    I2OSP(len(Bm), 2) || Bm ||
+    I2OSP(len(a0), 2) || a0 ||
+    I2OSP(len(a1), 2) || a1 ||
+    I2OSP(len(a2), 2) || a2 ||
+    I2OSP(len(a3), 2) || a3 ||
+    "Challenge"*/
+    let challenge_transcript = format!(
+      "{}{}{}{}{}{}{}{}{}{}",
+      bm_string.len(),
+      bm_string,
+      a0_string.len(),
+      a0_string,
+      a1_string.len(),
+      a1_string,
+      a2_string.len(),
+      a2_string,
+      a3_string.len(),
+      a3_string
+    );
 
     //c = G.HashToScalar(challengeTranscript)
     let mut out = [0u8; 64];
     strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
     let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
-  
+
     //verified = (expectedC == c)
-    return expected_c == self.c
+    return expected_c == self.c;
   }
 
   fn compute_composites(
@@ -216,7 +210,7 @@ impl ProofDLEQ {
     b: &RistrettoPoint,
     c: &[RistrettoPoint],
     d: &[RistrettoPoint],
-  ) -> (RistrettoPoint, RistrettoPoint){
+  ) -> (RistrettoPoint, RistrettoPoint) {
     if c.len() != d.len() {
       panic!("C and D have a different number of elements!");
     }
@@ -225,20 +219,24 @@ impl ProofDLEQ {
     let bm_string = ProofDLEQ::serialize_element(*b);
 
     // We use the Partially-punctureable Oblivious Pseudo-Random Function
-    let context_string = format!("{}{}{}{}", 
-                                        "PPOPRFv1-", 
-                                        0x03.to_string(), 
-                                        "-", 
-                                        "ristretto255-strobe");
+    let context_string = format!(
+      "{}{}{}{}",
+      "PPOPRFv1-",
+      0x03.to_string(),
+      "-",
+      "ristretto255-strobe"
+    );
     //seedDST = "Seed-" || contextString
     let seed_dst = format!("{}{}", "Seed-", context_string);
 
     // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
-    let seed_transcript = format!("{}{}{}{}", 
-                                         bm_string.len(), 
-                                         bm_string, 
-                                         seed_dst.len(), 
-                                         seed_dst);
+    let seed_transcript = format!(
+      "{}{}{}{}",
+      bm_string.len(),
+      bm_string,
+      seed_dst.len(),
+      seed_dst
+    );
 
     let mut seed = [0u8; 64];
     strobe_hash(&seed_transcript.as_bytes(), "Seed", &mut seed);
@@ -260,16 +258,18 @@ impl ProofDLEQ {
       //Di = G.SerializeElement(D[i])
       let di_string = ProofDLEQ::serialize_element(d[i]);
 
-      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) || 
+      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) ||
       //                      I2OSP(len(Ci), 2) || Ci || I2OSP(len(Di), 2) || Di || "Composite"
-      let composite_transcript = format!("{}{}{}{}{}{}{}",
-                                                seed.len().to_string(), 
-                                                seed_string, 
-                                                i.to_string(),
-                                                ci_string.len(),
-                                                ci_string,
-                                                di_string.len(),
-                                                di_string); 
+      let composite_transcript = format!(
+        "{}{}{}{}{}{}{}",
+        seed.len().to_string(),
+        seed_string,
+        i.to_string(),
+        ci_string.len(),
+        ci_string,
+        di_string.len(),
+        di_string
+      );
 
       //di = G.HashToScalar(compositeTranscript)
       let mut out = [0u8; 64];
@@ -287,10 +287,10 @@ impl ProofDLEQ {
     }
 
     // If we know the key (server), we can calulate Z from key and M
-    if let Some(k) = key { 
+    if let Some(k) = key {
       z = k * m;
     }
-  
+
     // return (M, Z)
     (m, z)
   }
