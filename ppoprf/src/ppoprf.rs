@@ -34,8 +34,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use crate::PPRFError;
 use crate::{ggm::GGM, PPRF};
 
-use std::str;
-
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
 pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
@@ -86,18 +84,6 @@ impl ProofDLEQ {
     //t3 = r * M
     let t3 = r * m;
 
-    //Bm = G.SerializeElement(B)
-    let bm_string = ProofDLEQ::serialize_element(*public_value);
-
-    /*a0 = G.SerializeElement(M)
-    a1 = G.SerializeElement(Z)
-    a2 = G.SerializeElement(t2)
-    a3 = G.SerializeElement(t3) */
-    let a0_string = ProofDLEQ::serialize_element(m);
-    let a1_string = ProofDLEQ::serialize_element(z);
-    let a2_string = ProofDLEQ::serialize_element(t2);
-    let a3_string = ProofDLEQ::serialize_element(t3);
-
     /*challengeTranscript =
     I2OSP(len(Bm), 2) || Bm ||
     I2OSP(len(a0), 2) || a0 ||
@@ -105,26 +91,49 @@ impl ProofDLEQ {
     I2OSP(len(a2), 2) || a2 ||
     I2OSP(len(a3), 2) || a3 ||
     "Challenge"*/
-    let challenge_transcript = format!(
-      "{}{}{}{}{}{}{}{}{}{}",
-      bm_string.len(),
-      bm_string,
-      a0_string.len(),
-      a0_string,
-      a1_string.len(),
-      a1_string,
-      a2_string.len(),
-      a2_string,
-      a3_string.len(),
-      a3_string
+    let mut challenge_transcript = Vec::new();
+    challenge_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &public_value.compress().as_bytes().len().to_be_bytes(), 
+        2,
+      )
     );
+    challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
+    challenge_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &m.compress().as_bytes().len().to_be_bytes(), 
+        2,
+      )
+    );
+    challenge_transcript.extend_from_slice(m.compress().as_bytes());  //a0 = m
+    challenge_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &z.compress().as_bytes().len().to_be_bytes(), 
+        2,
+      )
+    );
+    challenge_transcript.extend_from_slice(z.compress().as_bytes());  //a1 = z
+    challenge_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &t2.compress().as_bytes().len().to_be_bytes(), 
+        2,
+      )
+    );
+    challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
+    challenge_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &t3.compress().as_bytes().len().to_be_bytes(), 
+        2,
+      )
+    );
+    challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
-    //c = G.HashToScalar(challengeTranscript)
-    let mut out = [0u8; 64];
-    strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
-    let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
-    //s = r - c * k
-    let s = r - c * key;
+  //c = G.HashToScalar(challengeTranscript)
+  let mut out = [0u8; 64];
+  strobe_hash(&challenge_transcript, "Challenge", &mut out);
+  let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+  //s = r - c * k
+  let s = r - c * key;
 
     //return [c, s]
     Self { c: c, s }
@@ -163,42 +172,53 @@ impl ProofDLEQ {
     //t3 = ((s * M) + (c * Z))
     let t3 = (self.s * m) + (self.c * z);
 
-    //Bm = G.SerializeElement(B)
-    let bm_string = ProofDLEQ::serialize_element(*public_value);
-
-    /*a0 = G.SerializeElement(M)
-    a1 = G.SerializeElement(Z)
-    a2 = G.SerializeElement(t2)
-    a3 = G.SerializeElement(t3) */
-    let a0_string = ProofDLEQ::serialize_element(m);
-    let a1_string = ProofDLEQ::serialize_element(z);
-    let a2_string = ProofDLEQ::serialize_element(t2);
-    let a3_string = ProofDLEQ::serialize_element(t3);
-
     /*challengeTranscript =
-    I2OSP(len(Bm), 2) || Bm ||
-    I2OSP(len(a0), 2) || a0 ||
-    I2OSP(len(a1), 2) || a1 ||
-    I2OSP(len(a2), 2) || a2 ||
-    I2OSP(len(a3), 2) || a3 ||
-    "Challenge"*/
-    let challenge_transcript = format!(
-      "{}{}{}{}{}{}{}{}{}{}",
-      bm_string.len(),
-      bm_string,
-      a0_string.len(),
-      a0_string,
-      a1_string.len(),
-      a1_string,
-      a2_string.len(),
-      a2_string,
-      a3_string.len(),
-      a3_string
-    );
+      I2OSP(len(Bm), 2) || Bm ||
+      I2OSP(len(a0), 2) || a0 ||
+      I2OSP(len(a1), 2) || a1 ||
+      I2OSP(len(a2), 2) || a2 ||
+      I2OSP(len(a3), 2) || a3 ||
+      "Challenge"*/
+      let mut challenge_transcript = Vec::new();
+      challenge_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &public_value.compress().as_bytes().len().to_be_bytes(), 
+          2,
+        )
+      );
+      challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
+      challenge_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &m.compress().as_bytes().len().to_be_bytes(), 
+          2,
+        )
+      );
+      challenge_transcript.extend_from_slice(m.compress().as_bytes());  //a0 = m
+      challenge_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &z.compress().as_bytes().len().to_be_bytes(), 
+          2,
+        )
+      );
+      challenge_transcript.extend_from_slice(z.compress().as_bytes());  //a1 = z
+      challenge_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &t2.compress().as_bytes().len().to_be_bytes(), 
+          2,
+        )
+      );
+      challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
+      challenge_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &t3.compress().as_bytes().len().to_be_bytes(), 
+          2,
+        )
+      );
+      challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
     //c = G.HashToScalar(challengeTranscript)
     let mut out = [0u8; 64];
-    strobe_hash(&challenge_transcript.as_bytes(), "Challenge", &mut out);
+    strobe_hash(&challenge_transcript, "Challenge", &mut out);
     let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
     //verified = (expectedC == c)
@@ -215,65 +235,61 @@ impl ProofDLEQ {
       panic!("C and D have a different number of elements!");
     }
 
-    //Bm = G.SerializeElement(B)
-    let bm_string = ProofDLEQ::serialize_element(*b);
-
     // We use the Partially-punctureable Oblivious Pseudo-Random Function
-    let context_string = format!(
-      "{}{}{}{}",
-      "PPOPRFv1-",
-      0x03.to_string(),
-      "-",
-      "ristretto255-strobe"
-    );
+    let context_string = format!("{}{}{}{}", 
+                                        "PPOPRFv1-", 
+                                        0x03, 
+                                        "-", 
+                                        "ristretto255-strobe");
     //seedDST = "Seed-" || contextString
     let seed_dst = format!("{}{}", "Seed-", context_string);
 
     // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
-    let seed_transcript = format!(
-      "{}{}{}{}",
-      bm_string.len(),
-      bm_string,
-      seed_dst.len(),
-      seed_dst
+    let mut seed_transcript = Vec::new();
+    seed_transcript.extend_from_slice(
+      ProofDLEQ::i2osp(
+        &b.compress().as_bytes().len().to_be_bytes(), 
+        2
+      )
     );
+    seed_transcript.extend_from_slice(b.compress().as_bytes());
+    seed_transcript.extend_from_slice(ProofDLEQ::i2osp(&seed_dst.len().to_be_bytes(), 2));
+    seed_transcript.extend_from_slice(seed_dst.as_bytes());
 
     let mut seed = [0u8; 64];
-    strobe_hash(&seed_transcript.as_bytes(), "Seed", &mut seed);
+    strobe_hash(&seed_transcript, "Seed", &mut seed);
 
     //M = G.Identity()
     let mut m = RISTRETTO_BASEPOINT_POINT;
     //Z = G.Identity()
     let mut z = RISTRETTO_BASEPOINT_POINT;
 
-    let seed_string = match str::from_utf8(&seed) {
-      Ok(v) => v,
-      Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-
     // for i in range(m):
     for i in 0..c.len() {
-      //Ci = G.SerializeElement(C[i])
-      let ci_string = ProofDLEQ::serialize_element(c[i]);
-      //Di = G.SerializeElement(D[i])
-      let di_string = ProofDLEQ::serialize_element(d[i]);
-
-      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) ||
-      //                      I2OSP(len(Ci), 2) || Ci || I2OSP(len(Di), 2) || Di || "Composite"
-      let composite_transcript = format!(
-        "{}{}{}{}{}{}{}",
-        seed.len().to_string(),
-        seed_string,
-        i.to_string(),
-        ci_string.len(),
-        ci_string,
-        di_string.len(),
-        di_string
+      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) || 
+      //                      I2OSP(len(C[i]), 2) || C[i] || I2OSP(len(D[i]), 2) || D[i] || "Composite"
+      let mut composite_transcript = Vec::new();
+      composite_transcript.extend_from_slice(ProofDLEQ::i2osp(&seed.len().to_be_bytes(), 2));
+      composite_transcript.extend_from_slice(&seed);
+      composite_transcript.extend_from_slice(ProofDLEQ::i2osp(&i.to_be_bytes(), 2));
+      composite_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &c[i].compress().as_bytes().len().to_be_bytes(), 
+          2
+        )
       );
+      composite_transcript.extend_from_slice(c[i].compress().as_bytes());
+      composite_transcript.extend_from_slice(
+        ProofDLEQ::i2osp(
+          &d[i].compress().as_bytes().len().to_be_bytes(), 
+          2
+        )
+      );
+      composite_transcript.extend_from_slice(d[i].compress().as_bytes());
 
       //di = G.HashToScalar(compositeTranscript)
       let mut out = [0u8; 64];
-      strobe_hash(&composite_transcript.as_bytes(), "Composite", &mut out);
+      strobe_hash(&composite_transcript, "Composite", &mut out);
       let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
       //M = di * C[i] + M
@@ -308,13 +324,12 @@ impl ProofDLEQ {
     RistrettoScalar::from_bytes_mod_order_wide(&out)
   }
 
-  fn serialize_element(element: RistrettoPoint) -> String {
-    let byte_array = element.compress().to_bytes();
-    let string = match str::from_utf8(&byte_array) {
-      Ok(v) => v.to_string(),
-      Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-    return string;
+  // I2OSP(x, xLen): Converts a non-negative integer x into a byte 
+  // array of specified length xLen as described in [RFC8017]. Note
+  // that this function returns a byte array in big-endian byte 
+  // order.
+  pub fn i2osp(x: &[u8], x_len: usize) -> &[u8] {
+    &x[0..x_len]
   }
 
   pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
@@ -488,11 +503,17 @@ impl Server {
     let mut proof = None;
     if verifiable {
       let public_value = self.public_key.get_combined_pk_value(md)?;
-      proof = Some(ProofDLEQ::new(
+      /*proof = Some(ProofDLEQ::new(
         &tagged_key,
         &public_value.into(),
         &eval_point,
         &point,
+      ));*/
+      proof = Some(ProofDLEQ::new_batch(
+        &tagged_key, 
+        &public_value.into(), 
+        &[eval_point], 
+        &[point],
       ));
     }
     Ok(Evaluation {
@@ -531,10 +552,15 @@ impl Client {
   ) -> bool {
     let Evaluation { output, proof } = eval;
     if let Ok(public_value) = public_key.get_combined_pk_value(md) {
-      return proof.as_ref().unwrap().verify(
+      /*return proof.as_ref().unwrap().verify(
         &public_value.into(),
         &output.decompress().unwrap(),
         &input.decompress().unwrap(),
+      );*/
+      return proof.as_ref().unwrap().verify_batch(
+        &public_value.into(),
+        &[output.decompress().unwrap()],
+        &[input.decompress().unwrap()],
       );
     }
     false
