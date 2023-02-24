@@ -303,7 +303,10 @@ impl ProofDLEQ {
   // that this function returns a byte array in big-endian byte
   // order.
   pub fn i2osp(x: &[u8], x_len: usize) -> &[u8] {
-    &x[0..x_len]
+    if (x_len as u32) > usize::BITS / 8 {
+      return x;
+    }
+    &x[x_len..]
   }
 
   pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
@@ -752,5 +755,15 @@ mod tests {
     )
     .is_err());
     assert!(ProofDLEQ::load_from_bincode(&[98u8; 10000]).is_err());
+  }
+
+  #[test]
+  fn i2osp() {
+    assert_eq!(ProofDLEQ::i2osp(&42_u32.to_be_bytes(), 2), &[0, 42]);
+    assert_eq!(ProofDLEQ::i2osp(&255_u32.to_be_bytes(), 2), &[0, 255]);
+    assert_eq!(ProofDLEQ::i2osp(&256_u32.to_be_bytes(), 2), &[1, 0]);
+    assert_eq!(ProofDLEQ::i2osp(&511_u32.to_be_bytes(), 2), &[1, 255]);
+    assert_eq!(ProofDLEQ::i2osp(&65535_u32.to_be_bytes(), 2), &[255, 255]);
+    assert_eq!(ProofDLEQ::i2osp(&65536_u32.to_be_bytes(), 2), &[0, 0]); // [1,0,0]
   }
 }
