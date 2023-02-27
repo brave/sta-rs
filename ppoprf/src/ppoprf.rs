@@ -14,6 +14,7 @@
 extern crate rand;
 
 extern crate rand_core;
+use curve25519_dalek::traits::Identity;
 use rand_core::RngCore;
 use rand_core_ristretto::OsRng;
 
@@ -236,9 +237,9 @@ impl ProofDLEQ {
     strobe_hash(&seed_transcript, "Seed", &mut seed);
 
     //M = G.Identity()
-    let mut m = RISTRETTO_BASEPOINT_POINT;
+    let mut m = RistrettoPoint::identity();
     //Z = G.Identity()
-    let mut z = RISTRETTO_BASEPOINT_POINT;
+    let mut z = RistrettoPoint::identity();
 
     // for i in range(m):
     for i in 0..c.len() {
