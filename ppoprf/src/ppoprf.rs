@@ -95,7 +95,7 @@ impl ProofDLEQ {
     let mut challenge_transcript = Vec::new();
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
       &public_value.compress().as_bytes().len().to_be_bytes(),
-      2,  //len(Bm)
+      2, //len(Bm)
     ));
     challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
@@ -109,12 +109,12 @@ impl ProofDLEQ {
     ));
     challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t2.compress().as_bytes().len().to_be_bytes(),  //len(a2)
+      &t2.compress().as_bytes().len().to_be_bytes(), //len(a2)
       2,
     ));
     challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t3.compress().as_bytes().len().to_be_bytes(),  //len(a3)
+      &t3.compress().as_bytes().len().to_be_bytes(), //len(a3)
       2,
     ));
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
@@ -172,7 +172,7 @@ impl ProofDLEQ {
     "Challenge"*/
     let mut challenge_transcript = Vec::new();
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &public_value.compress().as_bytes().len().to_be_bytes(),  //len(Bm)
+      &public_value.compress().as_bytes().len().to_be_bytes(), //len(Bm)
       2,
     ));
     challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
@@ -182,17 +182,17 @@ impl ProofDLEQ {
     ));
     challenge_transcript.extend_from_slice(m.compress().as_bytes()); //a0 = m
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &z.compress().as_bytes().len().to_be_bytes(),  //len(a1)
+      &z.compress().as_bytes().len().to_be_bytes(), //len(a1)
       2,
     ));
     challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t2.compress().as_bytes().len().to_be_bytes(),   //len(a2)
+      &t2.compress().as_bytes().len().to_be_bytes(), //len(a2)
       2,
     ));
     challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t3.compress().as_bytes().len().to_be_bytes(),   //len(a3)
+      &t3.compress().as_bytes().len().to_be_bytes(), //len(a3)
       2,
     ));
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
@@ -226,7 +226,7 @@ impl ProofDLEQ {
     // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
     let mut seed_transcript = Vec::new();
     seed_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &b.compress().as_bytes().len().to_be_bytes(),  //len(Bm)
+      &b.compress().as_bytes().len().to_be_bytes(), //len(Bm)
       2,
     ));
     seed_transcript.extend_from_slice(b.compress().as_bytes()); //Bm
@@ -249,16 +249,16 @@ impl ProofDLEQ {
       let mut composite_transcript = Vec::new();
       composite_transcript
         .extend_from_slice(ProofDLEQ::i2osp(&seed.len().to_be_bytes(), 2)); //len(seed)
-      composite_transcript.extend_from_slice(&seed);  //seed
+      composite_transcript.extend_from_slice(&seed); //seed
       composite_transcript
-        .extend_from_slice(ProofDLEQ::i2osp(&i.to_be_bytes(), 2));  //len(i)
+        .extend_from_slice(ProofDLEQ::i2osp(&i.to_be_bytes(), 2)); //len(i)
       composite_transcript.extend_from_slice(ProofDLEQ::i2osp(
-        &c[i].compress().as_bytes().len().to_be_bytes(),  //len(C[i])
+        &c[i].compress().as_bytes().len().to_be_bytes(), //len(C[i])
         2,
       ));
       composite_transcript.extend_from_slice(c[i].compress().as_bytes()); //C[i]
       composite_transcript.extend_from_slice(ProofDLEQ::i2osp(
-        &d[i].compress().as_bytes().len().to_be_bytes(),  //len(D[i])
+        &d[i].compress().as_bytes().len().to_be_bytes(), //len(D[i])
         2,
       ));
       composite_transcript.extend_from_slice(d[i].compress().as_bytes()); //D[i]
@@ -482,17 +482,11 @@ impl Server {
     let mut proof = None;
     if verifiable {
       let public_value = self.public_key.get_combined_pk_value(md)?;
-      /*proof = Some(ProofDLEQ::new(
+      proof = Some(ProofDLEQ::new(
         &tagged_key,
         &public_value.into(),
         &eval_point,
         &point,
-      ));*/
-      proof = Some(ProofDLEQ::new_batch(
-        &tagged_key,
-        &public_value.into(),
-        &[eval_point],
-        &[point],
       ));
     }
     Ok(Evaluation {
@@ -531,15 +525,10 @@ impl Client {
   ) -> bool {
     let Evaluation { output, proof } = eval;
     if let Ok(public_value) = public_key.get_combined_pk_value(md) {
-      /*return proof.as_ref().unwrap().verify(
+      return proof.as_ref().unwrap().verify(
         &public_value.into(),
         &output.decompress().unwrap(),
         &input.decompress().unwrap(),
-      );*/
-      return proof.as_ref().unwrap().verify_batch(
-        &public_value.into(),
-        &[output.decompress().unwrap()],
-        &[input.decompress().unwrap()],
       );
     }
     false
