@@ -95,26 +95,26 @@ impl ProofDLEQ {
     let mut challenge_transcript = Vec::new();
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
       &public_value.compress().as_bytes().len().to_be_bytes(),
-      2,
+      2,  //len(Bm)
     ));
     challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &m.compress().as_bytes().len().to_be_bytes(),
+      &m.compress().as_bytes().len().to_be_bytes(), //len(a0)
       2,
     ));
     challenge_transcript.extend_from_slice(m.compress().as_bytes()); //a0 = m
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &z.compress().as_bytes().len().to_be_bytes(),
+      &z.compress().as_bytes().len().to_be_bytes(), //len(a1)
       2,
     ));
     challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t2.compress().as_bytes().len().to_be_bytes(),
+      &t2.compress().as_bytes().len().to_be_bytes(),  //len(a2)
       2,
     ));
     challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t3.compress().as_bytes().len().to_be_bytes(),
+      &t3.compress().as_bytes().len().to_be_bytes(),  //len(a3)
       2,
     ));
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
@@ -172,27 +172,27 @@ impl ProofDLEQ {
     "Challenge"*/
     let mut challenge_transcript = Vec::new();
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &public_value.compress().as_bytes().len().to_be_bytes(),
+      &public_value.compress().as_bytes().len().to_be_bytes(),  //len(Bm)
       2,
     ));
     challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &m.compress().as_bytes().len().to_be_bytes(),
+      &m.compress().as_bytes().len().to_be_bytes(), //len(a0)
       2,
     ));
     challenge_transcript.extend_from_slice(m.compress().as_bytes()); //a0 = m
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &z.compress().as_bytes().len().to_be_bytes(),
+      &z.compress().as_bytes().len().to_be_bytes(),  //len(a1)
       2,
     ));
     challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t2.compress().as_bytes().len().to_be_bytes(),
+      &t2.compress().as_bytes().len().to_be_bytes(),   //len(a2)
       2,
     ));
     challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
     challenge_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &t3.compress().as_bytes().len().to_be_bytes(),
+      &t3.compress().as_bytes().len().to_be_bytes(),   //len(a3)
       2,
     ));
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
@@ -217,6 +217,7 @@ impl ProofDLEQ {
     }
 
     // We use the Partially-punctureable Oblivious Pseudo-Random Function
+    // We assign mode 0x03 for the PPOPRF
     let context_string =
       format!("{}{}{}{}", "PPOPRFv1-", 0x03, "-", "ristretto255-strobe");
     //seedDST = "Seed-" || contextString
@@ -225,13 +226,13 @@ impl ProofDLEQ {
     // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
     let mut seed_transcript = Vec::new();
     seed_transcript.extend_from_slice(ProofDLEQ::i2osp(
-      &b.compress().as_bytes().len().to_be_bytes(),
+      &b.compress().as_bytes().len().to_be_bytes(),  //len(Bm)
       2,
     ));
-    seed_transcript.extend_from_slice(b.compress().as_bytes());
+    seed_transcript.extend_from_slice(b.compress().as_bytes()); //Bm
     seed_transcript
-      .extend_from_slice(ProofDLEQ::i2osp(&seed_dst.len().to_be_bytes(), 2));
-    seed_transcript.extend_from_slice(seed_dst.as_bytes());
+      .extend_from_slice(ProofDLEQ::i2osp(&seed_dst.len().to_be_bytes(), 2)); //len(seedDST)
+    seed_transcript.extend_from_slice(seed_dst.as_bytes()); //seedDST
 
     let mut seed = [0u8; 64];
     strobe_hash(&seed_transcript, "Seed", &mut seed);
@@ -247,20 +248,20 @@ impl ProofDLEQ {
       //                      I2OSP(len(C[i]), 2) || C[i] || I2OSP(len(D[i]), 2) || D[i] || "Composite"
       let mut composite_transcript = Vec::new();
       composite_transcript
-        .extend_from_slice(ProofDLEQ::i2osp(&seed.len().to_be_bytes(), 2));
-      composite_transcript.extend_from_slice(&seed);
+        .extend_from_slice(ProofDLEQ::i2osp(&seed.len().to_be_bytes(), 2)); //len(seed)
+      composite_transcript.extend_from_slice(&seed);  //seed
       composite_transcript
-        .extend_from_slice(ProofDLEQ::i2osp(&i.to_be_bytes(), 2));
+        .extend_from_slice(ProofDLEQ::i2osp(&i.to_be_bytes(), 2));  //len(i)
       composite_transcript.extend_from_slice(ProofDLEQ::i2osp(
-        &c[i].compress().as_bytes().len().to_be_bytes(),
+        &c[i].compress().as_bytes().len().to_be_bytes(),  //len(C[i])
         2,
       ));
-      composite_transcript.extend_from_slice(c[i].compress().as_bytes());
+      composite_transcript.extend_from_slice(c[i].compress().as_bytes()); //C[i]
       composite_transcript.extend_from_slice(ProofDLEQ::i2osp(
-        &d[i].compress().as_bytes().len().to_be_bytes(),
+        &d[i].compress().as_bytes().len().to_be_bytes(),  //len(D[i])
         2,
       ));
-      composite_transcript.extend_from_slice(d[i].compress().as_bytes());
+      composite_transcript.extend_from_slice(d[i].compress().as_bytes()); //D[i]
 
       //di = G.HashToScalar(compositeTranscript)
       let mut out = [0u8; 64];
