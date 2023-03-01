@@ -757,4 +757,49 @@ mod tests {
     assert_eq!(ProofDLEQ::i2osp(&65535_u32.to_be_bytes(), 2), &[255, 255]);
     assert_eq!(ProofDLEQ::i2osp(&65536_u32.to_be_bytes(), 2), &[0, 0]); // [1,0,0]
   }
+
+  #[test]
+  fn test_batched_proofs() {
+    let server = Server::new([0u8].to_vec()).unwrap();
+    let input1 = b"some_test_input";
+    let input2 = b"hello_world";
+    let input3 = b"a_third_input";
+
+    let (blinded_point1, _) = Client::blind(input1);
+    let point1 = blinded_point1.0.decompress().unwrap();
+    let (blinded_point2, _) = Client::blind(input2);
+    let point2 = blinded_point2.0.decompress().unwrap();
+    let (blinded_point3, _) = Client::blind(input3);
+    let point3 = blinded_point3.0.decompress().unwrap();
+
+    let mut tag = [0u8; 32];
+    server.pprf.eval(&[0], &mut tag).unwrap();
+    let ts = RistrettoScalar::from_bytes_mod_order(tag);
+    let tagged_key = server.oprf_key + ts;
+    let exponent = tagged_key.invert();
+
+    let eval_point1 = exponent * point1;
+    let eval_point2 = exponent * point2;
+    let eval_point3 = exponent * point3;
+    
+    let public_value = server.public_key.get_combined_pk_value(0).unwrap();
+
+    // Create one proof for multiple inputs
+    let proof = Some(ProofDLEQ::new_batch(
+      &tagged_key, 
+      &public_value.into(), 
+      &[eval_point1, eval_point2, eval_point3], 
+      &[point1, point2, point3])
+    );
+
+    // verify multiple inputs in one proof
+    let public_value_verify = server.public_key.get_combined_pk_value(0).unwrap();
+    
+    let result = proof.as_ref().unwrap().verify_batch(
+      &public_value_verify.into(), 
+      &[eval_point1, eval_point2, eval_point3],
+      &[point1, point2, point3]); 
+
+    assert_eq!(result, true);
+  }
 }
