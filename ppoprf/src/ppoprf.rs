@@ -781,24 +781,26 @@ mod tests {
     let eval_point1 = exponent * point1;
     let eval_point2 = exponent * point2;
     let eval_point3 = exponent * point3;
-    
+
     let public_value = server.public_key.get_combined_pk_value(0).unwrap();
 
     // Create one proof for multiple inputs
     let proof = Some(ProofDLEQ::new_batch(
-      &tagged_key, 
-      &public_value.into(), 
-      &[eval_point1, eval_point2, eval_point3], 
-      &[point1, point2, point3])
-    );
+      &tagged_key,
+      &public_value.into(),
+      &[eval_point1, eval_point2, eval_point3],
+      &[point1, point2, point3],
+    ));
 
     // verify multiple inputs in one proof
-    let public_value_verify = server.public_key.get_combined_pk_value(0).unwrap();
-    
+    let public_value_verify =
+      server.public_key.get_combined_pk_value(0).unwrap();
+
     let result = proof.as_ref().unwrap().verify_batch(
-      &public_value_verify.into(), 
+      &public_value_verify.into(),
       &[eval_point1, eval_point2, eval_point3],
-      &[point1, point2, point3]); 
+      &[point1, point2, point3],
+    );
 
     assert_eq!(result, true);
   }
