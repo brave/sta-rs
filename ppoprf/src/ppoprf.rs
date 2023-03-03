@@ -46,6 +46,7 @@ pub struct ProofDLEQ {
   s: RistrettoScalar,
 }
 impl ProofDLEQ {
+  #[allow(dead_code)]
   fn new(
     key: &RistrettoScalar,
     public_value: &RistrettoPoint,
@@ -127,9 +128,10 @@ impl ProofDLEQ {
     let s = r - c * key;
 
     //return [c, s]
-    Self { c: c, s }
+    Self { c, s }
   }
 
+  #[allow(dead_code)]
   fn verify(
     &self,
     public_value: &RistrettoPoint,
@@ -203,7 +205,7 @@ impl ProofDLEQ {
     let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
     //verified = (expectedC == c)
-    return expected_c == self.c;
+    expected_c == self.c
   }
 
   fn compute_composites(
@@ -482,11 +484,17 @@ impl Server {
     let mut proof = None;
     if verifiable {
       let public_value = self.public_key.get_combined_pk_value(md)?;
-      proof = Some(ProofDLEQ::new(
+      /*proof = Some(ProofDLEQ::new(
         &tagged_key,
         &public_value.into(),
         &eval_point,
         &point,
+      ));*/
+      proof = Some(ProofDLEQ::new_batch(
+        &tagged_key,
+        &public_value.into(),
+        &[eval_point],
+        &[point],
       ));
     }
     Ok(Evaluation {
@@ -525,10 +533,15 @@ impl Client {
   ) -> bool {
     let Evaluation { output, proof } = eval;
     if let Ok(public_value) = public_key.get_combined_pk_value(md) {
-      return proof.as_ref().unwrap().verify(
+      /*return proof.as_ref().unwrap().verify(
         &public_value.into(),
         &output.decompress().unwrap(),
         &input.decompress().unwrap(),
+      );*/
+      return proof.as_ref().unwrap().verify_batch(
+        &public_value.into(),
+        &[output.decompress().unwrap()],
+        &[input.decompress().unwrap()],
       );
     }
     false
