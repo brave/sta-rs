@@ -121,7 +121,7 @@ impl ProofDLEQ {
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
     //c = G.HashToScalar(challengeTranscript)
-    let mut out = [0u8; 64];
+    let mut out = [0u8; DIGEST_LEN];
     strobe_hash(&challenge_transcript, "Challenge", &mut out);
     let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
     //s = r - c * k
@@ -200,7 +200,7 @@ impl ProofDLEQ {
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
     //c = G.HashToScalar(challengeTranscript)
-    let mut out = [0u8; 64];
+    let mut out = [0u8; DIGEST_LEN];
     strobe_hash(&challenge_transcript, "Challenge", &mut out);
     let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
@@ -221,7 +221,7 @@ impl ProofDLEQ {
     // We use the Partially-punctureable Oblivious Pseudo-Random Function
     // We assign mode 0x03 for the PPOPRF
     let context_string =
-      format!("{}{}{}{}", "PPOPRFv1-", 0x03, "-", "ristretto255-strobe");
+      format!("{}-{}-{}", "PPOPRFv1", 0x03, "ristretto255-strobe");
     //seedDST = "Seed-" || contextString
     let seed_dst = format!("{}{}", "Seed-", context_string);
 
@@ -236,7 +236,7 @@ impl ProofDLEQ {
       .extend_from_slice(ProofDLEQ::i2osp(&seed_dst.len().to_be_bytes(), 2)); //len(seedDST)
     seed_transcript.extend_from_slice(seed_dst.as_bytes()); //seedDST
 
-    let mut seed = [0u8; 64];
+    let mut seed = [0u8; DIGEST_LEN];
     strobe_hash(&seed_transcript, "Seed", &mut seed);
 
     //M = G.Identity()
@@ -266,7 +266,7 @@ impl ProofDLEQ {
       composite_transcript.extend_from_slice(d[i].compress().as_bytes()); //D[i]
 
       //di = G.HashToScalar(compositeTranscript)
-      let mut out = [0u8; 64];
+      let mut out = [0u8; DIGEST_LEN];
       strobe_hash(&composite_transcript, "Composite", &mut out);
       let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
 
