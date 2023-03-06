@@ -445,12 +445,6 @@ impl Server {
     let mut proof = None;
     if verifiable {
       let public_value = self.public_key.get_combined_pk_value(md)?;
-      /*proof = Some(ProofDLEQ::new(
-        &tagged_key,
-        &public_value.into(),
-        &eval_point,
-        &point,
-      ));*/
       proof = Some(ProofDLEQ::new_batch(
         &tagged_key,
         &public_value.into(),
@@ -494,11 +488,6 @@ impl Client {
   ) -> bool {
     let Evaluation { output, proof } = eval;
     if let Ok(public_value) = public_key.get_combined_pk_value(md) {
-      /*return proof.as_ref().unwrap().verify(
-        &public_value.into(),
-        &output.decompress().unwrap(),
-        &input.decompress().unwrap(),
-      );*/
       return proof.as_ref().unwrap().verify_batch(
         &public_value.into(),
         &[output.decompress().unwrap()],
