@@ -781,6 +781,6 @@ mod tests {
       &[point1, point2, point3],
     );
 
-    assert_eq!(result, true);
+    assert!(result)
   }
 }
