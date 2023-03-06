@@ -195,7 +195,7 @@ impl ProofDLEQ {
     let context_string =
       format!("{}-{}-{}", "PPOPRFv1", 0x03, "ristretto255-strobe");
     //seedDST = "Seed-" || contextString
-    let seed_dst = format!("{}{}", "Seed-", context_string);
+    let seed_dst = format!("{}-{}", "Seed", context_string);
 
     // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
     let mut seed_transcript = Vec::new();
