@@ -1,8 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use curve25519_dalek::ristretto::RistrettoPoint;
-use rand_core::{OsRng as PRNG, RngCore};
-use rand_core_ristretto::OsRng;
+use rand_core::{OsRng, RngCore};
 
 use ppoprf::ggm::GGM;
 use ppoprf::ppoprf::{Client, Point, Server};
@@ -115,7 +114,7 @@ fn benchmark_server(c: &mut Criterion) {
 fn benchmark_client(c: &mut Criterion) {
   let mds: Vec<u8> = (0..=7).collect();
   let mut input = [0u8; 32];
-  PRNG.fill_bytes(&mut input);
+  OsRng.fill_bytes(&mut input);
   let server = Server::new(mds.clone()).unwrap();
 
   c.bench_function("Client blind", |b| {
