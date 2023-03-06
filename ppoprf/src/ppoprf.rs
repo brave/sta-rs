@@ -11,7 +11,7 @@
 //! This construction is primarily used in the STAR protocol for
 //! providing secure randomness to clients.
 
-use rand_core::{RngCore, OsRng};
+use rand_core::{OsRng, RngCore};
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
@@ -169,8 +169,9 @@ impl From<RistrettoPoint> for Point {
 }
 impl From<&[u8]> for Point {
   fn from(bytes: &[u8]) -> Self {
-    Self(CompressedRistretto::from_slice(bytes)
-        .expect("slice should be 32 bytes"))
+    Self(
+      CompressedRistretto::from_slice(bytes).expect("slice should be 32 bytes"),
+    )
   }
 }
 impl From<Point> for RistrettoPoint {
