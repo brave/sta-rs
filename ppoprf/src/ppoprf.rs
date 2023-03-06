@@ -266,10 +266,11 @@ impl ProofDLEQ {
   // I2OSP2(x): Converts a non-negative integer x into a byte
   // array of length 2 as described in [RFC8017]. Note that
   // this function returns a byte array in big-endian byte order.
-  pub fn i2osp2(x: usize) -> [u8; 2] {
+  fn i2osp2(x: usize) -> [u8; 2] {
+    let x_u16: u16 = x.try_into().expect("integer too large");
+    let y = x_u16.to_be_bytes();
     let mut z = [0u8; 2];
-    let y = &x.to_be_bytes();
-    z.clone_from_slice(&y[y.len() - 2..y.len()]);
+    z.clone_from_slice(&y[y.len() - 2..]);
     z
   }
 
@@ -728,7 +729,12 @@ mod tests {
     assert_eq!(ProofDLEQ::i2osp2(256), [1, 0]);
     assert_eq!(ProofDLEQ::i2osp2(511), [1, 255]);
     assert_eq!(ProofDLEQ::i2osp2(65535), [255, 255]);
-    assert_eq!(ProofDLEQ::i2osp2(65536), [0, 0]); // [1,0,0]
+  }
+
+  #[test]
+  #[should_panic]
+  fn i2osp2_overflow() {
+    ProofDLEQ::i2osp2(65536); // [1,0,0]
   }
 
   #[test]
