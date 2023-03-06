@@ -268,10 +268,7 @@ impl ProofDLEQ {
   // this function returns a byte array in big-endian byte order.
   fn i2osp2(x: usize) -> [u8; 2] {
     let x_u16: u16 = x.try_into().expect("integer too large");
-    let y = x_u16.to_be_bytes();
-    let mut z = [0u8; 2];
-    z.clone_from_slice(&y[y.len() - 2..]);
-    z
+    x_u16.to_be_bytes()
   }
 
   pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
