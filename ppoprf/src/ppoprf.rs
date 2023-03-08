@@ -107,9 +107,7 @@ impl ProofDLEQ {
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
     //c = G.HashToScalar(challengeTranscript)
-    let mut out = [0u8; DIGEST_LEN];
-    strobe_hash(&challenge_transcript, "Challenge", &mut out);
-    let c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+    let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
     //s = r - c * k
     let s = r - c * key;
 
@@ -172,12 +170,10 @@ impl ProofDLEQ {
     challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
 
     //c = G.HashToScalar(challengeTranscript)
-    let mut out = [0u8; DIGEST_LEN];
-    strobe_hash(&challenge_transcript, "Challenge", &mut out);
-    let expected_c = RistrettoScalar::from_bytes_mod_order_wide(&out);
+    let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
 
     //verified = (expectedC == c)
-    expected_c == self.c
+    self.c == c
   }
 
   fn compute_composites(
@@ -227,9 +223,7 @@ impl ProofDLEQ {
       composite_transcript.extend_from_slice(d[i].compress().as_bytes()); //D[i]
 
       //di = G.HashToScalar(compositeTranscript)
-      let mut out = [0u8; DIGEST_LEN];
-      strobe_hash(&composite_transcript, "Composite", &mut out);
-      let di = RistrettoScalar::from_bytes_mod_order_wide(&out);
+      let di = ProofDLEQ::hash_to_scalar(&composite_transcript, "Composite");
 
       //M = di * C[i] + M
       m = di * c[i] + m;
@@ -261,6 +255,26 @@ impl ProofDLEQ {
     let mut out = [0u8; 64];
     strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
     RistrettoScalar::from_bytes_mod_order_wide(&out)
+  }
+
+  // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-16#name-hash_to_field-implementatio
+  // The hash_to_field function is also suitable for securely hashing
+  // to scalars. For example, when hashing to the scalar field for an
+  // elliptic curve (sub)group with prime order r, it suffices to
+  // instantiate hash_to_field with target field GF(r).
+  fn hash_to_scalar(input: &[u8], label: &str) -> RistrettoScalar {
+    let mut uniform_bytes = [0u8; DIGEST_LEN];
+    // strobe_hash() -> expand_msg_xmd
+    // strobe_hash uses Keccak internally
+    strobe_hash(&input, label, &mut uniform_bytes);
+
+    // convert hash output to scalar
+    ProofDLEQ::os2ip(&uniform_bytes)
+  }
+
+  // Convert a byte sequence into a scalar
+  fn os2ip(input: &[u8; 64]) -> RistrettoScalar {
+    RistrettoScalar::from_bytes_mod_order_wide(input)
   }
 
   // I2OSP2(x): Converts a non-negative integer x into a byte
