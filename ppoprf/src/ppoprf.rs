@@ -266,7 +266,7 @@ impl ProofDLEQ {
     let mut uniform_bytes = [0u8; DIGEST_LEN];
     // strobe_hash() -> expand_msg_xmd
     // strobe_hash uses Keccak internally
-    strobe_hash(&input, label, &mut uniform_bytes);
+    strobe_hash(input, label, &mut uniform_bytes);
 
     // convert hash output to scalar
     ProofDLEQ::os2ip(&uniform_bytes)
