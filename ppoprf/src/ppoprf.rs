@@ -46,30 +46,6 @@ pub struct ProofDLEQ {
   s: RistrettoScalar,
 }
 impl ProofDLEQ {
-  #[allow(dead_code)]
-  fn new(
-    key: &RistrettoScalar,
-    public_value: &RistrettoPoint,
-    p: &RistrettoPoint,
-    q: &RistrettoPoint,
-  ) -> Self {
-    let mut csprng = OsRng;
-    let t = RistrettoScalar::random(&mut csprng);
-
-    let tg = t * RISTRETTO_BASEPOINT_POINT;
-    let tp = t * p;
-    let chl = ProofDLEQ::hash(&[
-      &RISTRETTO_BASEPOINT_POINT,
-      public_value,
-      p,
-      q,
-      &tg,
-      &tp,
-    ]);
-    let s = t - (chl * key);
-    Self { c: chl, s }
-  }
-
   fn new_batch(
     key: &RistrettoScalar,         //k
     public_value: &RistrettoPoint, //Y -> B
@@ -113,26 +89,6 @@ impl ProofDLEQ {
 
     //return [c, s]
     Self { c, s }
-  }
-
-  #[allow(dead_code)]
-  fn verify(
-    &self,
-    public_value: &RistrettoPoint,
-    p: &RistrettoPoint,
-    q: &RistrettoPoint,
-  ) -> bool {
-    let a = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
-    let b = (self.s * p) + (self.c * q);
-    let c_prime = ProofDLEQ::hash(&[
-      &RISTRETTO_BASEPOINT_POINT,
-      public_value,
-      p,
-      q,
-      &a,
-      &b,
-    ]);
-    c_prime == self.c
   }
 
   fn verify_batch(
@@ -190,15 +146,13 @@ impl ProofDLEQ {
     // We assign mode 0x03 for the PPOPRF
     let context_string =
       format!("{}-{}-{}", "PPOPRFv1", 0x03, "ristretto255-strobe");
-    //seedDST = "Seed-" || contextString
-    let seed_dst = format!("{}-{}", "Seed", context_string);
 
-    // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(seedDST), 2) || seedDST
+    // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(context_string), 2) || context_string
     let mut seed_transcript = Vec::new();
     seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN)); //len(Bm)
     seed_transcript.extend_from_slice(b.compress().as_bytes()); //Bm
-    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(seed_dst.len())); //len(seedDST)
-    seed_transcript.extend_from_slice(seed_dst.as_bytes()); //seedDST
+    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(context_string.len())); //len(context_string)
+    seed_transcript.extend_from_slice(context_string.as_bytes()); //context_string
 
     let mut seed = [0u8; DIGEST_LEN];
     strobe_hash(&seed_transcript, "Seed", &mut seed);
@@ -244,19 +198,6 @@ impl ProofDLEQ {
     (m, z)
   }
 
-  fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
-    if elements.len() != 6 {
-      panic!("Incorrect number of points sent: {}", elements.len());
-    }
-    let mut input = Vec::with_capacity(elements.len() * COMPRESSED_POINT_LEN);
-    for ele in elements {
-      input.extend(ele.compress().to_bytes());
-    }
-    let mut out = [0u8; 64];
-    strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
-    RistrettoScalar::from_bytes_mod_order_wide(&out)
-  }
-
   // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-16#name-hash_to_field-implementatio
   // The hash_to_field function is also suitable for securely hashing
   // to scalars. For example, when hashing to the scalar field for an
@@ -264,17 +205,10 @@ impl ProofDLEQ {
   // instantiate hash_to_field with target field GF(r).
   fn hash_to_scalar(input: &[u8], label: &str) -> RistrettoScalar {
     let mut uniform_bytes = [0u8; DIGEST_LEN];
-    // strobe_hash() -> expand_msg_xmd
-    // strobe_hash uses Keccak internally
     strobe_hash(input, label, &mut uniform_bytes);
 
     // convert hash output to scalar
-    ProofDLEQ::os2ip(&uniform_bytes)
-  }
-
-  // Convert a byte sequence into a scalar
-  fn os2ip(input: &[u8; 64]) -> RistrettoScalar {
-    RistrettoScalar::from_bytes_mod_order_wide(input)
+    RistrettoScalar::from_bytes_mod_order_wide(&uniform_bytes)
   }
 
   // I2OSP2(x): Converts a non-negative integer x into a byte
