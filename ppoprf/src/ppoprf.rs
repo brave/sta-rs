@@ -46,89 +46,65 @@ pub struct ProofDLEQ {
   s: RistrettoScalar,
 }
 impl ProofDLEQ {
+  // https://cfrg.github.io/draft-irtf-cfrg-voprf/draft-irtf-cfrg-voprf.html#name-proof-generation
   fn new_batch(
-    key: &RistrettoScalar,         //k
-    public_value: &RistrettoPoint, //Y -> B
-    p: &[RistrettoPoint],          //C
-    q: &[RistrettoPoint],          //D
+    key: &RistrettoScalar,
+    public_value: &RistrettoPoint,
+    p: &[RistrettoPoint],
+    q: &[RistrettoPoint],
   ) -> Self {
-    //(M, Z) = ComputeCompositesFast(k, B, C, D)
     let (m, z) = ProofDLEQ::compute_composites(Some(*key), public_value, p, q);
-    //r = G.RandomScalar()
+
     let mut csprng = OsRng;
     let r = RistrettoScalar::random(&mut csprng);
-    //t2 = r * A
     let t2 = r * RISTRETTO_BASEPOINT_POINT;
-    //t3 = r * M
     let t3 = r * m;
 
-    /*challengeTranscript =
-    I2OSP(len(Bm), 2) || Bm ||
-    I2OSP(len(a0), 2) || a0 ||
-    I2OSP(len(a1), 2) || a1 ||
-    I2OSP(len(a2), 2) || a2 ||
-    I2OSP(len(a3), 2) || a3 ||
-    "Challenge"*/
     let mut challenge_transcript = Vec::new();
     let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(Bm)
-    challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a0)
-    challenge_transcript.extend_from_slice(m.compress().as_bytes()); //a0 = m
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a1)
-    challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a2)
-    challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a3)
-    challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(public_value.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(m.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(z.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t2.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t3.compress().as_bytes());
 
-    //c = G.HashToScalar(challengeTranscript)
     let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
-    //s = r - c * k
     let s = r - c * key;
 
-    //return [c, s]
     Self { c, s }
   }
 
+  // https://cfrg.github.io/draft-irtf-cfrg-voprf/draft-irtf-cfrg-voprf.html#name-proof-verification
   fn verify_batch(
     &self,
     public_value: &RistrettoPoint,
-    p: &[RistrettoPoint], //P
-    q: &[RistrettoPoint], //Q
+    p: &[RistrettoPoint],
+    q: &[RistrettoPoint],
   ) -> bool {
-    //(M, Z) = ComputeComposites(B, C, D)
     let (m, z) = ProofDLEQ::compute_composites(None, public_value, p, q);
 
-    //t2 = ((s * A) + (c * B))
     let t2 = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
-    //t3 = ((s * M) + (c * Z))
     let t3 = (self.s * m) + (self.c * z);
 
-    /*challengeTranscript =
-    I2OSP(len(Bm), 2) || Bm ||
-    I2OSP(len(a0), 2) || a0 ||
-    I2OSP(len(a1), 2) || a1 ||
-    I2OSP(len(a2), 2) || a2 ||
-    I2OSP(len(a3), 2) || a3 ||
-    "Challenge"*/
     let mut challenge_transcript = Vec::new();
     let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(Bm)
-    challenge_transcript.extend_from_slice(public_value.compress().as_bytes()); //Bm
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a0)
-    challenge_transcript.extend_from_slice(m.compress().as_bytes()); //a0 = m
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a1)
-    challenge_transcript.extend_from_slice(z.compress().as_bytes()); //a1 = z
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a2)
-    challenge_transcript.extend_from_slice(t2.compress().as_bytes()); //a2 = t2
-    challenge_transcript.extend_from_slice(compressed_point_len_slice); //len(a3)
-    challenge_transcript.extend_from_slice(t3.compress().as_bytes()); //a3 = t3
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(public_value.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(m.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(z.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t2.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t3.compress().as_bytes());
 
-    //c = G.HashToScalar(challengeTranscript)
     let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
-
-    //verified = (expectedC == c)
     self.c == c
   }
 
@@ -147,44 +123,34 @@ impl ProofDLEQ {
     let context_string =
       format!("{}-{}-{}", "PPOPRFv1", 0x03, "ristretto255-strobe");
 
-    // seedTranscript = I2OSP(len(Bm), 2) || Bm || I2OSP(len(context_string), 2) || context_string
     let mut seed_transcript = Vec::new();
-    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN)); //len(Bm)
-    seed_transcript.extend_from_slice(b.compress().as_bytes()); //Bm
-    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(context_string.len())); //len(context_string)
-    seed_transcript.extend_from_slice(context_string.as_bytes()); //context_string
+    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN));
+    seed_transcript.extend_from_slice(b.compress().as_bytes());
+    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(context_string.len()));
+    seed_transcript.extend_from_slice(context_string.as_bytes());
 
     let mut seed = [0u8; DIGEST_LEN];
     strobe_hash(&seed_transcript, "Seed", &mut seed);
 
-    //M = G.Identity()
     let mut m = RistrettoPoint::identity();
-    //Z = G.Identity()
     let mut z = RistrettoPoint::identity();
 
     let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
-    // for i in range(m):
     for i in 0..c.len() {
-      //compositeTranscript = I2OSP(len(seed), 2) || seed || I2OSP(i, 2) ||
-      //                      I2OSP(len(C[i]), 2) || C[i] || I2OSP(len(D[i]), 2) || D[i] || "Composite"
       let mut composite_transcript = Vec::new();
-      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(seed.len())); //len(seed)
-      composite_transcript.extend_from_slice(&seed); //seed
-      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(i)); //len(i)
-      composite_transcript.extend_from_slice(compressed_point_len_slice); //len(C[i])
-      composite_transcript.extend_from_slice(c[i].compress().as_bytes()); //C[i]
-      composite_transcript.extend_from_slice(compressed_point_len_slice); //len(D[i])
-      composite_transcript.extend_from_slice(d[i].compress().as_bytes()); //D[i]
+      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(seed.len()));
+      composite_transcript.extend_from_slice(&seed);
+      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(i));
+      composite_transcript.extend_from_slice(compressed_point_len_slice);
+      composite_transcript.extend_from_slice(c[i].compress().as_bytes());
+      composite_transcript.extend_from_slice(compressed_point_len_slice);
+      composite_transcript.extend_from_slice(d[i].compress().as_bytes());
 
-      //di = G.HashToScalar(compositeTranscript)
       let di = ProofDLEQ::hash_to_scalar(&composite_transcript, "Composite");
-
-      //M = di * C[i] + M
       m = di * c[i] + m;
 
       // If we know the key (server), we don't need to calculate Z here
       if key.is_none() {
-        //Z = di * D[i] + Z
         z = di * d[i] + z;
       }
     }
@@ -194,7 +160,6 @@ impl ProofDLEQ {
       z = k * m;
     }
 
-    // return (M, Z)
     (m, z)
   }
 
@@ -207,7 +172,6 @@ impl ProofDLEQ {
     let mut uniform_bytes = [0u8; DIGEST_LEN];
     strobe_hash(input, label, &mut uniform_bytes);
 
-    // convert hash output to scalar
     RistrettoScalar::from_bytes_mod_order_wide(&uniform_bytes)
   }
 
