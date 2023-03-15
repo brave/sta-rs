@@ -297,4 +297,9 @@ mod tests {
     ];
     let _ = Share::try_from(bytes.as_slice());
   }
+
+  #[test]
+  fn element_length() {
+      assert_eq!(FIELD_ELEMENT_LEN, std::mem::size_of::<Fp>());
+  }
 }
