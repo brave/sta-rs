@@ -272,6 +272,25 @@ mod tests {
   }
 
   #[test]
+  fn share_from_u8_slice_without_y_works() {
+    let share = Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
+    assert_eq!(share.x, fp_one());
+    assert_eq!(share.y, vec![]);
+  }
+
+  #[test]
+  fn share_from_u8_slice_partial_y_works() {
+    let share = Share::try_from(
+        &get_test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
+    assert_eq!(share.x, fp_one());
+    assert_eq!(share.y, vec![]);
+    let share = Share::try_from(
+        &get_test_bytes()[..FIELD_ELEMENT_LEN*2 + 12]).unwrap();
+    assert_eq!(share.x, fp_one());
+    assert_eq!(share.y, vec![fp_two()]);
+  }
+
+  #[test]
   fn share_from_short_u8_slice_fails() {
     let bytes = get_test_bytes();
     assert!(Share::try_from(&bytes[0..FIELD_ELEMENT_LEN - 1]).is_err());
