@@ -152,33 +152,35 @@ impl core::convert::TryFrom<&[u8]> for Share {
 
   fn try_from(s: &[u8]) -> Result<Share, Self::Error> {
     if s.len() < FIELD_ELEMENT_LEN {
-      Err("A Share must have enough bytes to represent a field element")
-    } else {
-      let x = Fp::from_repr(FpRepr(
-        s[..FIELD_ELEMENT_LEN]
-          .try_into()
-          .expect("Failed to parse bytes for x coordinate"),
-      ));
-      if x.is_none().into() {
-        return Err("Failed to create field element from x representation");
-      }
-      let x = x.unwrap();
-      let y_coords_bytes = s[FIELD_ELEMENT_LEN..].to_vec();
-      let total_y_coords_len = y_coords_bytes.len();
-      let mut y = Vec::with_capacity(total_y_coords_len / FIELD_ELEMENT_LEN);
-      for i in 0..total_y_coords_len / FIELD_ELEMENT_LEN {
-        let f = Fp::from_repr(FpRepr(
-          y_coords_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
-            .try_into()
-            .expect("Failed to parse bytes for y coordinates"),
-        ));
-        if f.is_none().into() {
-          return Err("Failed to create field element from y representation");
-        }
-        y.push(f.unwrap());
-      }
-      Ok(Share { x, y })
+      return Err("A Share must have enough bytes to represent a field element");
     }
+    let xr = FpRepr(
+      s[..FIELD_ELEMENT_LEN]
+        .try_into()
+        // Slice into array only fails if the lengths don't match.
+        // The length we pass is fixed, so this will not panic based
+        // on the input data from the caller and unwrap is safe.
+        .expect("byte slice should be the right size for an x coordinate")
+    );
+    let x = Option::from(Fp::from_repr(xr)).ok_or(
+      "Failed to create field element from x representation"
+    )?;
+
+    let y_bytes = &s[FIELD_ELEMENT_LEN..];
+    let y_count = y_bytes.len() / FIELD_ELEMENT_LEN;
+    let mut y = Vec::with_capacity(y_count);
+    for i in 0..y_count {
+      let fr = FpRepr(
+        y_bytes[i * FIELD_ELEMENT_LEN..(i + 1) * FIELD_ELEMENT_LEN]
+          .try_into()
+          .expect("byte slice should be the right size for a y coordinate")
+      );
+      let f = Option::from(Fp::from_repr(fr)).ok_or(
+        "Failed to create field element from y representation"
+      )?;
+      y.push(f);
+    }
+    Ok(Share { x, y })
   }
 }
 
