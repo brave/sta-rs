@@ -11,7 +11,7 @@ edition = "2018"
 strobe-rs = "0.8.1"
 strobe-rng = { path = "../strobe-rng" }
 rand = "0.8.5"
-zeroize = "1.5.7"
+zeroize = "1.5.5"
 
 [dependencies.sharks]
 default-features = true
