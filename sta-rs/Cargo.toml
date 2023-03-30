@@ -12,7 +12,7 @@ strobe-rs = "0.8.1"
 strobe-rng = { path = "../strobe-rng" }
 adss-rs = { path = "../adss-rs" }
 ppoprf = { path = "../ppoprf" }
-rand_core = "0.6.4"
+rand_core = "0.6.3"
 zeroize = "1.5.7"
 
 [dev-dependencies]
