@@ -1,6 +1,6 @@
 [package]
 name = "star-wasm"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Rémi Berson <remi@brave.com>"]
 license = "MPL-2.0"
 edition = "2018"
