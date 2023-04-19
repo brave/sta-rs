@@ -10,8 +10,8 @@ edition = "2018"
 [dependencies]
 strobe-rs = "0.8.1"
 strobe-rng = { path = "../strobe-rng" }
-rand = "0.8.5"
 zeroize = "1.5.5"
+rand_core = { version = "0.6.3", features = ["getrandom"] }
 
 [dependencies.sharks]
 default-features = false

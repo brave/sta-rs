@@ -237,7 +237,7 @@ impl Commune {
     let mut K_vec: Vec<u8> = K.to_vec();
     K_vec.extend(vec![0u8; 16]);
     let polys = Sharks::from(self.A.clone()).dealer_rng(&K_vec, &mut L)?;
-    let S = polys.gen(&mut rand::rngs::OsRng);
+    let S = polys.gen(&mut rand_core::OsRng);
     Ok(Share {
       A: self.A.clone(),
       S,
