@@ -9,9 +9,9 @@ extern crate alloc;
 extern crate ff;
 mod share_ff;
 
+use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 use core::convert::TryInto;
-use std::collections::HashSet;
 
 use crate::ff::PrimeField;
 pub use share_ff::Evaluator;
@@ -108,7 +108,7 @@ impl Sharks {
     T::IntoIter: Iterator<Item = &'a Share>,
   {
     let mut share_length: Option<usize> = None;
-    let mut keys: HashSet<Vec<u8>> = HashSet::new();
+    let mut keys: BTreeSet<Vec<u8>> = BTreeSet::new();
     let mut values: Vec<Share> = Vec::new();
 
     for share in shares.into_iter() {
