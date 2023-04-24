@@ -108,7 +108,7 @@
 use std::error::Error;
 use std::str;
 
-use rand_core::RngCore;
+use rand::RngCore;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
