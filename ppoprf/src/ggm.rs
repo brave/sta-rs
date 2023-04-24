@@ -8,7 +8,7 @@ use std::fmt;
 use super::{PPRFError, PPRF};
 use bitvec::prelude::*;
 use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
@@ -46,7 +46,7 @@ impl GGMPseudorandomGenerator {
     t.key(&sample_secret(), false);
     let mut rng: StrobeRng = t.into();
     let mut s_key = [0u8; 32];
-    rng.fill_bytes(&mut s_key);
+    rng.fill(&mut s_key);
     GGMPseudorandomGenerator { key: s_key }
   }
 
@@ -55,7 +55,7 @@ impl GGMPseudorandomGenerator {
     t.key(&self.key, false);
     t.ad(input, false);
     let mut rng: StrobeRng = t.into();
-    rng.fill_bytes(output);
+    rng.fill(output);
   }
 }
 
@@ -220,7 +220,7 @@ impl PPRF for GGM {
 
 fn sample_secret() -> Vec<u8> {
   let mut out = vec![0u8; 32];
-  OsRng.fill_bytes(&mut out);
+  OsRng.fill(out.as_mut_slice());
   out
 }
 
