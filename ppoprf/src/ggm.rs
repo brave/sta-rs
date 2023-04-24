@@ -7,7 +7,8 @@ use std::fmt;
 
 use super::{PPRFError, PPRF};
 use bitvec::prelude::*;
-use rand_core::{OsRng, RngCore};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 

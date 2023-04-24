@@ -13,9 +13,8 @@
 
 extern crate rand;
 
-extern crate rand_core;
 use curve25519_dalek::traits::Identity;
-use rand_core::RngCore;
+use rand::Rng;
 use rand_core_ristretto::OsRng;
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
@@ -439,7 +438,7 @@ fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {
   let mut t = Strobe::new(label.as_bytes(), SecParam::B128);
   t.key(input, false);
   let mut rng: StrobeRng = t.into();
-  rng.fill_bytes(out);
+  rng.fill(out);
 }
 
 #[cfg(test)]
