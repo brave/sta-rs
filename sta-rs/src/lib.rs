@@ -108,7 +108,7 @@
 use std::error::Error;
 use std::str;
 
-use rand::RngCore;
+use rand::Rng;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -502,5 +502,5 @@ pub fn strobe_digest(key: &[u8], ad: &[&[u8]], label: &str, out: &mut [u8]) {
     t.ad(x, false);
   }
   let mut rng: StrobeRng = t.into();
-  rng.fill_bytes(out);
+  rng.fill(out);
 }
