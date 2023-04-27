@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.59.0, stable]
+        rust: [1.60.0, stable]
         os: [ubuntu-20.04]
 
     env:
