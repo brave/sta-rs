@@ -10,7 +10,6 @@ strobe-rs = "0.8.1"
 strobe-rng = { path = "../../strobe-rng" }
 sta-rs = { path = "../" }
 rand = { version = "0.8.5", features = [ "std" ] }
-rand_core = "0.6.3"
 rayon = "1.7"
 zipf = "7.0.0"
 ppoprf = { path = "../../ppoprf" }
