@@ -178,6 +178,8 @@ impl PPRF for GGM {
     self.partial_eval(&mut input_bits, output)
   }
 
+  // Disable clippy lint false positive on `iter_bv` with Rust 1.70.0.
+  #[allow(clippy::redundant_clone)]
   fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError> {
     if input.len() != self.inp_len {
       return Err(PPRFError::BadInputLength {
