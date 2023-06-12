@@ -12,7 +12,7 @@ rand = { version = "0.8.5", features = [ "getrandom" ] }
 rand_core_ristretto = { version="0.5.1", package="rand_core", default-features = false }
 bitvec = "1.0.1"
 curve25519-dalek =  { version = "3.2.0", features = [ "serde" ] }
-serde = "1.0.147"
+serde = "1.0.164"
 strobe-rs = "0.8.1"
 strobe-rng = { path = "../strobe-rng" }
 base64 = "0.13.0"
