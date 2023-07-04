@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use curve25519_dalek::ristretto::RistrettoPoint;
-use rand::{Rng, rngs::OsRng};
+use rand::{rngs::OsRng, Rng};
 
 use ppoprf::ggm::GGM;
 use ppoprf::ppoprf::{Client, Point, Server};

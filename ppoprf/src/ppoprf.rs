@@ -12,7 +12,7 @@
 //! providing secure randomness to clients.
 
 use curve25519_dalek::traits::Identity;
-use rand::{Rng, rngs::OsRng};
+use rand::{rngs::OsRng, Rng};
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
