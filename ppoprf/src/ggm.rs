@@ -7,7 +7,8 @@ use std::fmt;
 
 use super::{PPRFError, PPRF};
 use bitvec::prelude::*;
-use rand_core::{OsRng, RngCore};
+use rand::rngs::OsRng;
+use rand::Rng;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
@@ -45,7 +46,7 @@ impl GGMPseudorandomGenerator {
     t.key(&sample_secret(), false);
     let mut rng: StrobeRng = t.into();
     let mut s_key = [0u8; 32];
-    rng.fill_bytes(&mut s_key);
+    rng.fill(&mut s_key);
     GGMPseudorandomGenerator { key: s_key }
   }
 
@@ -54,7 +55,7 @@ impl GGMPseudorandomGenerator {
     t.key(&self.key, false);
     t.ad(input, false);
     let mut rng: StrobeRng = t.into();
-    rng.fill_bytes(output);
+    rng.fill(output);
   }
 }
 
@@ -177,6 +178,8 @@ impl PPRF for GGM {
     self.partial_eval(&mut input_bits, output)
   }
 
+  // Disable clippy lint false positive on `iter_bv` with Rust 1.70.0.
+  #[allow(clippy::redundant_clone)]
   fn puncture(&mut self, input: &[u8]) -> Result<(), PPRFError> {
     if input.len() != self.inp_len {
       return Err(PPRFError::BadInputLength {
@@ -219,7 +222,7 @@ impl PPRF for GGM {
 
 fn sample_secret() -> Vec<u8> {
   let mut out = vec![0u8; 32];
-  OsRng.fill_bytes(&mut out);
+  OsRng.fill(out.as_mut_slice());
   out
 }
 

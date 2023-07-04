@@ -1,6 +1,6 @@
 [package]
 name = "sta-rs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Alex Davidson <coela@alxdavids.xyz>"]
 license = "MPL-2.0"
 edition = "2018"
@@ -12,11 +12,11 @@ strobe-rs = "0.8.1"
 strobe-rng = { path = "../strobe-rng" }
 adss-rs = { path = "../adss-rs" }
 ppoprf = { path = "../ppoprf" }
-rand_core = "0.6.4"
-zeroize = "1.5.7"
+rand = "0.8.5"
+zeroize = "1.5.5"
 
 [dev-dependencies]
-criterion = "0.4.0"
+criterion = "0.5.1"
 sta-rs-test-utils = { path = "./test-utils" }
 rand = { version = "0.8.5", features = [ "std" ] }
 

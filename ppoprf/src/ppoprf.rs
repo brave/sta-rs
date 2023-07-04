@@ -11,7 +11,8 @@
 //! This construction is primarily used in the STAR protocol for
 //! providing secure randomness to clients.
 
-use rand_core::{OsRng, RngCore};
+use curve25519_dalek::traits::Identity;
+use rand::{Rng, rngs::OsRng};
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
@@ -41,59 +42,140 @@ pub struct ProofDLEQ {
   s: RistrettoScalar,
 }
 impl ProofDLEQ {
-  fn new(
+  // https://cfrg.github.io/draft-irtf-cfrg-voprf/draft-irtf-cfrg-voprf.html#name-proof-generation
+  fn new_batch(
     key: &RistrettoScalar,
     public_value: &RistrettoPoint,
-    p: &RistrettoPoint,
-    q: &RistrettoPoint,
+    p: &[RistrettoPoint],
+    q: &[RistrettoPoint],
   ) -> Self {
-    let mut csprng = OsRng;
-    let t = RistrettoScalar::random(&mut csprng);
+    let (m, z) = ProofDLEQ::compute_composites(Some(*key), public_value, p, q);
 
-    let tg = t * RISTRETTO_BASEPOINT_POINT;
-    let tp = t * p;
-    let chl = ProofDLEQ::hash(&[
-      &RISTRETTO_BASEPOINT_POINT,
-      public_value,
-      p,
-      q,
-      &tg,
-      &tp,
-    ]);
-    let s = t - (chl * key);
-    Self { c: chl, s }
+    let r = RistrettoScalar::random(&mut OsRng);
+    let t2 = r * RISTRETTO_BASEPOINT_POINT;
+    let t3 = r * m;
+
+    let mut challenge_transcript = Vec::new();
+    let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(public_value.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(m.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(z.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t2.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t3.compress().as_bytes());
+
+    let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
+    let s = r - c * key;
+
+    Self { c, s }
   }
 
-  fn verify(
+  // https://cfrg.github.io/draft-irtf-cfrg-voprf/draft-irtf-cfrg-voprf.html#name-proof-verification
+  fn verify_batch(
     &self,
     public_value: &RistrettoPoint,
-    p: &RistrettoPoint,
-    q: &RistrettoPoint,
+    p: &[RistrettoPoint],
+    q: &[RistrettoPoint],
   ) -> bool {
-    let a = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
-    let b = (self.s * p) + (self.c * q);
-    let c_prime = ProofDLEQ::hash(&[
-      &RISTRETTO_BASEPOINT_POINT,
-      public_value,
-      p,
-      q,
-      &a,
-      &b,
-    ]);
-    c_prime == self.c
+    let (m, z) = ProofDLEQ::compute_composites(None, public_value, p, q);
+
+    let t2 = (self.s * RISTRETTO_BASEPOINT_POINT) + (self.c * public_value);
+    let t3 = (self.s * m) + (self.c * z);
+
+    let mut challenge_transcript = Vec::new();
+    let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(public_value.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(m.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(z.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t2.compress().as_bytes());
+    challenge_transcript.extend_from_slice(compressed_point_len_slice);
+    challenge_transcript.extend_from_slice(t3.compress().as_bytes());
+
+    let c = ProofDLEQ::hash_to_scalar(&challenge_transcript, "Challenge");
+    self.c == c
   }
 
-  fn hash(elements: &[&RistrettoPoint]) -> RistrettoScalar {
-    if elements.len() != 6 {
-      panic!("Incorrect number of points sent: {}", elements.len());
+  fn compute_composites(
+    key: Option<RistrettoScalar>,
+    b: &RistrettoPoint,
+    c: &[RistrettoPoint],
+    d: &[RistrettoPoint],
+  ) -> (RistrettoPoint, RistrettoPoint) {
+    if c.len() != d.len() {
+      panic!("C and D have a different number of elements!");
     }
-    let mut input = Vec::with_capacity(elements.len() * COMPRESSED_POINT_LEN);
-    for ele in elements {
-      input.extend(ele.compress().to_bytes());
+
+    // We use the Partially-punctureable Oblivious Pseudo-Random Function
+    // We assign mode 0x03 for the PPOPRF
+    let context_string =
+      format!("{}-{}-{}", "PPOPRFv1", 0x03, "ristretto255-strobe");
+
+    let mut seed_transcript = Vec::new();
+    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN));
+    seed_transcript.extend_from_slice(b.compress().as_bytes());
+    seed_transcript.extend_from_slice(&ProofDLEQ::i2osp2(context_string.len()));
+    seed_transcript.extend_from_slice(context_string.as_bytes());
+
+    let mut seed = [0u8; DIGEST_LEN];
+    strobe_hash(&seed_transcript, "Seed", &mut seed);
+
+    let mut m = RistrettoPoint::identity();
+    let mut z = RistrettoPoint::identity();
+
+    let compressed_point_len_slice = &ProofDLEQ::i2osp2(COMPRESSED_POINT_LEN);
+    for i in 0..c.len() {
+      let mut composite_transcript = Vec::new();
+      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(seed.len()));
+      composite_transcript.extend_from_slice(&seed);
+      composite_transcript.extend_from_slice(&ProofDLEQ::i2osp2(i));
+      composite_transcript.extend_from_slice(compressed_point_len_slice);
+      composite_transcript.extend_from_slice(c[i].compress().as_bytes());
+      composite_transcript.extend_from_slice(compressed_point_len_slice);
+      composite_transcript.extend_from_slice(d[i].compress().as_bytes());
+
+      let di = ProofDLEQ::hash_to_scalar(&composite_transcript, "Composite");
+      m = di * c[i] + m;
+
+      // If we know the key (server), we don't need to calculate Z here
+      if key.is_none() {
+        z = di * d[i] + z;
+      }
     }
-    let mut out = [0u8; 64];
-    strobe_hash(&input, "ppoprf_dleq_hash", &mut out);
-    RistrettoScalar::from_bytes_mod_order_wide(&out)
+
+    // If we know the key (server), we can calulate Z from key and M
+    if let Some(k) = key {
+      z = k * m;
+    }
+
+    (m, z)
+  }
+
+  // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-16#name-hash_to_field-implementatio
+  // The hash_to_field function is also suitable for securely hashing
+  // to scalars. For example, when hashing to the scalar field for an
+  // elliptic curve (sub)group with prime order r, it suffices to
+  // instantiate hash_to_field with target field GF(r).
+  fn hash_to_scalar(input: &[u8], label: &str) -> RistrettoScalar {
+    let mut uniform_bytes = [0u8; DIGEST_LEN];
+    strobe_hash(input, label, &mut uniform_bytes);
+
+    RistrettoScalar::from_bytes_mod_order_wide(&uniform_bytes)
+  }
+
+  // I2OSP2(x): Converts a non-negative integer x into a byte
+  // array of length 2 as described in [RFC8017]. Note that
+  // this function returns a byte array in big-endian byte order.
+  fn i2osp2(x: usize) -> [u8; 2] {
+    let x_u16: u16 = x.try_into().expect("integer too large");
+    x_u16.to_be_bytes()
   }
 
   pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
@@ -229,8 +311,7 @@ pub struct Server {
 }
 impl Server {
   pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
-    let mut csprng = OsRng;
-    let oprf_key = RistrettoScalar::random(&mut csprng);
+    let oprf_key = RistrettoScalar::random(&mut OsRng);
     let mut md_pks = BTreeMap::new();
     let pprf = GGM::setup();
     for &md in mds.iter() {
@@ -269,11 +350,11 @@ impl Server {
     let mut proof = None;
     if verifiable {
       let public_value = self.public_key.get_combined_pk_value(md)?;
-      proof = Some(ProofDLEQ::new(
+      proof = Some(ProofDLEQ::new_batch(
         &tagged_key,
         &public_value.into(),
-        &eval_point,
-        &point,
+        &[eval_point],
+        &[point],
       ));
     }
     Ok(Evaluation {
@@ -299,8 +380,7 @@ impl Client {
     let mut hashed_input = [0u8; 64];
     strobe_hash(input, "ppoprf_derive_client_input", &mut hashed_input);
     let point = RistrettoPoint::from_uniform_bytes(&hashed_input);
-    let mut csprng = OsRng;
-    let r = RistrettoScalar::random(&mut csprng);
+    let r = RistrettoScalar::random(&mut OsRng);
     (Point((r * point).compress()), CurveScalar::from(r))
   }
 
@@ -312,10 +392,10 @@ impl Client {
   ) -> bool {
     let Evaluation { output, proof } = eval;
     if let Ok(public_value) = public_key.get_combined_pk_value(md) {
-      return proof.as_ref().unwrap().verify(
+      return proof.as_ref().unwrap().verify_batch(
         &public_value.into(),
-        &output.decompress().unwrap(),
-        &input.decompress().unwrap(),
+        &[output.decompress().unwrap()],
+        &[input.decompress().unwrap()],
       );
     }
     false
@@ -354,7 +434,7 @@ fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {
   let mut t = Strobe::new(label.as_bytes(), SecParam::B128);
   t.key(input, false);
   let mut rng: StrobeRng = t.into();
-  rng.fill_bytes(out);
+  rng.fill(out);
 }
 
 #[cfg(test)]
@@ -533,5 +613,67 @@ mod tests {
     )
     .is_err());
     assert!(ProofDLEQ::load_from_bincode(&[98u8; 10000]).is_err());
+  }
+
+  #[test]
+  fn i2osp2() {
+    assert_eq!(ProofDLEQ::i2osp2(42), [0, 42]);
+    assert_eq!(ProofDLEQ::i2osp2(255), [0, 255]);
+    assert_eq!(ProofDLEQ::i2osp2(256), [1, 0]);
+    assert_eq!(ProofDLEQ::i2osp2(511), [1, 255]);
+    assert_eq!(ProofDLEQ::i2osp2(65535), [255, 255]);
+  }
+
+  #[test]
+  #[should_panic]
+  fn i2osp2_overflow() {
+    ProofDLEQ::i2osp2(65536); // [1,0,0]
+  }
+
+  #[test]
+  fn test_batched_proofs() {
+    let server = Server::new([0u8].to_vec()).unwrap();
+    let input1 = b"some_test_input";
+    let input2 = b"hello_world";
+    let input3 = b"a_third_input";
+
+    let (blinded_point1, _) = Client::blind(input1);
+    let point1 = blinded_point1.0.decompress().unwrap();
+    let (blinded_point2, _) = Client::blind(input2);
+    let point2 = blinded_point2.0.decompress().unwrap();
+    let (blinded_point3, _) = Client::blind(input3);
+    let point3 = blinded_point3.0.decompress().unwrap();
+
+    let mut tag = [0u8; 32];
+    server.pprf.eval(&[0], &mut tag).unwrap();
+    let ts = RistrettoScalar::from_bytes_mod_order(tag);
+    let tagged_key = server.oprf_key + ts;
+    let exponent = tagged_key.invert();
+
+    let eval_point1 = exponent * point1;
+    let eval_point2 = exponent * point2;
+    let eval_point3 = exponent * point3;
+
+    let public_value = server.public_key.get_combined_pk_value(0).unwrap();
+
+    // Create one proof for multiple inputs
+    let proof = Some(ProofDLEQ::new_batch(
+      &tagged_key,
+      &public_value.into(),
+      &[eval_point1, eval_point2, eval_point3],
+      &[point1, point2, point3],
+    ));
+
+    // verify multiple inputs in one proof
+    let public_value_verify =
+      server.public_key.get_combined_pk_value(0).unwrap();
+
+    let result = proof.as_ref().unwrap().verify_batch(
+      &public_value_verify.into(),
+      &[eval_point1, eval_point2, eval_point3],
+      &[point1, point2, point3],
+    );
+
+    assert!(result)
   }
 }
