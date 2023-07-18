@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::convert::TryFrom;
 
-use sharks::{Share, Sharks};
+use star_sharks::{Share, Sharks};
 
 fn dealer(c: &mut Criterion) {
   let sharks = Sharks(255);
@@ -38,7 +38,7 @@ fn share(c: &mut Criterion) {
 }
 
 fn get_test_bytes() -> Vec<u8> {
-  let suffix = vec![0u8; sharks::FIELD_ELEMENT_LEN - 1];
+  let suffix = vec![0u8; star_sharks::FIELD_ELEMENT_LEN - 1];
   let mut bytes = vec![1u8; 1];
   bytes.extend(suffix.clone()); // x coord
   bytes.extend(vec![2u8; 1]);

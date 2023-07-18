@@ -1,21 +1,15 @@
 [package]
-name = "sharks"
-version = "0.5.0"
-authors = ["Aitor Ruano <codearm@pm.me>"]
-description = "Fast, small and secure Shamir's Secret Sharing library crate"
-homepage = "https://github.com/c0dearm/sharks"
-repository = "https://github.com/c0dearm/sharks"
+name = "star-sharks"
+version = "0.6.0"
+authors = ["Aitor Ruano <codearm@pm.me>", "Alex Davidson <coela@alxdavids.xyz>", "Ralph Giles <rgiles@brave.com>"]
+description = "Shamir's Secret Sharing library for the STAR protocol"
+repository = "https://github.com/brave/sta-rs"
 readme = "README.md"
 keywords = ["shamir", "secret", "sharing", "share", "crypto"]
 categories = ["algorithms", "cryptography", "mathematics"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 
-[badges]
-maintenance = { status = "actively-developed" }
-codecov = { repository = "c0dearm/sharks" }
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["std", "zeroize_memory"]
 std = ["rand/std", "rand/std_rng"]
