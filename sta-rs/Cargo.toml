@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 strobe-rs = "0.8.1"
-adss-rs = { path = "../adss-rs" }
+adss = { path = "../adss" }
 ppoprf = { path = "../ppoprf" }
 rand = "0.8.5"
 rand_core = "0.6.4"

@@ -1,5 +1,5 @@
 [package]
-name = "adss-rs"
+name = "adss"
 version = "0.2.0"
 authors = ["eV <ev@7pr.xyz>"]
 license = "MPL-2.0"
