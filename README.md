@@ -27,8 +27,6 @@ change substantially in future versions.
   [zkcrypto/ff](https://github.com/zkcrypto/ff).
 - [star-wasm](./star-wasm): WASM bindings for using [sta-rs](./sta-rs)
   functionality.
-- [strobe-rng](./strobe-rng): Additional RNG functionality built on top
-  of the [strobe-rs](https://crates.io/crates/strobe-rs) crate.
 
 ## Quickstart
 
