@@ -1,11 +1,14 @@
 [package]
 name = "ppoprf"
 version = "0.2.0"
-authors = ["Alex Davidson <coela@alxdavids.xyz>"]
+authors = ["Alex Davidson <coela@alxdavids.xyz>", "Ralph Ankele <rankele@brave.com>"]
+description = "Puncturable Partially-Oblivious Pseudo-Random Function"
+documentation = "https://docs.rs/ppoprf"
+repository = "https://github.com/brave/sta-rs"
+keywords = ["crypto", "oprf", "protocol"]
+categories = ["cryptography"]
 license = "MPL-2.0"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 rand = { version = "0.8.5", features = [ "getrandom" ] }
