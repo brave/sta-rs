@@ -115,9 +115,7 @@ use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use adss::{recover, Commune};
-pub use {
-  adss::load_bytes, adss::store_bytes, adss::Share as InternalShare,
-};
+pub use {adss::load_bytes, adss::store_bytes, adss::Share as InternalShare};
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
