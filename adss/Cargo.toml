@@ -1,6 +1,6 @@
 [package]
 name = "adss"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["eV <ev@7pr.xyz>", "Alex Davidson <coela@alxdavids.xyz>"]
 description = "Adept Secret Sharing framework"
 documentation = "https://docs.rs/adss"
