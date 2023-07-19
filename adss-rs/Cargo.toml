@@ -13,8 +13,8 @@ rand = "0.8.5"
 rand_core = "0.6.4"
 zeroize = "1.5.5"
 
-[dependencies.sharks]
+[dependencies.star-sharks]
 default-features = false
-version = "0.5.0"
+version = "0.6.0"
 path = "../sharks"
 features = ["zeroize_memory"]

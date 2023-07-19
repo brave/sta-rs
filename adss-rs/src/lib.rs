@@ -5,7 +5,7 @@
 //! description of the framework is provided in the paper by [Bellare et
 //! al.](https://eprint.iacr.org/2020/800).
 
-use sharks::Sharks;
+use star_sharks::Sharks;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
@@ -111,7 +111,7 @@ pub struct Commune {
 #[derive(Clone, Eq, PartialEq, Zeroize)]
 pub struct Share {
   A: AccessStructure,
-  S: sharks::Share,
+  S: star_sharks::Share,
   /// C is the encrypted message
   C: Vec<u8>,
   /// D is the encrypted randomness
@@ -134,7 +134,7 @@ impl Share {
     // A: AccessStructure
     out.extend(self.A.to_bytes());
 
-    // S: sharks::Share
+    // S: star_sharks::Share
     store_bytes(&Vec::from(&self.S), &mut out);
 
     // C: Vec<u8>
@@ -156,7 +156,7 @@ impl Share {
     let a = AccessStructure::from_bytes(&slice[..ACCESS_STRUCTURE_LENGTH])?;
     slice = &slice[ACCESS_STRUCTURE_LENGTH..];
 
-    // S: sharks::Share
+    // S: star_sharks::Share
     let sb = load_bytes(slice)?;
     slice = &slice[4 + sb.len()..];
 
@@ -174,7 +174,7 @@ impl Share {
 
     Some(Share {
       A: a,
-      S: sharks::Share::try_from(sb).ok()?,
+      S: star_sharks::Share::try_from(sb).ok()?,
       C: c.to_vec(),
       D: d.to_vec(),
       J: j,
@@ -280,7 +280,7 @@ where
 {
   let mut shares = shares.into_iter().peekable();
   let s = &(*shares.peek().ok_or("no shares passed")?).clone();
-  let shares: Vec<sharks::Share> = shares.cloned().map(|s| s.S).collect();
+  let shares: Vec<star_sharks::Share> = shares.cloned().map(|s| s.S).collect();
   let key = Sharks::from(s.A.clone()).recover(&shares)?;
   let K = key[..16].to_vec();
 

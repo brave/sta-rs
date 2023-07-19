@@ -32,7 +32,7 @@ impl Sharks {
   ///
   /// Example:
   /// ```
-  /// # use sharks::{ Sharks, Share };
+  /// # use star_sharks::{ Sharks, Share };
   /// # use rand_chacha::rand_core::SeedableRng;
   /// # let sharks = Sharks(3);
   /// // Obtain an iterator over the shares for secret [1, 2]
@@ -69,7 +69,7 @@ impl Sharks {
   ///
   /// Example:
   /// ```
-  /// # use sharks::{ Sharks, Share };
+  /// # use star_sharks::{ Sharks, Share };
   /// # let sharks = Sharks(3);
   /// // Obtain an iterator over the shares for secret [1, 2]
   /// let dealer = sharks.dealer(&[1, 2]).unwrap();
@@ -87,7 +87,7 @@ impl Sharks {
   ///
   /// Example:
   /// ```
-  /// # use sharks::{ Sharks, Share };
+  /// # use star_sharks::{ Sharks, Share };
   /// # use rand_chacha::rand_core::SeedableRng;
   /// # let sharks = Sharks(3);
   /// # let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
