@@ -4,6 +4,7 @@
 //! establishing the lagrange polynomial coefficients explicitly. A
 //! description of the framework is provided in the paper by [Bellare et
 //! al.](https://eprint.iacr.org/2020/800).
+
 use star_sharks::Sharks;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -11,6 +12,7 @@ use std::fmt;
 use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+mod strobe_rng;
 use strobe_rng::StrobeRng;
 
 // The length of a `AccessStructure`, in bytes.

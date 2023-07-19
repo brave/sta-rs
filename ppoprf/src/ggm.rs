@@ -6,10 +6,10 @@
 use std::fmt;
 
 use super::{PPRFError, PPRF};
+use crate::strobe_rng::StrobeRng;
 use bitvec::prelude::*;
 use rand::rngs::OsRng;
 use rand::Rng;
-use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
 use zeroize::{Zeroize, ZeroizeOnDrop};

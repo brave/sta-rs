@@ -15,6 +15,8 @@
 pub mod ggm;
 pub mod ppoprf;
 
+mod strobe_rng;
+
 use derive_more::{Display, Error};
 
 #[derive(Debug, Error, Display)]
