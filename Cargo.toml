@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "./adss-rs",
+  "./adss",
   "./sharks",
   "./sta-rs",
   "./star-wasm",

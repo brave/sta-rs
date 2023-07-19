@@ -1,3 +1,8 @@
+/// RngCore impl for the Strobe hash
+///
+/// FIXME: This should be submitted upstream as a feature-gated
+/// extension. Failing that, publish as a separate helper crate
+/// to avoid this code duplication.
 use rand_core::{CryptoRng, RngCore};
 use strobe_rs::Strobe;
 
