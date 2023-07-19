@@ -1,5 +1,5 @@
-use sta_rs::*;
-use sta_rs_test_utils::*;
+use star::*;
+use star_test_utils::*;
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};

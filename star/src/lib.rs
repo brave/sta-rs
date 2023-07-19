@@ -33,7 +33,7 @@
 //! share, tag)`. This message can then be sent to the aggregation server.
 //!
 //! ```
-//! # use sta_rs::*;
+//! # use star::*;
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
@@ -63,7 +63,7 @@
 //! tag)` is then sent to the server.
 //!
 //! ```
-//! # use sta_rs::*;
+//! # use star::*;
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
@@ -85,8 +85,8 @@
 //! possible to recover the randomness encoded in each of the shares
 //!
 //! ```
-//! # use sta_rs::*;
-//! # use sta_rs_test_utils::*;
+//! # use star::*;
+//! # use star_test_utils::*;
 //! # let mut messages = Vec::new();
 //! # let threshold = 2;
 //! # let epoch = "t";

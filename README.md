@@ -12,7 +12,7 @@ change substantially in future versions.
 
 ## Crates
 
-- [sta-rs](./sta-rs): A rust implementation of the [STAR
+- [star](./star): A rust implementation of the [STAR
   protocol](https://arxiv.org/abs/2109.10074).
 - [ppoprf](./ppoprf): A rust implementation of the PPOPRF protocol
   detailed in the [STAR paper](https://arxiv.org/abs/2109.10074).
@@ -25,7 +25,7 @@ change substantially in future versions.
   based on the forked [star-sharks](./sharks) crate, using the underlying
   finite field implementation made available in
   [zkcrypto/ff](https://github.com/zkcrypto/ff).
-- [star-wasm](./star-wasm): WASM bindings for using [sta-rs](./sta-rs)
+- [star-wasm](./star-wasm): WASM bindings for using [star](./star)
   functionality.
 
 ## Quickstart
