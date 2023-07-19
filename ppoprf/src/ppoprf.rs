@@ -11,8 +11,6 @@
 //! This construction is primarily used in the STAR protocol for
 //! providing secure randomness to clients.
 
-extern crate rand;
-
 use curve25519_dalek::traits::Identity;
 use rand::Rng;
 use rand_core_ristretto::OsRng;
@@ -26,7 +24,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
-use strobe_rng::StrobeRng;
+use crate::strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
