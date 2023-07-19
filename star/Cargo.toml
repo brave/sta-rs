@@ -12,8 +12,8 @@ edition = "2018"
 
 [dependencies]
 strobe-rs = "0.8.1"
-adss = { path = "../adss" }
-ppoprf = { path = "../ppoprf" }
+adss = { path = "../adss", version = "0.2.1" }
+ppoprf = { path = "../ppoprf", version = "0.3.0" }
 rand = "0.8.5"
 rand_core = "0.6.4"
 zeroize = "1.5.5"
