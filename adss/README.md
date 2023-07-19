@@ -1,4 +1,4 @@
-# adss-rs crate
+# adss crate
 
 Rust implementation of the [Adept Secret Sharing framework](https://eprint.iacr.org/2020/800).
 

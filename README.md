@@ -20,9 +20,9 @@ change substantially in future versions.
   crate](https://crates.io/crates/sharks) for performing Shamir secret
   sharing, using larger base fields of sizes 129 and 255 bits. The
   fields were implemented using 
-- [adss-rs](./adss-rs): A rust implementation of the [Adept Secret
+- [adss](./adss): A rust implementation of the [Adept Secret
   Sharing scheme](https://eprint.iacr.org/2020/800) of Bellare et al,
-  based on the forked [sharks](./sharks) crate, using the underlying
+  based on the forked [star-sharks](./sharks) crate, using the underlying
   finite field implementation made available in
   [zkcrypto/ff](https://github.com/zkcrypto/ff).
 - [star-wasm](./star-wasm): WASM bindings for using [sta-rs](./sta-rs)

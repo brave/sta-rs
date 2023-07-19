@@ -1,4 +1,4 @@
-//! The `adss-rs` crate defines functionality for performing secret
+//! The `adss` crate defines functionality for performing secret
 //! sharing with established security guarantees. We use this framework
 //! as it allows for specifying the random coins that are used for
 //! establishing the lagrange polynomial coefficients explicitly. A

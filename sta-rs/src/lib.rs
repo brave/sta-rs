@@ -114,10 +114,8 @@ use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use adss_rs::{recover, Commune};
-pub use {
-  adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share as InternalShare,
-};
+use adss::{recover, Commune};
+pub use {adss::load_bytes, adss::store_bytes, adss::Share as InternalShare};
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
@@ -190,7 +188,7 @@ impl From<&[u8]> for AssociatedData {
   }
 }
 
-// Wrapper type for `adss_rs::Share` to implement `ZeroizeOnDrop`properly.
+// Wrapper type for `adss::Share` to implement `ZeroizeOnDrop`properly.
 #[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
 pub struct Share(InternalShare);
 impl Share {
