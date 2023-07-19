@@ -13,7 +13,7 @@ pub use ppoprf::ppoprf::Server as PPOPRFServer;
 #[cfg(not(feature = "star2"))]
 pub struct PPOPRFServer;
 
-use sta_rs::*;
+use star::*;
 
 // The `zipf_measurement` function returns a client `Measurement` sampled from
 // Zipf power-law distribution with `n` corresponding to the number
