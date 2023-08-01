@@ -4,8 +4,8 @@ use criterion::{
 };
 use rand::Rng;
 
-use sta_rs::{AssociatedData, Message};
-use sta_rs_test_utils::*;
+use star::{AssociatedData, Message};
+use star_test_utils::*;
 
 fn criterion_benchmark(c: &mut Criterion) {
   benchmark_client_randomness_sampling(c);

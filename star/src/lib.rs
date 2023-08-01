@@ -33,7 +33,7 @@
 //! share, tag)`. This message can then be sent to the aggregation server.
 //!
 //! ```
-//! # use sta_rs::*;
+//! # use star::*;
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
@@ -63,7 +63,7 @@
 //! tag)` is then sent to the server.
 //!
 //! ```
-//! # use sta_rs::*;
+//! # use star::*;
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
@@ -85,8 +85,8 @@
 //! possible to recover the randomness encoded in each of the shares
 //!
 //! ```
-//! # use sta_rs::*;
-//! # use sta_rs_test_utils::*;
+//! # use star::*;
+//! # use star_test_utils::*;
 //! # let mut messages = Vec::new();
 //! # let threshold = 2;
 //! # let epoch = "t";
@@ -109,14 +109,13 @@ use std::error::Error;
 use std::str;
 
 use rand::Rng;
+mod strobe_rng;
 use strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use adss_rs::{recover, Commune};
-pub use {
-  adss_rs::load_bytes, adss_rs::store_bytes, adss_rs::Share as InternalShare,
-};
+use adss::{recover, Commune};
+pub use {adss::load_bytes, adss::store_bytes, adss::Share as InternalShare};
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
@@ -189,7 +188,7 @@ impl From<&[u8]> for AssociatedData {
   }
 }
 
-// Wrapper type for `adss_rs::Share` to implement `ZeroizeOnDrop`properly.
+// Wrapper type for `adss::Share` to implement `ZeroizeOnDrop`properly.
 #[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
 pub struct Share(InternalShare);
 impl Share {

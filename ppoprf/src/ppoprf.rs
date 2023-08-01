@@ -23,7 +23,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
-use strobe_rng::StrobeRng;
+use crate::strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
 use zeroize::{Zeroize, ZeroizeOnDrop};

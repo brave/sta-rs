@@ -2,7 +2,7 @@
 use libfuzzer_sys::fuzz_target;
 
 use arbitrary::Arbitrary;
-use sharks::{Share, Sharks};
+use star_sharks::{Share, Sharks};
 
 #[derive(Debug, Arbitrary)]
 // Limit threshold parameters to 16 bits so we don't immediately oom.

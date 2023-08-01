@@ -12,7 +12,7 @@ change substantially in future versions.
 
 ## Crates
 
-- [sta-rs](./sta-rs): A rust implementation of the [STAR
+- [star](./star): A rust implementation of the [STAR
   protocol](https://arxiv.org/abs/2109.10074).
 - [ppoprf](./ppoprf): A rust implementation of the PPOPRF protocol
   detailed in the [STAR paper](https://arxiv.org/abs/2109.10074).
@@ -20,15 +20,13 @@ change substantially in future versions.
   crate](https://crates.io/crates/sharks) for performing Shamir secret
   sharing, using larger base fields of sizes 129 and 255 bits. The
   fields were implemented using 
-- [adss-rs](./adss-rs): A rust implementation of the [Adept Secret
+- [adss](./adss): A rust implementation of the [Adept Secret
   Sharing scheme](https://eprint.iacr.org/2020/800) of Bellare et al,
-  based on the forked [sharks](./sharks) crate, using the underlying
+  based on the forked [star-sharks](./sharks) crate, using the underlying
   finite field implementation made available in
   [zkcrypto/ff](https://github.com/zkcrypto/ff).
-- [star-wasm](./star-wasm): WASM bindings for using [sta-rs](./sta-rs)
+- [star-wasm](./star-wasm): WASM bindings for using [star](./star)
   functionality.
-- [strobe-rng](./strobe-rng): Additional RNG functionality built on top
-  of the [strobe-rs](https://crates.io/crates/strobe-rs) crate.
 
 ## Quickstart
 
