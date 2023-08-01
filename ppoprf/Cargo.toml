@@ -13,7 +13,7 @@ edition = "2018"
 [dependencies]
 rand = { version = "0.8.5", features = [ "getrandom" ] }
 bitvec = "1.0.1"
-curve25519-dalek =  { version = "4.0.0-rc.3", features = [ "rand_core", "serde" ] }
+curve25519-dalek =  { version = "4.0.0", features = [ "rand_core", "serde" ] }
 serde = "1.0.147"
 strobe-rs = "0.8.1"
 base64 = "0.13.0"
