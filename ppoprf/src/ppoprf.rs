@@ -12,8 +12,7 @@
 //! providing secure randomness to clients.
 
 use curve25519_dalek::traits::Identity;
-use rand::Rng;
-use rand_core_ristretto::OsRng;
+use rand::{rngs::OsRng, Rng};
 
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
@@ -52,8 +51,7 @@ impl ProofDLEQ {
   ) -> Self {
     let (m, z) = ProofDLEQ::compute_composites(Some(*key), public_value, p, q);
 
-    let mut csprng = OsRng;
-    let r = RistrettoScalar::random(&mut csprng);
+    let r = RistrettoScalar::random(&mut OsRng);
     let t2 = r * RISTRETTO_BASEPOINT_POINT;
     let t3 = r * m;
 
@@ -253,7 +251,9 @@ impl From<RistrettoPoint> for Point {
 }
 impl From<&[u8]> for Point {
   fn from(bytes: &[u8]) -> Self {
-    Self(CompressedRistretto::from_slice(bytes))
+    Self(
+      CompressedRistretto::from_slice(bytes).expect("slice should be 32 bytes"),
+    )
   }
 }
 impl From<Point> for RistrettoPoint {
@@ -311,8 +311,7 @@ pub struct Server {
 }
 impl Server {
   pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
-    let mut csprng = OsRng;
-    let oprf_key = RistrettoScalar::random(&mut csprng);
+    let oprf_key = RistrettoScalar::random(&mut OsRng);
     let mut md_pks = BTreeMap::new();
     let pprf = GGM::setup();
     for &md in mds.iter() {
@@ -381,8 +380,7 @@ impl Client {
     let mut hashed_input = [0u8; 64];
     strobe_hash(input, "ppoprf_derive_client_input", &mut hashed_input);
     let point = RistrettoPoint::from_uniform_bytes(&hashed_input);
-    let mut csprng = OsRng;
-    let r = RistrettoScalar::random(&mut csprng);
+    let r = RistrettoScalar::random(&mut OsRng);
     (Point((r * point).compress()), CurveScalar::from(r))
   }
 
