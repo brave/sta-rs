@@ -1,6 +1,6 @@
 [package]
 name = "ppoprf"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Alex Davidson <coela@alxdavids.xyz>", "Ralph Ankele <rankele@brave.com>"]
 description = "Puncturable Partially-Oblivious Pseudo-Random Function"
 documentation = "https://docs.rs/ppoprf"
@@ -8,7 +8,7 @@ repository = "https://github.com/brave/sta-rs"
 keywords = ["crypto", "oprf", "protocol"]
 categories = ["cryptography"]
 license = "MPL-2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 rand = { version = "0.8.5", features = [ "getrandom" ] }
