@@ -12,6 +12,3 @@ rand = { version = "0.8.5", features = [ "std" ] }
 rayon = "1.7"
 zipf = "7.0.0"
 ppoprf = { path = "../../ppoprf" }
-
-[features]
-star2 = ["star/star2"]
