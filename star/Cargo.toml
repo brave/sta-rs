@@ -1,5 +1,5 @@
 [package]
-name = "star"
+name = "sta-rs"
 version = "0.2.1"
 authors = ["Alex Davidson <coela@alxdavids.xyz>"]
 description = "Distributed Secret-Sharing for Threshold Aggregation Reporting"

@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 default = []
 
 [dependencies]
-star = { path = "../star", default-features = false }
+sta-rs = { path = "../star", default-features = false }
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = "0.2"
 base64 = "0.20"

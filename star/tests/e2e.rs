@@ -1,4 +1,4 @@
-use star::*;
+use sta_rs::*;
 use star_test_utils::*;
 
 #[cfg(feature = "star2")]

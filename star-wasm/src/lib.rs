@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};
 
-use star::{
+use sta_rs::{
   derive_ske_key, share_recover, MessageGenerator, Share, SingleMeasurement,
   WASMSharingMaterial,
 };
