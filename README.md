@@ -12,7 +12,7 @@ change substantially in future versions.
 
 ## Crates
 
-- [star](./star): A rust implementation of the [STAR
+- [sta-rs](./star): A rust implementation of the [STAR
   protocol](https://arxiv.org/abs/2109.10074).
 - [ppoprf](./ppoprf): A rust implementation of the PPOPRF protocol
   detailed in the [STAR paper](https://arxiv.org/abs/2109.10074).

@@ -1,4 +1,4 @@
-# star crate
+# sta-rs crate
 
 Rust implementation of the [STAR
 protocol](https://arxiv.org/abs/2109.10074). Consists of client API
