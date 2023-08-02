@@ -6,7 +6,7 @@ use rand::Rng;
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::Server as PPOPRFServer;
-use star::{AssociatedData, Message};
+use sta_rs::{AssociatedData, Message};
 use star_test_utils::*;
 
 fn criterion_benchmark(c: &mut Criterion) {

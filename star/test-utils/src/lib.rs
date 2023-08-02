@@ -7,7 +7,7 @@ use rayon::prelude::*;
 
 use zipf::ZipfDistribution;
 
-use star::*;
+use sta_rs::*;
 
 // The `zipf_measurement` function returns a client `Measurement` sampled from
 // Zipf power-law distribution with `n` corresponding to the number
