@@ -4,6 +4,8 @@ use criterion::{
 };
 use rand::Rng;
 
+#[cfg(feature = "star2")]
+use ppoprf::ppoprf::Server as PPOPRFServer;
 use star::{AssociatedData, Message};
 use star_test_utils::*;
 

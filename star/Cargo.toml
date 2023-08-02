@@ -24,7 +24,7 @@ star-test-utils = { path = "./test-utils" }
 rand = { version = "0.8.5", features = [ "std" ] }
 
 [features]
-star2 = ["star-test-utils/star2"]
+star2 = []
 
 [[bench]]
 name = "bench"

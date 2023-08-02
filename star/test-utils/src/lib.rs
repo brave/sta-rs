@@ -7,12 +7,6 @@ use rayon::prelude::*;
 
 use zipf::ZipfDistribution;
 
-#[cfg(feature = "star2")]
-pub use ppoprf::ppoprf::Server as PPOPRFServer;
-
-#[cfg(not(feature = "star2"))]
-pub struct PPOPRFServer;
-
 use star::*;
 
 // The `zipf_measurement` function returns a client `Measurement` sampled from
