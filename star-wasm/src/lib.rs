@@ -1,7 +1,10 @@
-// Work around clippy warning from wasm_bidgen 0.2.79.
-// Can be removed after bumping to a release containing the upstream
-// fix in https://github.com/rustwasm/wasm-bindgen/pull/2778
-#![allow(clippy::unused_unit)]
+//! WebAssembly bindings for the STAR protocol
+//!
+//! This provides a threshold-aggregation scheme based on secret sharing,
+//! allowing data to be encrypted by clients in a way that a receiving
+//! server can only decrypt values submitted by multiple clients, offering
+//! safety-in-numbers privacy.
+
 use wasm_bindgen::prelude::*;
 
 use base64::{decode, encode};

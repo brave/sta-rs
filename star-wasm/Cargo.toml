@@ -2,6 +2,10 @@
 name = "star-wasm"
 version = "0.2.0"
 authors = ["Rémi Berson <remi@brave.com>"]
+description = "WASM bindings for the STAR protocol"
+repository = "https://github.com/brave/sta-rs"
+keywords = ["crypto", "protocol", "privacy", "analytics", "wasm"]
+categories = ["cryptography", "algorithms", "webassembly"]
 license = "MPL-2.0"
 edition = "2018"
 
