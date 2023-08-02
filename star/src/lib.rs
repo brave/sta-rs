@@ -277,8 +277,6 @@ impl Message {
     rnd: &[u8; 32],
     aux: Option<AssociatedData>,
   ) -> Result<Self, Box<dyn Error>> {
-    // Adding '_' in as prefix of 'oprf' because when star2 is
-    // disabled then Clippy complains.
     let r = mg.derive_random_values(rnd);
 
     // key is then used for encrypting measurement and associated
