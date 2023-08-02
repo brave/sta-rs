@@ -1,4 +1,4 @@
-//! WebAssmbly bindings for the STAR protocol
+//! WebAssembly bindings for the STAR protocol
 //!
 //! This provides a threshold-aggregation scheme based on secret sharing,
 //! allowing data to be encrypted by clients in a way that a receiving
