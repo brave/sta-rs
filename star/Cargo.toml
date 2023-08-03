@@ -1,6 +1,6 @@
 [package]
 name = "sta-rs"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Alex Davidson <coela@alxdavids.xyz>"]
 description = "Distributed Secret-Sharing for Threshold Aggregation Reporting"
 documentation = "https://docs.rs/sta-rs"
