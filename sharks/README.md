@@ -1,6 +1,6 @@
 # Sharks
 
-[![Build](https://github.com/brave/sta-rs/workflows/Test/badge.svg?branch=main)](https://github.com/brave/sta-rs/actions)
+[![Build](https://github.com/brave/sta-rs/workflows/Tests/badge.svg?branch=main)](https://github.com/brave/sta-rs/actions)
 [![Crates](https://img.shields.io/crates/v/star-sharks.svg)](https://crates.io/crates/star-sharks)
 [![Docs](https://docs.rs/star-sharks/badge.svg)](https://docs.rs/star-sharks)
 
