@@ -122,7 +122,6 @@ use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
 
 pub const AES_BLOCK_LEN: usize = 24;
 pub const DIGEST_LEN: usize = 32;
-pub const DEBUG: bool = false;
 
 // A `Measurement` provides the wrapper for a client-generated value in
 // the STAR protocol that is later aggregated and processed at the
