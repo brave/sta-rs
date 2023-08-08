@@ -5,7 +5,7 @@
 
 extern crate alloc;
 
-// implement operations using a larger finite field as well
+// implement operations using a larger finite field
 extern crate ff;
 mod share_ff;
 
@@ -19,7 +19,8 @@ pub use share_ff::Share;
 pub use share_ff::{get_evaluator, interpolate, random_polynomial};
 pub use share_ff::{Fp, FpRepr, FIELD_ELEMENT_LEN};
 
-/// Tuple struct which implements methods to generate shares and recover secrets over a 256 bits Galois Field.
+/// Tuple struct which implements methods to generate shares
+/// and recover secrets over a finite field.
 /// Its only parameter is the minimum shares threshold.
 pub struct Sharks(pub u32);
 
