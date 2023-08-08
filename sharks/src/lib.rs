@@ -222,7 +222,7 @@ mod tests {
     let shares: Vec<Share> =
       sharks.make_shares(&input).unwrap().take(500).collect();
     let secret = sharks.recover(&shares).unwrap();
-    assert_eq!(secret, get_test_bytes());
+    assert_eq!(secret, test_bytes());
   }
 
   use core::iter;
@@ -241,10 +241,10 @@ mod tests {
       .collect();
     //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).unwrap().take(255).collect();
     let secret = sharks.recover(&shares).unwrap();
-    assert_eq!(secret, get_test_bytes());
+    assert_eq!(secret, test_bytes());
   }
 
-  fn get_test_bytes() -> Vec<u8> {
+  fn test_bytes() -> Vec<u8> {
     let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
@@ -260,7 +260,7 @@ mod tests {
   #[test]
   fn zero_threshold() {
     let sharks = Sharks(0);
-    let testcase = Share::try_from(get_test_bytes().as_slice()).unwrap();
+    let testcase = Share::try_from(test_bytes().as_slice()).unwrap();
     let secret = sharks.recover(&vec![testcase]);
     assert!(secret.is_err());
   }

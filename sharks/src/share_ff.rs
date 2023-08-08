@@ -260,13 +260,13 @@ mod tests {
       y: vec![fp_two(), fp_three()],
     };
     let bytes = Vec::from(&share);
-    let chk_bytes = get_test_bytes();
+    let chk_bytes = test_bytes();
     assert_eq!(bytes, chk_bytes);
   }
 
   #[test]
   fn share_from_u8_slice() {
-    let share = Share::try_from(&get_test_bytes()[..]).unwrap();
+    let share = Share::try_from(&test_bytes()[..]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two(), fp_three()]);
   }
@@ -274,7 +274,7 @@ mod tests {
   #[test]
   fn share_from_u8_slice_without_y() {
     let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
+      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![]);
   }
@@ -282,23 +282,23 @@ mod tests {
   #[test]
   fn share_from_u8_slice_partial_y() {
     let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
+      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![]);
     let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN * 2 + 12]).unwrap();
+      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN * 2 + 12]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two()]);
   }
 
   #[test]
   fn share_from_short_u8_slice() {
-    let bytes = get_test_bytes();
+    let bytes = test_bytes();
     assert!(Share::try_from(&bytes[0..FIELD_ELEMENT_LEN - 1]).is_err());
     assert!(Share::try_from(&bytes[0..1]).is_err());
   }
 
-  fn get_test_bytes() -> Vec<u8> {
+  fn test_bytes() -> Vec<u8> {
     let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
