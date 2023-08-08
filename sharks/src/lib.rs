@@ -45,7 +45,6 @@ impl Sharks {
     &self,
     secret: &[u8],
     rng: &mut R,
-    //) -> impl Iterator<Item = Share> {
   ) -> Result<Evaluator, &str> {
     let mut polys = Vec::with_capacity(secret.len());
 
@@ -143,9 +142,12 @@ mod tests {
 
   impl Sharks {
     #[cfg(not(feature = "std"))]
-    fn make_shares(&self, secret: &[u8]) -> impl Iterator<Item = Share> {
+    fn make_shares(
+      &self,
+      secret: &[u8],
+    ) -> Result<impl Iterator<Item = Share>, &str> {
       use rand_chacha::{rand_core::SeedableRng, ChaCha8Rng};
-
+      // CAUTION: Fixed seed for no-std testing. Don't copy this code!
       let mut rng = ChaCha8Rng::from_seed([0x90; 32]);
       self.dealer_rng(secret, &mut rng)
     }
@@ -225,8 +227,8 @@ mod tests {
     assert_eq!(secret, test_bytes());
   }
 
-  use core::iter;
   #[test]
+  #[cfg(feature = "std")]
   fn integration_random() {
     let sharks = Sharks(40);
     let mut rng = rand::thread_rng();
@@ -236,10 +238,10 @@ mod tests {
     input.extend(fp_three_repr());
     input.extend(fp_four_repr());
     let evaluator = sharks.dealer(&input).unwrap();
-    let shares: Vec<Share> = iter::repeat_with(|| evaluator.gen(&mut rng))
-      .take(55)
-      .collect();
-    //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).unwrap().take(255).collect();
+    let shares: Vec<Share> =
+      core::iter::repeat_with(|| evaluator.gen(&mut rng))
+        .take(55)
+        .collect();
     let secret = sharks.recover(&shares).unwrap();
     assert_eq!(secret, test_bytes());
   }
@@ -266,6 +268,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "std")]
   fn dealer_short_secret() {
     let sharks = Sharks(2);
 

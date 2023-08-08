@@ -135,7 +135,9 @@ impl From<&Share> for Vec<u8> {
     let mut bytes = Vec::with_capacity((s.y.len() + 1) * FIELD_ELEMENT_LEN);
     let repr = s.x.to_repr();
     let x_coord = repr.as_ref().to_vec();
-    let y_coords = s.y.iter()
+    let y_coords = s
+      .y
+      .iter()
       .map(|p| p.to_repr().as_ref().to_vec())
       .fold(Vec::new(), |acc, r| [acc, r.to_vec()].concat());
     bytes.extend(x_coord);
@@ -231,7 +233,8 @@ mod tests {
   fn evaluation() {
     let iter =
       get_evaluator(vec![vec![fp_three(), fp_two(), fp_three() + fp_two()]]);
-    let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x, s.y)).collect();
+    let values: Vec<(Fp, Vec<Fp>)> =
+      iter.take(2).map(|s| (s.x, s.y)).collect();
     assert_eq!(
       values,
       vec![
@@ -273,8 +276,7 @@ mod tests {
 
   #[test]
   fn share_from_u8_slice_without_y() {
-    let share =
-      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
+    let share = Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![]);
   }
@@ -320,6 +322,6 @@ mod tests {
 
   #[test]
   fn element_length() {
-    assert_eq!(FIELD_ELEMENT_LEN, std::mem::size_of::<Fp>());
+    assert_eq!(FIELD_ELEMENT_LEN, core::mem::size_of::<Fp>());
   }
 }
