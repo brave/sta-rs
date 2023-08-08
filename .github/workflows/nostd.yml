@@ -1,0 +1,37 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: Tests (nostd)
+
+jobs:
+  test-nofeatures:
+    name: ${{matrix.rust}} on ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+
+    strategy:
+      matrix:
+        rust: [1.64.0, stable]
+        os: [ubuntu-20.04]
+
+    env:
+      RUSTFLAGS: ''
+      CARGO_PROFILE_DEV_DEBUG: '0' # reduce size of target directory
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@${{matrix.rust}}
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        run: cargo check --no-default-features --all-targets
+
+      - name: Test
+        run: cargo test --no-default-features
