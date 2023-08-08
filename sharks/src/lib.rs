@@ -184,7 +184,7 @@ mod tests {
   }
 
   #[test]
-  fn test_insufficient_shares_err() {
+  fn insufficient_shares() {
     let sharks = Sharks(500);
     let shares: Vec<Share> = sharks
       .make_shares(&fp_one_repr())
@@ -196,7 +196,7 @@ mod tests {
   }
 
   #[test]
-  fn test_duplicate_shares_err() {
+  fn duplicate_shares() {
     let sharks = Sharks(500);
     let mut shares: Vec<Share> = sharks
       .make_shares(&fp_one_repr())
@@ -212,7 +212,7 @@ mod tests {
   }
 
   #[test]
-  fn test_integration_works() {
+  fn integration() {
     let sharks = Sharks(500);
     let mut input = Vec::new();
     input.extend(fp_one_repr());
@@ -227,7 +227,7 @@ mod tests {
 
   use core::iter;
   #[test]
-  fn test_integration_works_random() {
+  fn integration_random() {
     let sharks = Sharks(40);
     let mut rng = rand::thread_rng();
     let mut input = Vec::new();

@@ -184,7 +184,7 @@ impl core::convert::TryFrom<&[u8]> for Share {
 
 #[cfg(test)]
 mod tests {
-  use super::{get_evaluator, interpolate, random_polynomial};
+  use super::{get_evaluator, interpolate};
   use super::{Fp, Share, FIELD_ELEMENT_LEN};
   use crate::ff::Field;
   use alloc::{vec, vec::Vec};
@@ -220,15 +220,15 @@ mod tests {
   }
 
   #[test]
-  fn random_polynomial_works() {
+  fn random_polynomial() {
     let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-    let poly = random_polynomial(fp_one(), 3, &mut rng);
+    let poly = super::random_polynomial(fp_one(), 3, &mut rng);
     assert_eq!(poly.len(), 3);
     assert_eq!(poly[2], fp_one());
   }
 
   #[test]
-  fn evaluator_works() {
+  fn evaluation() {
     let iter =
       get_evaluator(vec![vec![fp_three(), fp_two(), fp_three() + fp_two()]]);
     let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x, s.y)).collect();
@@ -242,9 +242,9 @@ mod tests {
   }
 
   #[test]
-  fn interpolate_works() {
+  fn interpolation() {
     let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-    let poly = random_polynomial(fp_one(), 5, &mut rng);
+    let poly = super::random_polynomial(fp_one(), 5, &mut rng);
     let iter = get_evaluator(vec![poly]);
     let shares: Vec<Share> = iter.take(5).collect();
     let root = interpolate(&shares).unwrap();
@@ -254,7 +254,7 @@ mod tests {
   }
 
   #[test]
-  fn vec_from_share_works() {
+  fn vec_from_share() {
     let share = Share {
       x: fp_one(),
       y: vec![fp_two(), fp_three()],
@@ -265,14 +265,14 @@ mod tests {
   }
 
   #[test]
-  fn share_from_u8_slice_works() {
+  fn share_from_u8_slice() {
     let share = Share::try_from(&get_test_bytes()[..]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two(), fp_three()]);
   }
 
   #[test]
-  fn share_from_u8_slice_without_y_works() {
+  fn share_from_u8_slice_without_y() {
     let share =
       Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
     assert_eq!(share.x, fp_one());
@@ -280,7 +280,7 @@ mod tests {
   }
 
   #[test]
-  fn share_from_u8_slice_partial_y_works() {
+  fn share_from_u8_slice_partial_y() {
     let share =
       Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
     assert_eq!(share.x, fp_one());
@@ -292,7 +292,7 @@ mod tests {
   }
 
   #[test]
-  fn share_from_short_u8_slice_fails() {
+  fn share_from_short_u8_slice() {
     let bytes = get_test_bytes();
     assert!(Share::try_from(&bytes[0..FIELD_ELEMENT_LEN - 1]).is_err());
     assert!(Share::try_from(&bytes[0..1]).is_err());
