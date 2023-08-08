@@ -132,7 +132,7 @@ pub struct Share {
 /// Obtains a byte vector from a `Share` instance
 impl From<&Share> for Vec<u8> {
   fn from(s: &Share) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(s.y.len() + FIELD_ELEMENT_LEN);
+    let mut bytes = Vec::with_capacity((s.y.len() + 1) * FIELD_ELEMENT_LEN);
     let repr = s.x.to_repr();
     let x_coord = repr.as_ref().to_vec();
     let y_coords = s.y.iter()
