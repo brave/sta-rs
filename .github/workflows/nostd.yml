@@ -36,4 +36,4 @@ jobs:
         run: cargo check --no-default-features --all-targets
 
       - name: Test
-        run: cargo test --no-default-features
+        run: cargo test --release --no-default-features
