@@ -233,8 +233,7 @@ mod tests {
   fn evaluation() {
     let iter =
       get_evaluator(vec![vec![fp_three(), fp_two(), fp_three() + fp_two()]]);
-    let values: Vec<(Fp, Vec<Fp>)> =
-      iter.take(2).map(|s| (s.x, s.y)).collect();
+    let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x, s.y)).collect();
     assert_eq!(
       values,
       vec![
