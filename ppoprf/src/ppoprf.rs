@@ -371,7 +371,7 @@ impl Server {
       let ts = RistrettoScalar::from_bytes_mod_order(tag);
       md_pks.insert(md, Point::from(ts * RISTRETTO_BASEPOINT_POINT));
     }
-    let oprf_key = key.0.clone();
+    let oprf_key = key.0;
     Ok(Self {
       oprf_key,
       public_key: ServerPublicKey {
@@ -424,7 +424,7 @@ impl Server {
   }
 
   pub fn get_private_key(&self) -> ServerPrivateKey {
-    ServerPrivateKey(self.oprf_key.clone())
+    ServerPrivateKey(self.oprf_key)
   }
 }
 
