@@ -650,15 +650,36 @@ mod tests {
     // Create a PPOPRF server instance
     let mds = vec![0u8];
     let server = Server::new(mds.clone()).unwrap();
-    // Retrieve the private key
+
+    // Run some random points through it
+    // In the real protocol these would be blinded to make the
+    // evaluation oblivious, but we need not test that here.
+    let inputs: Vec<Point> = (0..12)
+      .map(|_| RistrettoPoint::random(&mut OsRng))
+      .map(Point::from)
+      .collect();
+    let outputs: Vec<Point> = inputs
+      .iter()
+      .map(|p| server.eval(p, mds[0], false).unwrap().output)
+      .collect();
+
+    // Export the private key
     let key = server.get_private_key();
-    // Confirm the underlying data is accessible
     let b64_key = base64::encode(key.as_bytes());
+    // Import the exported key
     let bytes = base64::decode(b64_key).unwrap();
     let key2 = ServerPrivateKey::try_from(bytes.as_slice()).unwrap();
     assert_eq!(key, key2);
+
     // Create a second server instance with the same state
-    let _dup = Server::new_with_key(&mds, &key2).unwrap();
+    let server_dup = Server::new_with_key(&mds, &key2).unwrap();
+    // Run the same points through
+    let outputs_dup: Vec<Point> = inputs
+      .iter()
+      .map(|p| server_dup.eval(p, mds[0], false).unwrap().output)
+      .collect();
+    // Should produce identical results
+    assert_eq!(outputs, outputs_dup);
   }
 
   #[test]
