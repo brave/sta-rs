@@ -222,6 +222,50 @@ impl ServerPublicKey {
   }
 }
 
+/// Server private key
+///
+/// Use this to re-create the same PPOPRF Service multiple times.
+/// As with any private key, keeping this value secret is essential
+/// to the security of the protocol.
+#[derive(Debug, Eq, PartialEq, Zeroize, ZeroizeOnDrop)]
+pub struct ServerPrivateKey(RistrettoScalar);
+
+impl ServerPrivateKey {
+  /// Access the private key data as a slice
+  /// Use `try_from` to turn the result back into a key.
+  pub fn as_bytes(&self) -> &[u8] {
+    self.0.as_bytes()
+  }
+}
+
+impl TryFrom<&[u8]> for ServerPrivateKey {
+  type Error = PPRFError;
+
+  /// Attempt to construct a new private key from a slice of 32 bytes.
+  /// See `ServerPrivateKey::as_bytes` for the reverse operation.
+  fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+    // RistrettoScalar is COMPRESSED_POINT_LEN bytes
+    // Make sure we have the right input size so copy_from_slice succeeds.
+    if bytes.len() != 32 {
+      return Err(PPRFError::BadInputLength {
+        actual: bytes.len(),
+        expected: 32,
+      });
+    }
+    let mut raw = [0u8; 32];
+    raw.copy_from_slice(bytes);
+    // Converting to a scalar my fail depending on the underlying raw data.
+    // This happens in constant time so nothing is revealed about the input.
+    let maybe_scalar = RistrettoScalar::from_canonical_bytes(raw);
+    // We must convert to a Result. This is not constant time, but the
+    // different execution paths only reveal if the call was successful,
+    // which our return value also reveals.
+    Option::from(maybe_scalar)
+      .map(ServerPrivateKey)
+      .ok_or(PPRFError::BadPointEncoding)
+  }
+}
+
 // The wrapper for PPOPRF evaluations (similar to standard OPRFs)
 #[derive(Deserialize, Serialize)]
 pub struct Evaluation {
@@ -312,6 +356,13 @@ pub struct Server {
 impl Server {
   pub fn new(mds: Vec<u8>) -> Result<Self, PPRFError> {
     let oprf_key = RistrettoScalar::random(&mut OsRng);
+    Self::new_with_key(&mds, &ServerPrivateKey(oprf_key))
+  }
+
+  pub fn new_with_key(
+    mds: &[u8],
+    key: &ServerPrivateKey,
+  ) -> Result<Self, PPRFError> {
     let mut md_pks = BTreeMap::new();
     let pprf = GGM::setup();
     for &md in mds.iter() {
@@ -320,6 +371,7 @@ impl Server {
       let ts = RistrettoScalar::from_bytes_mod_order(tag);
       md_pks.insert(md, Point::from(ts * RISTRETTO_BASEPOINT_POINT));
     }
+    let oprf_key = key.0.clone();
     Ok(Self {
       oprf_key,
       public_key: ServerPublicKey {
@@ -369,6 +421,10 @@ impl Server {
 
   pub fn get_public_key(&self) -> ServerPublicKey {
     self.public_key.clone()
+  }
+
+  pub fn get_private_key(&self) -> ServerPrivateKey {
+    ServerPrivateKey(self.oprf_key.clone())
   }
 }
 
