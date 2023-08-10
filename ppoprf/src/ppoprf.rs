@@ -646,6 +646,22 @@ mod tests {
   }
 
   #[test]
+  fn private_key() {
+    // Create a PPOPRF server instance
+    let mds = vec![0u8];
+    let server = Server::new(mds.clone()).unwrap();
+    // Retrieve the private key
+    let key = server.get_private_key();
+    // Confirm the underlying data is accessible
+    let b64_key = base64::encode(key.as_bytes());
+    let bytes = base64::decode(b64_key).unwrap();
+    let key2 = ServerPrivateKey::try_from(bytes.as_slice()).unwrap();
+    assert_eq!(key, key2);
+    // Create a second server instance with the same state
+    let _dup = Server::new_with_key(&mds, &key2).unwrap();
+  }
+
+  #[test]
   fn proof_serialization() {
     let proof = ProofDLEQ {
       c: RistrettoScalar::from_bytes_mod_order([7u8; 32]),
