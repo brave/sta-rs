@@ -132,10 +132,10 @@ pub struct Share {
 /// Obtains a byte vector from a `Share` instance
 impl From<&Share> for Vec<u8> {
   fn from(s: &Share) -> Vec<u8> {
-    let mut bytes: Vec<u8> = Vec::with_capacity(s.y.len() + FIELD_ELEMENT_LEN);
+    let mut bytes = Vec::with_capacity((s.y.len() + 1) * FIELD_ELEMENT_LEN);
     let repr = s.x.to_repr();
     let x_coord = repr.as_ref().to_vec();
-    let y_coords: Vec<u8> = s
+    let y_coords = s
       .y
       .iter()
       .map(|p| p.to_repr().as_ref().to_vec())
@@ -186,7 +186,7 @@ impl core::convert::TryFrom<&[u8]> for Share {
 
 #[cfg(test)]
 mod tests {
-  use super::{get_evaluator, interpolate, random_polynomial};
+  use super::{get_evaluator, interpolate};
   use super::{Fp, Share, FIELD_ELEMENT_LEN};
   use crate::ff::Field;
   use alloc::{vec, vec::Vec};
@@ -222,15 +222,15 @@ mod tests {
   }
 
   #[test]
-  fn random_polynomial_works() {
+  fn random_polynomial() {
     let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-    let poly = random_polynomial(fp_one(), 3, &mut rng);
+    let poly = super::random_polynomial(fp_one(), 3, &mut rng);
     assert_eq!(poly.len(), 3);
     assert_eq!(poly[2], fp_one());
   }
 
   #[test]
-  fn evaluator_works() {
+  fn evaluation() {
     let iter =
       get_evaluator(vec![vec![fp_three(), fp_two(), fp_three() + fp_two()]]);
     let values: Vec<(Fp, Vec<Fp>)> = iter.take(2).map(|s| (s.x, s.y)).collect();
@@ -244,9 +244,9 @@ mod tests {
   }
 
   #[test]
-  fn interpolate_works() {
+  fn interpolation() {
     let mut rng = rand_chacha::ChaCha8Rng::from_seed([0x90; 32]);
-    let poly = random_polynomial(fp_one(), 5, &mut rng);
+    let poly = super::random_polynomial(fp_one(), 5, &mut rng);
     let iter = get_evaluator(vec![poly]);
     let shares: Vec<Share> = iter.take(5).collect();
     let root = interpolate(&shares).unwrap();
@@ -256,51 +256,50 @@ mod tests {
   }
 
   #[test]
-  fn vec_from_share_works() {
+  fn vec_from_share() {
     let share = Share {
       x: fp_one(),
       y: vec![fp_two(), fp_three()],
     };
     let bytes = Vec::from(&share);
-    let chk_bytes = get_test_bytes();
+    let chk_bytes = test_bytes();
     assert_eq!(bytes, chk_bytes);
   }
 
   #[test]
-  fn share_from_u8_slice_works() {
-    let share = Share::try_from(&get_test_bytes()[..]).unwrap();
+  fn share_from_u8_slice() {
+    let share = Share::try_from(&test_bytes()[..]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two(), fp_three()]);
   }
 
   #[test]
-  fn share_from_u8_slice_without_y_works() {
-    let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
+  fn share_from_u8_slice_without_y() {
+    let share = Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![]);
   }
 
   #[test]
-  fn share_from_u8_slice_partial_y_works() {
+  fn share_from_u8_slice_partial_y() {
     let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
+      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN + 20]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![]);
     let share =
-      Share::try_from(&get_test_bytes()[..FIELD_ELEMENT_LEN * 2 + 12]).unwrap();
+      Share::try_from(&test_bytes()[..FIELD_ELEMENT_LEN * 2 + 12]).unwrap();
     assert_eq!(share.x, fp_one());
     assert_eq!(share.y, vec![fp_two()]);
   }
 
   #[test]
-  fn share_from_short_u8_slice_fails() {
-    let bytes = get_test_bytes();
+  fn share_from_short_u8_slice() {
+    let bytes = test_bytes();
     assert!(Share::try_from(&bytes[0..FIELD_ELEMENT_LEN - 1]).is_err());
     assert!(Share::try_from(&bytes[0..1]).is_err());
   }
 
-  fn get_test_bytes() -> Vec<u8> {
+  fn test_bytes() -> Vec<u8> {
     let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
@@ -322,6 +321,6 @@ mod tests {
 
   #[test]
   fn element_length() {
-    assert_eq!(FIELD_ELEMENT_LEN, std::mem::size_of::<Fp>());
+    assert_eq!(FIELD_ELEMENT_LEN, core::mem::size_of::<Fp>());
   }
 }

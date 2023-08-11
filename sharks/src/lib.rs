@@ -5,7 +5,7 @@
 
 extern crate alloc;
 
-// implement operations using a larger finite field as well
+// implement operations using a larger finite field
 extern crate ff;
 mod share_ff;
 
@@ -19,7 +19,8 @@ pub use share_ff::Share;
 pub use share_ff::{get_evaluator, interpolate, random_polynomial};
 pub use share_ff::{Fp, FpRepr, FIELD_ELEMENT_LEN};
 
-/// Tuple struct which implements methods to generate shares and recover secrets over a 256 bits Galois Field.
+/// Tuple struct which implements methods to generate shares
+/// and recover secrets over a finite field.
 /// Its only parameter is the minimum shares threshold.
 pub struct Sharks(pub u32);
 
@@ -44,7 +45,6 @@ impl Sharks {
     &self,
     secret: &[u8],
     rng: &mut R,
-    //) -> impl Iterator<Item = Share> {
   ) -> Result<Evaluator, &str> {
     let mut polys = Vec::with_capacity(secret.len());
 
@@ -142,9 +142,12 @@ mod tests {
 
   impl Sharks {
     #[cfg(not(feature = "std"))]
-    fn make_shares(&self, secret: &[u8]) -> impl Iterator<Item = Share> {
+    fn make_shares(
+      &self,
+      secret: &[u8],
+    ) -> Result<impl Iterator<Item = Share>, &str> {
       use rand_chacha::{rand_core::SeedableRng, ChaCha8Rng};
-
+      // CAUTION: Fixed seed for no-std testing. Don't copy this code!
       let mut rng = ChaCha8Rng::from_seed([0x90; 32]);
       self.dealer_rng(secret, &mut rng)
     }
@@ -183,7 +186,7 @@ mod tests {
   }
 
   #[test]
-  fn test_insufficient_shares_err() {
+  fn insufficient_shares() {
     let sharks = Sharks(500);
     let shares: Vec<Share> = sharks
       .make_shares(&fp_one_repr())
@@ -195,7 +198,7 @@ mod tests {
   }
 
   #[test]
-  fn test_duplicate_shares_err() {
+  fn duplicate_shares() {
     let sharks = Sharks(500);
     let mut shares: Vec<Share> = sharks
       .make_shares(&fp_one_repr())
@@ -211,7 +214,7 @@ mod tests {
   }
 
   #[test]
-  fn test_integration_works() {
+  fn integration() {
     let sharks = Sharks(500);
     let mut input = Vec::new();
     input.extend(fp_one_repr());
@@ -221,12 +224,12 @@ mod tests {
     let shares: Vec<Share> =
       sharks.make_shares(&input).unwrap().take(500).collect();
     let secret = sharks.recover(&shares).unwrap();
-    assert_eq!(secret, get_test_bytes());
+    assert_eq!(secret, test_bytes());
   }
 
-  use core::iter;
   #[test]
-  fn test_integration_works_random() {
+  #[cfg(feature = "std")]
+  fn integration_random() {
     let sharks = Sharks(40);
     let mut rng = rand::thread_rng();
     let mut input = Vec::new();
@@ -235,15 +238,15 @@ mod tests {
     input.extend(fp_three_repr());
     input.extend(fp_four_repr());
     let evaluator = sharks.dealer(&input).unwrap();
-    let shares: Vec<Share> = iter::repeat_with(|| evaluator.gen(&mut rng))
-      .take(55)
-      .collect();
-    //let shares: Vec<Share> = sharks.make_shares(&[1, 2, 3, 4]).unwrap().take(255).collect();
+    let shares: Vec<Share> =
+      core::iter::repeat_with(|| evaluator.gen(&mut rng))
+        .take(55)
+        .collect();
     let secret = sharks.recover(&shares).unwrap();
-    assert_eq!(secret, get_test_bytes());
+    assert_eq!(secret, test_bytes());
   }
 
-  fn get_test_bytes() -> Vec<u8> {
+  fn test_bytes() -> Vec<u8> {
     let suffix = vec![0u8; FIELD_ELEMENT_LEN - 1];
     let mut bytes = vec![1u8; 1];
     bytes.extend(suffix.clone()); // x coord
@@ -259,12 +262,13 @@ mod tests {
   #[test]
   fn zero_threshold() {
     let sharks = Sharks(0);
-    let testcase = Share::try_from(get_test_bytes().as_slice()).unwrap();
+    let testcase = Share::try_from(test_bytes().as_slice()).unwrap();
     let secret = sharks.recover(&vec![testcase]);
     assert!(secret.is_err());
   }
 
   #[test]
+  #[cfg(feature = "std")]
   fn dealer_short_secret() {
     let sharks = Sharks(2);
 
