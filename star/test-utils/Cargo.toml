@@ -10,5 +10,5 @@ strobe-rs = "0.8.1"
 sta-rs = { path = "../" }
 rand = { version = "0.8.5", features = [ "std" ] }
 rayon = "1.7"
-zipf = "7.0.0"
+zipf = "7.0.1"
 ppoprf = { path = "../../ppoprf" }
