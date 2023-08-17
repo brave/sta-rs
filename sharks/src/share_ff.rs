@@ -1,8 +1,9 @@
 use alloc::vec::*;
+use core::convert::TryFrom;
 use core::convert::TryInto;
 
 #[cfg(feature = "fuzzing")]
-use arbitrary::Arbitrary;
+use arbitrary::{Arbitrary, Unstructured};
 
 #[cfg(feature = "zeroize_memory")]
 use zeroize::Zeroize;
@@ -122,7 +123,6 @@ impl Iterator for Evaluator {
 
 /// A share used to reconstruct the secret. Can be serialized to and from a byte array.
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[cfg_attr(feature = "zeroize_memory", derive(Zeroize))]
 pub struct Share {
   pub x: Fp,
@@ -147,7 +147,7 @@ impl From<&Share> for Vec<u8> {
 }
 
 /// Obtains a `Share` instance from a byte slice
-impl core::convert::TryFrom<&[u8]> for Share {
+impl TryFrom<&[u8]> for Share {
   type Error = &'static str;
 
   fn try_from(s: &[u8]) -> Result<Share, Self::Error> {
@@ -181,6 +181,24 @@ impl core::convert::TryFrom<&[u8]> for Share {
       y.push(f);
     }
     Ok(Share { x, y })
+  }
+}
+
+/// Generate a Share from arbitrary input data.
+///
+/// The derived `Arbitary` trait impl just splats data directly
+/// into the `Fp` struct without checking that it's a valid field
+/// element, which violates the invariants of the type and leads
+/// to false panic reports from the fuzzer.
+///
+/// Implement the trait directly to ensure invalid values are
+/// not passed on to further code.
+#[cfg(feature = "fuzzing")]
+impl<'a> Arbitrary<'a> for Share {
+  fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+    let count = u.arbitrary_len::<Fp>()?;
+    Share::try_from(u.bytes(count * FIELD_ELEMENT_LEN)?)
+      .map_err(|_| arbitrary::Error::IncorrectFormat)
   }
 }
 
