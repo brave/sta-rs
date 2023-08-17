@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2023-08-17
+
+ - Fix no_std build
+ - Fix preallocation calculation
+ - Test and benchmark code cleanup
+ - Fix false positive issue with the `recover` fuzzing harness
+ - Minor documentation, code, and ci improvements
+
 ## [0.6.0] - 2023-07-18
 
 - Fork adapted to the needs of the STAR protocol

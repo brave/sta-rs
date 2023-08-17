@@ -1,6 +1,6 @@
 [package]
 name = "star-sharks"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Aitor Ruano <codearm@pm.me>", "Alex Davidson <coela@alxdavids.xyz>", "Ralph Giles <rgiles@brave.com>"]
 description = "Shamir's Secret Sharing library for the STAR protocol"
 repository = "https://github.com/brave/sta-rs"
