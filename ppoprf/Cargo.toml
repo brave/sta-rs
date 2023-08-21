@@ -14,7 +14,7 @@ edition = "2021"
 rand = { version = "0.8.5", features = [ "getrandom" ] }
 bitvec = "1.0.1"
 curve25519-dalek =  { version = "4.0.0", features = [ "rand_core", "serde" ] }
-serde = "1.0.147"
+serde = "1.0.185"
 strobe-rs = "0.8.1"
 base64 = "0.13.0"
 bincode = "1.3.3"
