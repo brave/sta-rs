@@ -1,5 +1,13 @@
 {
   "extends": [
-    "config:base"
+    "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Stay compatible with older deps for brave-core",
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "enabled": false
+    }
   ]
 }
