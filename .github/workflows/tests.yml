@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
           components: clippy, rustfmt
@@ -33,28 +33,28 @@ jobs:
           override: true
 
       - name: Cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e207df5d269b42b69c8bc5101da26f7d31feddb4 # v2.6.2
 
       - name: Format
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: fmt
           args: -- --check
 
       - name: Build
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: build
           args: --release --all-targets
 
       - name: Clippy
-        uses: actions-rs/clippy-check@v1
+        uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --release --all-targets -- -D warnings -A clippy::too_many_arguments
 
       - name: Test
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: test
           args: --release
