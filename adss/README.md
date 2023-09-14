@@ -8,6 +8,9 @@ WARNING the libraries present in this workspace have not been audited,
 use at your own risk! This code is under active development and may
 change substantially in future versions.
 
+See the [changelog](CHANGELOG.md) for information about different
+versions.
+
 ## Quickstart
 
 Build & test:
@@ -16,12 +19,7 @@ cargo build
 cargo test
 ```
 
-Benchmarks:
-```
-cargo bench
-```
-
-Open local copy of documentation:
+Open a local copy of the documentation:
 ```
 cargo doc --open --no-deps
 ```

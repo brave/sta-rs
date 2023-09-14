@@ -2,8 +2,8 @@
 //! sharing with established security guarantees. We use this framework
 //! as it allows for specifying the random coins that are used for
 //! establishing the lagrange polynomial coefficients explicitly. A
-//! description of the framework is provided in the paper by [Bellare et
-//! al.](https://eprint.iacr.org/2020/800).
+//! description of the Adept Secret Sharing framework is provided in
+//! the paper by [Bellare et al.](https://eprint.iacr.org/2020/800).
 
 use star_sharks::Sharks;
 use std::convert::{TryFrom, TryInto};
@@ -15,10 +15,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 mod strobe_rng;
 use strobe_rng::StrobeRng;
 
-// The length of a `AccessStructure`, in bytes.
+/// The length of a serialized `AccessStructure`, in bytes.
 pub const ACCESS_STRUCTURE_LENGTH: usize = 4;
 
-// The length of a `Share::J`, in bytes.
+/// The length of a message authentication code used in `Share`, in bytes.
 pub const MAC_LENGTH: usize = 64;
 
 /// The `AccessStructure` struct defines the policy under which shares
@@ -29,10 +29,12 @@ pub struct AccessStructure {
   threshold: u32,
 }
 
+/// Append a `u32` in little-endian coding
 pub fn store_u32(u: u32, out: &mut Vec<u8>) {
   out.extend(u.to_le_bytes());
 }
 
+/// Attempt to parse a little-endian value from a byte serialization
 pub fn load_u32(bytes: &[u8]) -> Option<u32> {
   if bytes.len() != 4 {
     return None;
@@ -43,11 +45,24 @@ pub fn load_u32(bytes: &[u8]) -> Option<u32> {
   Some(u32::from_le_bytes(bits))
 }
 
+/// Append a chunk of data
+///
+/// Extends the output `Vec` with the passed slice, prepending
+/// a 4-byte, little-endian length header so it can be parsed
+/// out later.
 pub fn store_bytes(s: &[u8], out: &mut Vec<u8>) {
   store_u32(s.len() as u32, out);
   out.extend(s);
 }
 
+/// Parse the next data chunk out of a byte slice
+///
+/// This reads a 4-byte, little-endian length header and
+/// then returns a new slice with the data bounded by
+/// that header.
+///
+/// Returns `None` if there is insufficient data for
+/// the complete chunk.
 pub fn load_bytes(bytes: &[u8]) -> Option<&[u8]> {
   if bytes.len() < 4 {
     return None;
@@ -64,13 +79,17 @@ pub fn load_bytes(bytes: &[u8]) -> Option<&[u8]> {
 /// An `AccessStructure` defines how a message is to be split among multiple parties
 ///
 /// In particular this determines how many shares will be issued and what threshold of the shares
-/// are needed to reconstruct the original `Commune`
+/// are needed to reconstruct the original `Commune`.
 impl AccessStructure {
   /// Convert this `AccessStructure` to a byte array.
   pub fn to_bytes(&self) -> [u8; ACCESS_STRUCTURE_LENGTH] {
     self.threshold.to_le_bytes()
   }
 
+  /// Parse a serialized `AccessStructure` from a byte slice.
+  ///
+  /// Returns `None` if a valid structure was not found, for
+  /// example if the slice was too short.
   pub fn from_bytes(bytes: &[u8]) -> Option<AccessStructure> {
     let threshold = load_u32(bytes)?;
     Some(AccessStructure { threshold })
@@ -84,11 +103,13 @@ impl From<AccessStructure> for Sharks {
   }
 }
 
-/// A `Commune` is a unique instance of sharing across multiple parties
+/// A a unique instance of sharing across multiple parties
 ///
-/// It consists of an access structure defining the parameters of the sharing, a secret message
-/// which will be shared, "random coins" which provide strong but possibly non-uniform entropy
-/// and an optional STROBE transcript which can include extra data which will be authenticated.
+/// A `Commune` consists of an access structure defining the
+/// parameters of the sharing, a secret message which will be shared,
+/// "random coins" which provide strong but possibly non-uniform
+/// entropy and an optional STROBE transcript which can include
+/// extra data which will be authenticated.
 #[cfg_attr(not(feature = "cbindgen"), repr(C))]
 #[allow(non_snake_case)]
 #[derive(Clone, ZeroizeOnDrop)]
