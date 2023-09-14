@@ -6,7 +6,7 @@
 //! al.](https://eprint.iacr.org/2020/800).
 
 use star_sharks::Sharks;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::error::Error;
 use std::fmt;
 use strobe_rs::{SecParam, Strobe};
@@ -169,8 +169,7 @@ impl Share {
     slice = &slice[4 + d.len()..];
 
     // J: [u8; 64]
-    let mut j: [u8; MAC_LENGTH] = [0u8; MAC_LENGTH];
-    j.copy_from_slice(slice);
+    let j: [u8; MAC_LENGTH] = slice.try_into().ok()?;
 
     Some(Share {
       A: a,
@@ -360,6 +359,9 @@ mod tests {
       let share = share.unwrap();
       let s = share.to_bytes();
       assert_eq!(Share::from_bytes(s.as_slice()), Some(share));
+
+      // Test shares that are erroneously truncated
+      assert_eq!(Share::from_bytes(&s[..s.len() - 7]), None);
     }
   }
 
