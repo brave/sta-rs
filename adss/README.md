@@ -19,12 +19,7 @@ cargo build
 cargo test
 ```
 
-Benchmarks:
-```
-cargo bench
-```
-
-Open local copy of documentation:
+Open a local copy of the documentation:
 ```
 cargo doc --open --no-deps
 ```
