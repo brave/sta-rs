@@ -6,3 +6,4 @@ members = [
   "./star-wasm",
   "./ppoprf",
 ]
+resolver = "2"
