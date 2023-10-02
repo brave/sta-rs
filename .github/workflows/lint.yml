@@ -1,0 +1,29 @@
+name: Style
+
+on:
+  push:
+    branches:
+      - main
+  pull-request:
+    branches:
+      - main
+  schedule:
+    - cron: '19 20 3 * *'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+
+      - name: Cache
+        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43 # v2.7.0
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --release --all-targets -- -D warnings -A clippy::too_many_arguments

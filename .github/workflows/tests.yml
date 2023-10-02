@@ -25,30 +25,16 @@ jobs:
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
 
       - name: Toolchain
-        run: |
-          rustup default ${{matrix.rust}}
-          rustup component add clippy rustfmt
+        run: rustup default ${{matrix.rust}}
 
       - name: Cache
         uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43 # v2.7.0
-
-      - name: Format
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-        with:
-          command: fmt
-          args: -- --check
 
       - name: Build
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: build
           args: --release --all-targets
-
-      - name: Clippy
-        uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --release --all-targets -- -D warnings -A clippy::too_many_arguments
 
       - name: Test
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
