@@ -50,7 +50,7 @@ You can run them with `cargo test` and `cargo bench`.
 
 # Contributing
 
-If you find a bug or would like a new feature, [open a new issue](https://github.com/brave/sta-rs/issues/new). Please see the [security page](https://github.com/brave/sta-rs/sharks/SECURITY.md) for information on reporting vulnerabilities.
+If you find a bug or would like a new feature, [open a new issue](https://github.com/brave/sta-rs/issues/new). Please see the [security page](https://github.com/brave/sta-rs/blob/main/SECURITY.md) for information on reporting vulnerabilities.
 
 # License
 
