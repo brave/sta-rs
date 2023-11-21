@@ -95,17 +95,17 @@ fn benchmark_server(c: &mut Criterion) {
   });
 
   c.bench_function("Server eval", |b| {
+    let server = Server::new(mds.clone()).unwrap();
+    let point = Point::from(RistrettoPoint::random(&mut OsRng));
     b.iter(|| {
-      let server = Server::new(mds.clone()).unwrap();
-      let point = Point::from(RistrettoPoint::random(&mut OsRng));
       server.eval(&point, 0, false).unwrap();
     })
   });
 
   c.bench_function("Server verifiable eval", |b| {
+    let server = Server::new(mds.clone()).unwrap();
+    let point = Point::from(RistrettoPoint::random(&mut OsRng));
     b.iter(|| {
-      let server = Server::new(mds.clone()).unwrap();
-      let point = Point::from(RistrettoPoint::random(&mut OsRng));
       server.eval(&point, 0, true).unwrap();
     })
   });
