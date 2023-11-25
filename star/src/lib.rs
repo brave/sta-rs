@@ -37,7 +37,7 @@
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
-//! let mg = MessageGenerator::new(measurement, threshold, epoch);
+//! let mg = MessageGenerator::new(measurement, threshold, epoch.as_bytes());
 //! let mut rnd = [0u8; 32];
 //! // NOTE: this is for STARLite. Randomness must be sampled from a
 //! // randomness server in order to implement the full STAR protocol.
@@ -67,7 +67,7 @@
 //! # let threshold = 2;
 //! # let epoch = "t";
 //! let measurement = SingleMeasurement::new("hello world".as_bytes());
-//! let mg = MessageGenerator::new(measurement, threshold, epoch);
+//! let mg = MessageGenerator::new(measurement, threshold, epoch.as_bytes());
 //! let mut rnd = [0u8; 32];
 //! // NOTE: this is for STARLite. Randomness must be sampled from a
 //! // randomness server in order to implement the full STAR protocol.
@@ -92,7 +92,7 @@
 //! # let epoch = "t";
 //! # let measurement = SingleMeasurement::new("hello world".as_bytes());
 //!
-//! # let mg = MessageGenerator::new(measurement, threshold, epoch);
+//! # let mg = MessageGenerator::new(measurement, threshold, epoch.as_bytes());
 //! # for i in 0..3 {
 //! #     let mut rnd = [0u8; 32];
 //! #     mg.sample_local_randomness(&mut rnd);
@@ -364,14 +364,14 @@ pub struct WASMSharingMaterial {
 pub struct MessageGenerator {
   pub x: SingleMeasurement,
   threshold: u32,
-  epoch: String,
+  epoch: Vec<u8>,
 }
 impl MessageGenerator {
-  pub fn new(x: SingleMeasurement, threshold: u32, epoch: &str) -> Self {
+  pub fn new(x: SingleMeasurement, threshold: u32, epoch: &[u8]) -> Self {
     Self {
       x,
       threshold,
-      epoch: epoch.to_string(),
+      epoch: epoch.into(),
     }
   }
 
@@ -426,7 +426,7 @@ impl MessageGenerator {
 
   fn derive_key(&self, r1: &[u8]) -> [u8; 16] {
     let mut enc_key = [0u8; 16];
-    derive_ske_key(r1, self.epoch.as_bytes(), &mut enc_key);
+    derive_ske_key(r1, &self.epoch, &mut enc_key);
     enc_key
   }
 
@@ -445,7 +445,7 @@ impl MessageGenerator {
     }
     strobe_digest(
       self.x.as_slice(),
-      &[self.epoch.as_bytes(), &self.threshold.to_le_bytes()],
+      &[&self.epoch, &self.threshold.to_le_bytes()],
       "star_sample_local",
       out,
     );
@@ -458,7 +458,7 @@ impl MessageGenerator {
     out: &mut [u8],
   ) {
     let mds = oprf_server.get_valid_metadata_tags();
-    let index = mds.iter().position(|r| r == self.epoch.as_bytes()).unwrap();
+    let index = mds.iter().position(|r| r == &self.epoch).unwrap();
     end_to_end_evaluation(oprf_server, self.x.as_slice(), index, true, out);
   }
 }

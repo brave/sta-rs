@@ -10,7 +10,11 @@ pub struct PPOPRFServer;
 
 #[test]
 fn serialize_ciphertext() {
-  let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 0, "epoch");
+  let mg = MessageGenerator::new(
+    SingleMeasurement::new(b"foobar"),
+    0,
+    "epoch".as_bytes(),
+  );
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
   let triple = Message::generate(&mg, &rnd, None)
@@ -21,7 +25,11 @@ fn serialize_ciphertext() {
 
 #[test]
 fn serialize_triple() {
-  let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 0, "epoch");
+  let mg = MessageGenerator::new(
+    SingleMeasurement::new(b"foobar"),
+    0,
+    "epoch".as_bytes(),
+  );
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
   let triple = Message::generate(&mg, &rnd, None)
@@ -32,7 +40,11 @@ fn serialize_triple() {
 
 #[test]
 fn roundtrip() {
-  let mg = MessageGenerator::new(SingleMeasurement::new(b"foobar"), 1, "epoch");
+  let mg = MessageGenerator::new(
+    SingleMeasurement::new(b"foobar"),
+    1,
+    "epoch".as_bytes(),
+  );
   let mut rnd = [0u8; 32];
   mg.sample_local_randomness(&mut rnd);
   let triple = Message::generate(&mg, &rnd, None)
@@ -116,19 +128,19 @@ fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str1.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else if i % 4 == 0 {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str2.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(&[i as u8]),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     }
   }
@@ -177,19 +189,19 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str1.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else if i % 4 == 0 {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str2.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(&[i as u8]),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     }
   }
@@ -239,19 +251,19 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str1.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else if i % 4 == 0 {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str2.as_bytes()),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     } else {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(&[i as u8]),
         threshold,
-        epoch,
+        epoch.as_bytes(),
       ));
     }
   }
@@ -313,7 +325,7 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   let threshold = 5;
   let epoch = "t";
   for _ in 0..254 {
-    clients.push(client_zipf(1000, 1.03, threshold, epoch));
+    clients.push(client_zipf(1000, 1.03, threshold, epoch.as_bytes()));
   }
   let agg_server = AggregationServer::new(threshold, epoch);
 
