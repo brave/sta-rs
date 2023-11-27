@@ -42,7 +42,7 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
   let mg = MessageGenerator::new(
     SingleMeasurement::new(measurement),
     threshold,
-    epoch,
+    epoch.as_bytes(),
   );
   let share_result = mg.share_with_local_randomness();
   if share_result.is_err() {

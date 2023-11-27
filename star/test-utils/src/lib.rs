@@ -28,7 +28,7 @@ pub fn client_zipf(
   n: usize,
   s: f64,
   threshold: u32,
-  epoch: &str,
+  epoch: &[u8],
 ) -> MessageGenerator {
   let x = measurement_zipf(n, s);
   MessageGenerator::new(x, threshold, epoch)
