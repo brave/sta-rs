@@ -172,7 +172,7 @@ fn star_no_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       panic!("Unexpected tag: {}", tag_str);
     }
 
-    for b in o.aux.into_iter().flatten() {
+    if let Some(b) = o.aux.into_iter().flatten().next() {
       panic!("Unexpected auxiliary data: {:?}", b);
     }
   }
@@ -234,7 +234,7 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
       panic!("Unexpected tag: {}", tag_str);
     }
 
-    for b in o.aux.into_iter().flatten() {
+    if let Some(b) = o.aux.into_iter().flatten().next() {
       panic!("Unexpected auxiliary data: {:?}", b);
     }
   }
