@@ -243,6 +243,7 @@ fn star_no_aux_single_block(oprf_server: Option<PPOPRFServer>) {
 }
 
 fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
+  // Generate an assortment of client messages.
   let mut clients = Vec::new();
   let threshold = 2;
   let epoch = "t";
@@ -272,10 +273,11 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   }
   let agg_server = AggregationServer::new(threshold, epoch);
 
-  let mut counter = 0;
+  // Append some associated data and generate submissions.
   let messages: Vec<Message> = clients
     .into_iter()
-    .map(|mg| {
+    .zip(0..)
+    .map(|(mg, counter)| {
       let mut rnd = [0u8; 32];
       if oprf_server.is_none() {
         mg.sample_local_randomness(&mut rnd);
@@ -283,7 +285,6 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         #[cfg(feature = "star2")]
         mg.sample_oprf_randomness(oprf_server, &mut rnd)
       }
-      counter += 1;
       Message::generate(&mg, &rnd, Some(AssociatedData::new(&[counter; 1])))
         .unwrap()
     })
@@ -332,10 +333,10 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   }
   let agg_server = AggregationServer::new(threshold, epoch);
 
-  let mut counter = 0;
   let messages: Vec<Message> = clients
     .into_iter()
-    .map(|mg| {
+    .zip(0..)
+    .map(|(mg, counter)| {
       let mut rnd = [0u8; 32];
       if oprf_server.is_none() {
         mg.sample_local_randomness(&mut rnd);
@@ -343,7 +344,6 @@ fn star_rand_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         #[cfg(feature = "star2")]
         mg.sample_oprf_randomness(oprf_server, &mut rnd);
       }
-      counter += 1;
       Message::generate(&mg, &rnd, Some(AssociatedData::new(&[counter; 4])))
         .unwrap()
     })
