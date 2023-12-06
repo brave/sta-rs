@@ -246,7 +246,8 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   let epoch = "t";
   let str1 = "hello world";
   let str2 = "goodbye sweet prince";
-  for i in 0..10 {
+  let message_count = 10;
+  for i in 0..message_count {
     if i % 3 == 0 {
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str1.as_bytes()),
@@ -303,7 +304,7 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         None => panic!("Expected auxiliary data!"),
         Some(b) => {
           let v = b.as_vec();
-          for i in 0..10 {
+          for i in 0..message_count {
             let aux_str = std::str::from_utf8(&v)
               .unwrap()
               .trim_end_matches(char::from(0));
