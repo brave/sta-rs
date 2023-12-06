@@ -1,3 +1,5 @@
+//! End-to-end tests verifying the protocol implementation
+
 use sta_rs::*;
 use star_test_utils::{client_zipf, AggregationServer};
 
