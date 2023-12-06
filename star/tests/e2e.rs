@@ -252,18 +252,21 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   let message_count = 10;
   for i in 0..message_count {
     if i % 3 == 0 {
+      // Periodically generate the same message.
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str1.as_bytes()),
         threshold,
         epoch.as_bytes(),
       ));
     } else if i % 4 == 0 {
+      // Another periodically-generated message.
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(str2.as_bytes()),
         threshold,
         epoch.as_bytes(),
       ));
     } else {
+      // Unique measurements which will not meet threshold.
       clients.push(MessageGenerator::new(
         SingleMeasurement::new(&[i as u8]),
         threshold,
@@ -293,6 +296,7 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
   let agg_server = AggregationServer::new(threshold, epoch);
   let outputs = agg_server.retrieve_outputs(&messages);
   for o in outputs {
+    // Confirm the expected messages met threshold and no others.
     let tag_str = std::str::from_utf8(o.x.as_slice())
       .unwrap()
       .trim_end_matches(char::from(0));
@@ -304,23 +308,21 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       panic!("Unexpected tag: {}", tag_str);
     }
 
-    for a in o.aux {
-      match a {
-        None => panic!("Expected auxiliary data!"),
-        Some(b) => {
-          let v = b.as_vec();
-          for i in 0..message_count {
-            let aux_str = std::str::from_utf8(&v)
-              .unwrap()
-              .trim_end_matches(char::from(0));
-            if aux_str.len() > 1 {
-              panic!("Auxiliary data has wrong length: {}", v.len());
-            } else if v[0] == i as u8 {
-              return;
-            }
-          }
-          panic!("Auxiliary data has unexpected value: {}", v[0]);
-        }
+    // Confirm the expected AssociatedData values are recovered.
+    assert!(o.aux.iter().all(|v| v.is_some()),
+      "Expected auxiliary data from all submissions!");
+    for b in o.aux.iter().flatten() {
+      let v = b.as_slice();
+      assert_eq!(v.len(), 1,
+        "Expected auxiliary data to be a single byte!");
+      assert!(v[0] < message_count,
+        "Auxiliary data should be the in range of the message count!");
+      if tag_str == str1 {
+        assert!(v[0] % 3 == 0);
+      } else if tag_str == str2 {
+        assert!(v[0] % 4 == 0);
+      } else {
+        panic!("Auxiliary data has unexpected value: {}", v[0]);
       }
     }
   }
