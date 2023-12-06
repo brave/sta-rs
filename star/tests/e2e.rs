@@ -309,14 +309,17 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
     }
 
     // Confirm the expected AssociatedData values are recovered.
-    assert!(o.aux.iter().all(|v| v.is_some()),
-      "Expected auxiliary data from all submissions!");
+    assert!(
+      o.aux.iter().all(|v| v.is_some()),
+      "Expected auxiliary data from all submissions!"
+    );
     for b in o.aux.iter().flatten() {
       let v = b.as_slice();
-      assert_eq!(v.len(), 1,
-        "Expected auxiliary data to be a single byte!");
-      assert!(v[0] < message_count,
-        "Auxiliary data should be the in range of the message count!");
+      assert_eq!(v.len(), 1, "Expected auxiliary data to be a single byte!");
+      assert!(
+        v[0] < message_count,
+        "Auxiliary data should be the in range of the message count!"
+      );
       if tag_str == str1 {
         assert!(v[0] % 3 == 0);
       } else if tag_str == str2 {
