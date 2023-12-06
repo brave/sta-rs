@@ -1,5 +1,5 @@
 use sta_rs::*;
-use star_test_utils::*;
+use star_test_utils::{client_zipf, AggregationServer};
 
 #[cfg(feature = "star2")]
 use ppoprf::ppoprf::{end_to_end_evaluation, Server as PPOPRFServer};
