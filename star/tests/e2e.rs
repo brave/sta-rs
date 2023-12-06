@@ -268,7 +268,7 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
     } else {
       // Unique measurements which will not meet threshold.
       clients.push(MessageGenerator::new(
-        SingleMeasurement::new(&[i as u8]),
+        SingleMeasurement::new(&[i]),
         threshold,
         epoch.as_bytes(),
       ));
