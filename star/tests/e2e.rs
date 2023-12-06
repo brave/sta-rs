@@ -271,7 +271,6 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
       ));
     }
   }
-  let agg_server = AggregationServer::new(threshold, epoch);
 
   // Append some associated data and generate submissions.
   let messages: Vec<Message> = clients
@@ -289,7 +288,10 @@ fn star_with_aux_multiple_block(oprf_server: Option<PPOPRFServer>) {
         .unwrap()
     })
     .collect();
-  let outputs = agg_server.retrieve_outputs(&messages[..]);
+
+  // Aggregate and recover messages meeting threshold.
+  let agg_server = AggregationServer::new(threshold, epoch);
+  let outputs = agg_server.retrieve_outputs(&messages);
   for o in outputs {
     let tag_str = std::str::from_utf8(o.x.as_slice())
       .unwrap()
