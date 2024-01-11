@@ -28,7 +28,7 @@ jobs:
         run: rustup default ${{matrix.rust}}
 
       - name: Cache
-        uses: Swatinem/rust-cache@3cf7f8cc28d1b4e7d01e3783be10a97d55d483c8 # v2.7.1
+        uses: Swatinem/rust-cache@a22603398250b864f7190077025cf752307154dc # v2.7.2
 
       - name: Build
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
