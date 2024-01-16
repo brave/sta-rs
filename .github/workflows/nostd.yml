@@ -27,9 +27,6 @@ jobs:
       - name: Toolchain
         run: rustup default ${{matrix.rust}}
 
-      - name: Cache
-        uses: Swatinem/rust-cache@a22603398250b864f7190077025cf752307154dc # v2.7.2
-
       - name: Check
         run: cargo check --no-default-features --all-targets
 
