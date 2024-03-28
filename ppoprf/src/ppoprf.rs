@@ -441,8 +441,6 @@ fn strobe_hash(input: &[u8], label: &str, out: &mut [u8]) {
 mod tests {
   use super::*;
 
-  use insta::assert_snapshot;
-
   fn end_to_end_eval_check_no_proof(
     server: &Server,
     c_input: &[u8],
@@ -573,7 +571,8 @@ mod tests {
       .serialize_to_bincode()
       .expect("Should serialize to bincode");
 
-    assert_snapshot!(base64::encode(&pk_bincode));
+    let expected = "qvgkBOX3v6c1LOCT5Kq+gkNThdZKqHAJClbRqjYWmAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH21zz6BGKHRL9pORR/hTW+FKDvE+OrKUQTF3tUHwjaCQJ4y7Cc0Y+Qgk+M41esYWMnb7xw31kKOFOtBW9K8W9mKwMMGFZGUxdw8a0YR+AcaR4oHwziNgXQOiYl9+HURiPWKgSC7x8pf72mezXiE73bnAQ+Ydwj1TiaXpObtvV73UFFQQXqHR1+dcom/BojKL4hyvKQwXEyjBip91w+Akrlxwv8NAaOL9VPRsgI/LJ+qWvbblaC1onIB9giUBNgnKk4P5juHAfkpVyW6kyQjufMFaegMpo9P47w84s4Bo4AtMizA3rcPw==";
+    assert_eq!(base64::encode(&pk_bincode), expected);
 
     ServerPublicKey::load_from_bincode(&pk_bincode)
       .expect("Should load bincode");
@@ -600,7 +599,8 @@ mod tests {
       .serialize_to_bincode()
       .expect("Should serialize to bincode");
 
-    assert_snapshot!(base64::encode(&proof_bincode));
+    let expected = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcPDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw==";
+    assert_eq!(base64::encode(&proof_bincode), expected);
 
     ProofDLEQ::load_from_bincode(&proof_bincode).expect("Should load bincode");
   }
