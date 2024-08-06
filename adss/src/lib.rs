@@ -110,7 +110,6 @@ impl From<AccessStructure> for Sharks {
 /// "random coins" which provide strong but possibly non-uniform
 /// entropy and an optional STROBE transcript which can include
 /// extra data which will be authenticated.
-#[cfg_attr(not(feature = "cbindgen"), repr(C))]
 #[allow(non_snake_case)]
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct Commune {
