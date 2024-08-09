@@ -10,11 +10,12 @@ use crate::strobe_rng::StrobeRng;
 use bitvec::prelude::*;
 use rand::rngs::OsRng;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use strobe_rs::{SecParam, Strobe};
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 struct Prefix {
   bits: BitVec<usize, bitvec::order::Lsb0>,
 }
@@ -31,11 +32,15 @@ impl Prefix {
 
 impl fmt::Debug for Prefix {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Prefix").field("bits", &self.bits).finish()
+    f.debug_struct("Prefix")
+      .field("bits", &self.bits.as_raw_slice().to_vec())
+      .finish()
   }
 }
 
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(
+  Debug, Clone, Zeroize, ZeroizeOnDrop, Serialize, Deserialize, PartialEq, Eq,
+)]
 struct GGMPseudorandomGenerator {
   key: [u8; 32],
 }
@@ -59,8 +64,10 @@ impl GGMPseudorandomGenerator {
   }
 }
 
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
-struct GGMPuncturableKey {
+#[derive(
+  Debug, Clone, Zeroize, ZeroizeOnDrop, Serialize, Deserialize, Eq, PartialEq,
+)]
+pub(crate) struct GGMPuncturableKey {
   prgs: Vec<GGMPseudorandomGenerator>,
   #[zeroize(skip)]
   prefixes: Vec<(Prefix, Vec<u8>)>,
@@ -125,7 +132,7 @@ impl GGMPuncturableKey {
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct GGM {
   inp_len: usize,
-  key: GGMPuncturableKey,
+  pub(crate) key: GGMPuncturableKey,
 }
 
 impl GGM {

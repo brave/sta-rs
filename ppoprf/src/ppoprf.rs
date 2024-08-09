@@ -23,6 +23,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
+use crate::ggm::GGMPuncturableKey;
 use crate::strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
 
@@ -192,7 +193,7 @@ impl ProofDLEQ {
 
 // Server public key structure for PPOPRF, contains all elements of the
 // form g^{sk_0},g^{t_i} for metadata tags t_i.
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct ServerPublicKey {
   base_pk: Point,
   md_pks: BTreeMap<u8, Point>,
@@ -301,6 +302,36 @@ where
   Ok(Point(CompressedRistretto(fixed_data)))
 }
 
+/// Structure containing all relevant key information
+/// for syncing between Server instances.
+/// To be used for deserialization.
+#[derive(Deserialize)]
+pub struct ServerKeyState {
+  oprf_key: RistrettoScalar,
+  public_key: ServerPublicKey,
+  ggm_key: GGMPuncturableKey,
+}
+
+/// Structure containing all relevant key information
+/// for syncing between Server instances.
+/// To be used for serialization.
+#[derive(Serialize, Eq, PartialEq, Debug)]
+pub struct ServerKeyStateRef<'a> {
+  oprf_key: &'a RistrettoScalar,
+  public_key: &'a ServerPublicKey,
+  ggm_key: &'a GGMPuncturableKey,
+}
+
+impl ServerKeyState {
+  pub fn as_ref(&self) -> ServerKeyStateRef<'_> {
+    ServerKeyStateRef {
+      oprf_key: &self.oprf_key,
+      public_key: &self.public_key,
+      ggm_key: &self.ggm_key,
+    }
+  }
+}
+
 // The `Server` runs the server-side component of the PPOPRF protocol.
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct Server {
@@ -369,6 +400,20 @@ impl Server {
 
   pub fn get_public_key(&self) -> ServerPublicKey {
     self.public_key.clone()
+  }
+
+  pub fn get_private_key(&self) -> ServerKeyStateRef<'_> {
+    ServerKeyStateRef {
+      oprf_key: &self.oprf_key,
+      public_key: &self.public_key,
+      ggm_key: &self.pprf.key,
+    }
+  }
+
+  pub fn set_private_key(&mut self, private_key: ServerKeyState) {
+    self.oprf_key = private_key.oprf_key;
+    self.public_key = private_key.public_key;
+    self.pprf.key = private_key.ggm_key;
   }
 }
 
