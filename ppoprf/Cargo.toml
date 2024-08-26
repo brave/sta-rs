@@ -34,3 +34,6 @@ warp = "0.3.7"
 [[bench]]
 name = "bench"
 harness = false
+
+[features]
+key-sync = []

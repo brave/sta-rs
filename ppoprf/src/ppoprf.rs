@@ -23,6 +23,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
+#[cfg(feature = "key-sync")]
 use crate::ggm::GGMPuncturableKey;
 use crate::strobe_rng::StrobeRng;
 use strobe_rs::{SecParam, Strobe};
@@ -305,6 +306,7 @@ where
 /// Structure containing all relevant key information
 /// for syncing between Server instances.
 /// To be used for deserialization.
+#[cfg(feature = "key-sync")]
 #[derive(Deserialize)]
 pub struct ServerKeyState {
   oprf_key: RistrettoScalar,
@@ -315,6 +317,7 @@ pub struct ServerKeyState {
 /// Structure containing all relevant key information
 /// for syncing between Server instances.
 /// To be used for serialization.
+#[cfg(feature = "key-sync")]
 #[derive(Serialize, Eq, PartialEq, Debug)]
 pub struct ServerKeyStateRef<'a> {
   oprf_key: &'a RistrettoScalar,
@@ -322,6 +325,7 @@ pub struct ServerKeyStateRef<'a> {
   ggm_key: &'a GGMPuncturableKey,
 }
 
+#[cfg(feature = "key-sync")]
 impl ServerKeyState {
   pub fn as_ref(&self) -> ServerKeyStateRef<'_> {
     ServerKeyStateRef {
@@ -402,6 +406,7 @@ impl Server {
     self.public_key.clone()
   }
 
+  #[cfg(feature = "key-sync")]
   pub fn get_private_key(&self) -> ServerKeyStateRef<'_> {
     ServerKeyStateRef {
       oprf_key: &self.oprf_key,
@@ -410,6 +415,7 @@ impl Server {
     }
   }
 
+  #[cfg(feature = "key-sync")]
   pub fn set_private_key(&mut self, private_key: ServerKeyState) {
     self.oprf_key = private_key.oprf_key;
     self.public_key = private_key.public_key;
