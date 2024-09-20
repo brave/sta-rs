@@ -273,7 +273,7 @@ impl Commune {
     self.M.clone()
   }
 
-  fn verify(&self, J: &mut [u8]) -> Result<(), Box<dyn Error>> {
+  fn verify(&self, J: &[u8; MAC_LENGTH]) -> Result<(), Box<dyn Error>> {
     let mut transcript = self
       .clone()
       .T
@@ -323,7 +323,7 @@ where
     T: None,
   };
 
-  c.verify(&mut s.J.clone())?;
+  c.verify(&s.J.clone())?;
   Ok(c)
 }
 
