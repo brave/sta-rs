@@ -118,7 +118,7 @@ fn benchmark_end_to_end(c: &mut Criterion) {
     ].iter().for_each(|params| {
         let epoch = "t";
         let messages = get_messages(params, epoch);
-        group.bench_function(&format!("E2E server (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
+        group.bench_function(format!("E2E server (n={}, s={}, clients={}, threshold={}, local_randomness={}, aux_data={})", params.n, params.s, params.clients, params.threshold, params.local, params.aux_data), |b| {
             let agg_server = AggregationServer::new(params.threshold, epoch);
             b.iter(|| {
                 let _o = agg_server.retrieve_outputs(&messages);
