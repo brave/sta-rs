@@ -11,6 +11,7 @@
 //! This construction is primarily used in the STAR protocol for
 //! providing secure randomness to clients.
 
+use base64::{engine::Engine as _, prelude::BASE64_STANDARD};
 use curve25519_dalek::traits::Identity;
 use rand::{rngs::OsRng, Rng};
 
@@ -288,7 +289,7 @@ fn point_serialize<S>(p: &Point, s: S) -> Result<S::Ok, S::Error>
 where
   S: ser::Serializer,
 {
-  s.serialize_str(&base64::encode(p.0 .0))
+  s.serialize_str(&BASE64_STANDARD.encode(p.0 .0))
 }
 
 fn point_deserialize<'de, D>(d: D) -> Result<Point, D::Error>
@@ -296,7 +297,7 @@ where
   D: de::Deserializer<'de>,
 {
   let s: &str = de::Deserialize::deserialize(d)?;
-  let data = base64::decode(s).map_err(de::Error::custom)?;
+  let data = BASE64_STANDARD.decode(s).map_err(de::Error::custom)?;
   let fixed_data: [u8; 32] = data
     .try_into()
     .map_err(|_| de::Error::custom("Ristretto must be 32 bytes"))?;
@@ -623,7 +624,7 @@ mod tests {
       .expect("Should serialize to bincode");
 
     let expected = "qvgkBOX3v6c1LOCT5Kq+gkNThdZKqHAJClbRqjYWmAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH21zz6BGKHRL9pORR/hTW+FKDvE+OrKUQTF3tUHwjaCQJ4y7Cc0Y+Qgk+M41esYWMnb7xw31kKOFOtBW9K8W9mKwMMGFZGUxdw8a0YR+AcaR4oHwziNgXQOiYl9+HURiPWKgSC7x8pf72mezXiE73bnAQ+Ydwj1TiaXpObtvV73UFFQQXqHR1+dcom/BojKL4hyvKQwXEyjBip91w+Akrlxwv8NAaOL9VPRsgI/LJ+qWvbblaC1onIB9giUBNgnKk4P5juHAfkpVyW6kyQjufMFaegMpo9P47w84s4Bo4AtMizA3rcPw==";
-    assert_eq!(base64::encode(&pk_bincode), expected);
+    assert_eq!(BASE64_STANDARD.encode(&pk_bincode), expected);
 
     ServerPublicKey::load_from_bincode(&pk_bincode)
       .expect("Should load bincode");
@@ -651,7 +652,7 @@ mod tests {
       .expect("Should serialize to bincode");
 
     let expected = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcPDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw==";
-    assert_eq!(base64::encode(&proof_bincode), expected);
+    assert_eq!(BASE64_STANDARD.encode(&proof_bincode), expected);
 
     ProofDLEQ::load_from_bincode(&proof_bincode).expect("Should load bincode");
   }
