@@ -13,6 +13,7 @@
 //! cargo run --example client
 //! ```
 
+use base64::{engine::Engine as _, prelude::BASE64_STANDARD};
 use env_logger::Env;
 use log::info;
 use ppoprf::ppoprf;
@@ -86,7 +87,7 @@ fn fetch_randomness(url: &str) -> reqwest::Result<()> {
     // used, which we don't currently coordinate, so skip this step.
     //let mut out = vec![0u8; ppoprf::COMPRESSED_POINT_LEN];
     //ppoprf::Client::finalize(message.as_bytes(), &md, &unblinded, &mut out);
-    let point = base64::encode(unblinded.as_bytes());
+    let point = BASE64_STANDARD.encode(unblinded.as_bytes());
     let proof = result.proof.is_some();
     let meta = if proof { " proof" } else { "" };
     info!("  {}{}", &point, &meta);

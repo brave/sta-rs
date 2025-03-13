@@ -7,7 +7,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use base64::{decode, encode};
+use base64::{engine::Engine as _, prelude::BASE64_STANDARD};
 
 use sta_rs::{
   derive_ske_key, share_recover, MessageGenerator, Share, SingleMeasurement,
@@ -50,9 +50,9 @@ pub fn create_share(measurement: &[u8], threshold: u32, epoch: &str) -> String {
   }
   let WASMSharingMaterial { key, share, tag } = share_result.unwrap();
 
-  let key_b64 = encode(key);
-  let share_b64 = encode(share.to_bytes());
-  let tag_b64 = encode(tag);
+  let key_b64 = BASE64_STANDARD.encode(key);
+  let share_b64 = BASE64_STANDARD.encode(share.to_bytes());
+  let tag_b64 = BASE64_STANDARD.encode(tag);
 
   format!(
     r#"{{"key": "{key_b64}", "share": "{share_b64}", "tag": "{tag_b64}"}}"#
@@ -67,7 +67,9 @@ pub fn group_shares(serialized_shares: &str, epoch: &str) -> Option<String> {
   // 1. deserialize shares into Vec<Share>
   let shares: Vec<Share> = serialized_shares
     .split('\n')
-    .map(|chunk| Share::from_bytes(&decode(chunk).unwrap()).unwrap())
+    .map(|chunk| {
+      Share::from_bytes(&BASE64_STANDARD.decode(chunk).unwrap()).unwrap()
+    })
     .collect();
 
   // 2. call recover(shares)
@@ -81,5 +83,5 @@ pub fn group_shares(serialized_shares: &str, epoch: &str) -> Option<String> {
   let mut enc_key = vec![0u8; 16];
   derive_ske_key(&message, epoch.as_bytes(), &mut enc_key);
 
-  Some(encode(&enc_key))
+  Some(BASE64_STANDARD.encode(&enc_key))
 }
