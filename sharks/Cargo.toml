@@ -25,7 +25,7 @@ bitvec = { version = "1.0.1", default-features = false }
 byteorder = { version = "1", default-features = false }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.6"
 rand_chacha = "0.3"
 
 [[bench]]
