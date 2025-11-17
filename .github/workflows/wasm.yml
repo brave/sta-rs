@@ -6,6 +6,9 @@ on:
 
 name: Tests
 
+permissions:
+  contents: read
+
 jobs:
   wasm:
     runs-on: ubuntu-latest
