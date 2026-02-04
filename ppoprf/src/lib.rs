@@ -33,8 +33,6 @@ pub enum PPRFError {
   BadInputLength { actual: usize, expected: usize },
   #[display(fmt = "Unexpected end of bv")]
   UnexpectedEndOfBv,
-  #[display(fmt = "Bincode serialization error: {_0}")]
-  Bincode(bincode::Error),
   #[display(fmt = "Serialized data exceeds size limit")]
   SerializedDataTooBig,
   #[display(fmt = "Bad compressed ristretto point encoding")]

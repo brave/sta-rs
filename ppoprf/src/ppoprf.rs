@@ -36,8 +36,6 @@ use crate::{ggm::GGM, PPRF};
 
 pub const COMPRESSED_POINT_LEN: usize = 32;
 pub const DIGEST_LEN: usize = 64;
-pub const MAX_SERIALIZED_PK_SIZE: usize = 16384;
-pub const MAX_SERIALIZED_PROOF_SIZE: usize = 64;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofDLEQ {
@@ -180,17 +178,6 @@ impl ProofDLEQ {
     let x_u16: u16 = x.try_into().expect("integer too large");
     x_u16.to_be_bytes()
   }
-
-  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
-    bincode::serialize(self).map_err(PPRFError::Bincode)
-  }
-
-  pub fn load_from_bincode(data: &[u8]) -> Result<Self, PPRFError> {
-    if data.len() > MAX_SERIALIZED_PROOF_SIZE {
-      return Err(PPRFError::SerializedDataTooBig);
-    }
-    bincode::deserialize(data).map_err(PPRFError::Bincode)
-  }
 }
 
 // Server public key structure for PPOPRF, contains all elements of the
@@ -211,17 +198,6 @@ impl ServerPublicKey {
     let b = self.base_pk.decompress().unwrap();
     let md = md_pk.decompress().unwrap();
     Ok(Point::from(b + md))
-  }
-
-  pub fn serialize_to_bincode(&self) -> Result<Vec<u8>, PPRFError> {
-    bincode::serialize(self).map_err(PPRFError::Bincode)
-  }
-
-  pub fn load_from_bincode(data: &[u8]) -> Result<Self, PPRFError> {
-    if data.len() > MAX_SERIALIZED_PK_SIZE {
-      return Err(PPRFError::SerializedDataTooBig);
-    }
-    bincode::deserialize(data).map_err(PPRFError::Bincode)
   }
 }
 
@@ -619,25 +595,21 @@ mod tests {
       md_pks,
     };
 
-    let pk_bincode = pk
-      .serialize_to_bincode()
-      .expect("Should serialize to bincode");
+    let pk_postcard =
+      postcard::to_allocvec(&pk).expect("Should serialize to postcard");
+    let pk_base64 = BASE64_STANDARD.encode(&pk_postcard);
+    insta::assert_snapshot!(pk_base64);
 
-    let expected = "qvgkBOX3v6c1LOCT5Kq+gkNThdZKqHAJClbRqjYWmAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH21zz6BGKHRL9pORR/hTW+FKDvE+OrKUQTF3tUHwjaCQJ4y7Cc0Y+Qgk+M41esYWMnb7xw31kKOFOtBW9K8W9mKwMMGFZGUxdw8a0YR+AcaR4oHwziNgXQOiYl9+HURiPWKgSC7x8pf72mezXiE73bnAQ+Ydwj1TiaXpObtvV73UFFQQXqHR1+dcom/BojKL4hyvKQwXEyjBip91w+Akrlxwv8NAaOL9VPRsgI/LJ+qWvbblaC1onIB9giUBNgnKk4P5juHAfkpVyW6kyQjufMFaegMpo9P47w84s4Bo4AtMizA3rcPw==";
-    assert_eq!(BASE64_STANDARD.encode(&pk_bincode), expected);
-
-    ServerPublicKey::load_from_bincode(&pk_bincode)
-      .expect("Should load bincode");
+    let deserialized: ServerPublicKey = postcard::from_bytes(&pk_postcard)
+      .expect("Should deserialize from postcard");
+    assert_eq!(pk, deserialized);
   }
 
   #[test]
   fn pk_bad_data_load() {
-    assert!(ServerPublicKey::load_from_bincode(&[8u8; 40]).is_err());
-    assert!(
-      ProofDLEQ::load_from_bincode(&[98u8; MAX_SERIALIZED_PK_SIZE + 1])
-        .is_err()
-    );
-    assert!(ServerPublicKey::load_from_bincode(&[98u8; 10000]).is_err());
+    assert!(postcard::from_bytes::<ServerPublicKey>(&[8u8; 40]).is_err());
+    assert!(postcard::from_bytes::<ServerPublicKey>(&[]).is_err());
+    assert!(postcard::from_bytes::<ServerPublicKey>(&[0xFF]).is_err());
   }
 
   #[test]
@@ -647,24 +619,22 @@ mod tests {
       s: RistrettoScalar::from_bytes_mod_order([15u8; 32]),
     };
 
-    let proof_bincode = proof
-      .serialize_to_bincode()
-      .expect("Should serialize to bincode");
+    let proof_postcard =
+      postcard::to_allocvec(&proof).expect("Should serialize to postcard");
+    let proof_base64 = BASE64_STANDARD.encode(&proof_postcard);
+    insta::assert_snapshot!(proof_base64);
 
-    let expected = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcPDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw==";
-    assert_eq!(BASE64_STANDARD.encode(&proof_bincode), expected);
-
-    ProofDLEQ::load_from_bincode(&proof_bincode).expect("Should load bincode");
+    let deserialized: ProofDLEQ = postcard::from_bytes(&proof_postcard)
+      .expect("Should deserialize from postcard");
+    assert_eq!(proof.c, deserialized.c);
+    assert_eq!(proof.s, deserialized.s);
   }
 
   #[test]
   fn proof_bad_data_load() {
-    assert!(ProofDLEQ::load_from_bincode(&[8u8; 40]).is_err());
-    assert!(ProofDLEQ::load_from_bincode(
-      &[98u8; MAX_SERIALIZED_PROOF_SIZE + 1]
-    )
-    .is_err());
-    assert!(ProofDLEQ::load_from_bincode(&[98u8; 10000]).is_err());
+    assert!(postcard::from_bytes::<ProofDLEQ>(&[8u8; 40]).is_err());
+    assert!(postcard::from_bytes::<ProofDLEQ>(&[98u8; 65]).is_err());
+    assert!(postcard::from_bytes::<ProofDLEQ>(&[98u8; 10000]).is_err());
   }
 
   #[test]
